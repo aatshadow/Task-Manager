@@ -1,0 +1,129 @@
+/* 2day · ensamblaje — estilos de las piezas que unen datos y pantalla:
+   el toast (Aviso), la hoja de detalle (DetalleTarea), la captura rápida (NuevaTarea)
+   y la pantalla de arranque. Todo sale de los tokens; nada de hex sueltos. */
+
+/* ── Aviso (toast arriba) ────────────────────────────────────────────────── */
+.aviso-zona {
+  position: fixed;
+  top: calc(var(--safe-arriba) + 12px);
+  left: 0;
+  right: 0;
+  z-index: 80; /* por encima de las hojas (61): un error al guardar se ve encima de la hoja */
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding: 0 var(--margen);
+}
+.aviso {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: calc(var(--ancho-columna) - var(--margen) * 2);
+  padding: 12px 12px 12px 14px;
+  border-radius: var(--radio-campo);
+  background: var(--tarjeta-alta);
+  border: 1px solid var(--linea-fuerte);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: var(--t-secundario);
+  color: var(--texto);
+}
+.aviso-icono { display: flex; flex: none; color: var(--texto-2); }
+.aviso--error .aviso-icono { color: var(--peligro); }
+.aviso--ok .aviso-icono { color: var(--ok); }
+.aviso--error { border-color: color-mix(in srgb, var(--peligro) 45%, transparent); }
+.aviso-texto { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.aviso-cerrar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--texto-3);
+}
+.aviso-cerrar:hover { color: var(--texto); background: var(--linea); }
+
+/* ── Arranque (sin sesión aún resuelta / cargando) ───────────────────────── */
+.arranque {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--acento);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: var(--t-secundario);
+  animation: latir 1.4s ease-in-out infinite;
+}
+@keyframes latir { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+/* ── DetalleTarea ────────────────────────────────────────────────────────── */
+.detalle { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.detalle-cabecera { display: flex; align-items: flex-start; gap: 14px; }
+.detalle-cabecera .marca { margin-top: 2px; }
+.detalle-titulo {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 6px 0;
+  font-size: var(--t-titulo);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--texto);
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  transition: border-color var(--dur-corta) var(--suave);
+}
+.detalle-titulo:focus { outline: none; border-bottom-color: var(--acento); }
+.detalle-titulo--hecha { color: var(--texto-2); text-decoration: line-through; }
+.detalle-meta, .detalle-acciones-rapidas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.detalle-campos { display: flex; flex-direction: column; gap: 16px; }
+.detalle-solo-lectura { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+
+.detalle-comentarios { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; border-top: 1px solid var(--linea); }
+.detalle-comentarios .seccion-titulo { margin-bottom: 0; gap: 6px; }
+.detalle-lista-comentarios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.detalle-comentario { background: var(--tarjeta-alta); border-radius: var(--radio-campo); padding: 10px 12px; }
+.detalle-comentario-cabeza { display: flex; justify-content: space-between; gap: 10px; font-size: var(--t-secundario); color: var(--texto-2); margin-bottom: 4px; }
+.detalle-comentario-texto { font-size: var(--t-cuerpo); white-space: pre-wrap; overflow-wrap: anywhere; }
+.detalle-comentar { display: flex; gap: 8px; align-items: flex-end; }
+.detalle-comentar .campo { flex: 1; min-width: 0; }
+
+.detalle-pie { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--linea); }
+.detalle-peligrosas { display: flex; gap: 8px; flex-wrap: wrap; }
+.detalle-confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radio-campo);
+  background: color-mix(in srgb, var(--peligro) 12%, var(--tarjeta-alta));
+  border: 1px solid color-mix(in srgb, var(--peligro) 40%, transparent);
+  font-size: var(--t-secundario);
+}
+.detalle-confirmar .fila { justify-content: flex-end; }
+.boton--borrar { background: var(--peligro); color: var(--sobre-acento); }
+.boton--borrar:hover:not(:disabled) { background: color-mix(in srgb, var(--peligro) 85%, white); }
+
+/* ── NuevaTarea (captura rápida) ─────────────────────────────────────────── */
+.nueva { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
+.nueva-resumen { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nueva-mas {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radio-pildora);
+  font-size: var(--t-secundario);
+  color: var(--texto-2);
+}
+.nueva-mas:hover { color: var(--texto); background: var(--linea); }
+.nueva-mas-campos { display: flex; flex-direction: column; gap: 14px; }
+.nueva-pie { padding-top: 4px; }

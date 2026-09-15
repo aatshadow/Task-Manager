@@ -1,0 +1,58 @@
+/* 2day · Stats — solo lo que necesita esta pantalla. Los colores salen de tokens.css:
+   la serie que importa (hechas) lleva el acento y el contexto (creadas / planificadas)
+   lleva el gris del texto secundario. Nada de hex aquí. */
+.stats {
+  --st-hechas: var(--acento);
+  --st-creadas: var(--texto-2);
+}
+.stats-rango { margin-top: 4px; }
+
+.st-grafico { width: 100%; }
+.st-svg {
+  display: block;
+  overflow: visible;
+  touch-action: pan-y; /* el dedo puede seguir haciendo scroll vertical por encima del gráfico */
+  -webkit-tap-highlight-color: transparent;
+}
+.st-svg text { font-family: var(--fuente); user-select: none; }
+
+/* rejilla y ejes: de un pelo y un paso por encima de la superficie */
+.st-rejilla { stroke: var(--linea); stroke-width: 1; }
+.st-eje { font-size: var(--t-micro); fill: var(--texto-3); font-variant-numeric: tabular-nums; }
+.st-cruz { stroke: var(--linea-fuerte); stroke-width: 1; }
+
+/* marcas: líneas de 2px, puntos ≥ 8px con anillo de superficie */
+.st-linea { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.st-punto { stroke: var(--tarjeta); stroke-width: 2; }
+.st-hueco-activo { fill: var(--linea); }
+.st-sin-dato { stroke: var(--linea-fuerte); stroke-width: 2; stroke-linecap: round; }
+
+/* etiqueta directa: solo en el último punto, y con color de texto, nunca de serie */
+.st-etiqueta-final { font-size: 12px; font-weight: 600; fill: var(--texto); font-variant-numeric: tabular-nums; }
+.st-etiqueta-final--2 { fill: var(--texto-2); font-weight: 500; }
+
+/* tooltip dentro del SVG */
+.st-tooltip rect { fill: var(--tarjeta-alta); stroke: var(--linea-fuerte); stroke-width: 1; }
+.st-tooltip-titulo { font-size: var(--t-micro); fill: var(--texto-2); }
+.st-tooltip-valor { font-size: var(--t-secundario); font-weight: 600; fill: var(--texto); font-variant-numeric: tabular-nums; }
+.st-tooltip-nombre { font-size: var(--t-micro); fill: var(--texto-2); }
+
+/* leyenda: siempre que hay dos series */
+.st-leyenda { display: flex; gap: 16px; margin-top: 10px; font-size: var(--t-micro); color: var(--texto-2); }
+.st-leyenda-item { display: inline-flex; align-items: center; gap: 6px; }
+.st-clave { display: inline-block; background: var(--st-color); }
+.st-clave--linea { width: 14px; height: 2px; border-radius: 1px; }
+.st-clave--barra { width: 8px; height: 8px; border-radius: 2px; }
+
+/* barras horizontales: etiqueta · pista · valor en la punta */
+.st-barras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+/* el valor mide lo que ocupe (mínimo 32px): «1.284» no se pisa con la barra */
+.st-barra-fila { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 10px; }
+.st-barra-nombre { font-size: var(--t-secundario); color: var(--texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-barra-pista { display: block; height: 10px; }
+.st-barra { display: block; height: 100%; min-width: 2px; border-radius: 0 4px 4px 0; transition: width var(--dur) var(--suave); }
+.st-barra-valor { min-width: 32px; font-size: var(--t-secundario); font-weight: 600; color: var(--texto); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* frase de vacío (o de carga / fallo) dentro de una tarjeta */
+.st-vacio { font-size: var(--t-secundario); color: var(--texto-2); padding: 14px 0; text-align: center; }
+.st-fallo { display: flex; flex-direction: column; align-items: center; gap: 10px; }

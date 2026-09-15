@@ -1,0 +1,59 @@
+/* 2day · tokens — la transcripción literal del mockup (LOGICA.md §6).
+   Todo color, radio o tamaño que use la app sale de aquí; nada de hex sueltos en componentes. */
+:root {
+  color-scheme: dark;
+
+  /* superficies */
+  --fondo: #151515;
+  --tarjeta: #1f1f1f;
+  --tarjeta-alta: #262626;
+  --nav: #191919;
+
+  /* la destacada: degradado cálido con brillo naranja arriba-izquierda */
+  --degradado-calido: linear-gradient(135deg, #4a2a17 0%, #2a1b13 55%, #1f1f1f 100%);
+  --brillo-calido: radial-gradient(120% 80% at 0% 0%, rgba(255, 140, 66, 0.22) 0%, rgba(255, 140, 66, 0) 55%);
+
+  /* acento */
+  --acento: #f26b1b;
+  --acento-claro: #ff8c42;
+  --acento-apagado: rgba(242, 107, 27, 0.18);
+  --sobre-acento: #fff6ef;
+
+  /* texto y líneas */
+  --texto: #f5f3ef;
+  --texto-2: #a8a39c;
+  --texto-3: #6f6b66;
+  --linea: rgba(255, 255, 255, 0.06);
+  --linea-fuerte: rgba(255, 255, 255, 0.12);
+
+  /* semánticos (pocos, y solo para estados) */
+  --ok: #3ec27a;
+  --peligro: #d7263d;
+  --aviso: #e8b13a;
+
+  /* radios: el relieve lo da el degradado, no la sombra */
+  --radio-tarjeta: 24px;
+  --radio-pildora: 999px;
+  --radio-campo: 14px;
+  --sombra-minima: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+
+  /* tipografía */
+  --fuente: 'Inter Tight Variable', 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --t-numero: 36px;
+  --t-titulo: 22px;
+  --t-cuerpo: 15px;
+  --t-secundario: 13px;
+  --t-micro: 11px;
+
+  /* medidas del armazón */
+  --ancho-columna: 430px;
+  --margen: 20px;
+  --alto-nav: 64px;
+  --safe-abajo: env(safe-area-inset-bottom, 0px);
+  --safe-arriba: env(safe-area-inset-top, 0px);
+
+  /* movimiento: entradas 180–220ms */
+  --dur-corta: 180ms;
+  --dur: 220ms;
+  --suave: cubic-bezier(0.2, 0.8, 0.2, 1);
+}

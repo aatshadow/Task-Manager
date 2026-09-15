@@ -1,0 +1,272 @@
+/* 2day · Calendario — sólo lo de esta pantalla. Colores de tokens.css; los de proyecto
+   llegan por --cal-color desde el dato. Prefijo `cal-` para no pisar a nadie. */
+
+.calendario { display: flex; flex-direction: column; gap: 16px; }
+.cal-segmentos { margin-bottom: 4px; }
+
+/* ── Cabecera de período: ← Sep   Octubre   Nov → ───────────────────────── */
+.cal-cabecera {
+  display: grid;
+  /* los lados son cortos («14 – 20»); el centro cede antes de recortar el título */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+.cal-cabecera-lado {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 8px 0 4px;
+  border-radius: var(--radio-pildora);
+  color: var(--texto-2);
+  font-size: var(--t-secundario);
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 0;
+  justify-self: start;
+  transition: color var(--dur-corta), background var(--dur-corta);
+  -webkit-tap-highlight-color: transparent;
+}
+.cal-cabecera-lado:hover { color: var(--texto); background: var(--linea); }
+.cal-cabecera-lado--derecha { justify-self: end; padding: 0 4px 0 8px; }
+.cal-cabecera-centro {
+  position: relative; /* popLayout saca el título saliente del flujo y lo coloca respecto a esto */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.cal-cabecera-titulo {
+  font-size: var(--t-titulo);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+/* «27 sep – 3 oct 2027» no cabe a 22px entre los dos lados en 390px: baja al cuerpo */
+.cal-cabecera-titulo--largo { font-size: var(--t-cuerpo); }
+.cal-cabecera-hoy {
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--radio-pildora);
+  background: var(--acento-apagado);
+  color: var(--acento-claro);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ── Celda de día (mes y semana) ─────────────────────────────────────────── */
+.cal-celda {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0 8px;
+  min-height: 56px;
+  border-radius: var(--radio-campo);
+  color: var(--texto);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: pan-y; /* la pulsación larga no debe robar el scroll vertical */
+  transition: background var(--dur-corta);
+}
+.cal-celda:hover { background: var(--linea); }
+.cal-celda--apagada { color: var(--texto-3); }
+.cal-celda-etiqueta { font-size: var(--t-micro); color: var(--texto-2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+.cal-celda-numero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: var(--t-cuerpo);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  border: 1.5px solid transparent;
+  transition: background var(--dur-corta), border-color var(--dur-corta), color var(--dur-corta);
+}
+/* elegido: aro; hoy: círculo naranja relleno (§6). Hoy manda si coinciden. */
+.cal-celda--elegida .cal-celda-numero { border-color: var(--linea-fuerte); background: var(--tarjeta-alta); }
+.cal-celda--hoy .cal-celda-numero { background: var(--acento); color: var(--sobre-acento); border-color: var(--acento); font-weight: 600; }
+.cal-celda--hoy.cal-celda--elegida .cal-celda-numero { box-shadow: 0 0 0 2px var(--fondo), 0 0 0 3.5px var(--acento-apagado); }
+.cal-celda-punto { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+.cal-celda-punto--viva { background: var(--acento); }
+.cal-celda-punto--hecha { background: var(--texto-3); }
+.cal-celda--hoy .cal-celda-punto--viva { background: var(--acento-claro); }
+/* barras finas de período: cruzan la celda de lado a lado y se redondean donde empiezan/acaban */
+.cal-celda-barras {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+.cal-celda-barra { height: 3px; opacity: 0.85; }
+.cal-celda-barra--empieza { margin-left: 4px; border-radius: 2px 0 0 2px; }
+.cal-celda-barra--acaba { margin-right: 4px; border-radius: 0 2px 2px 0; }
+.cal-celda-barra--empieza.cal-celda-barra--acaba { border-radius: 2px; }
+/* destino posible mientras hay una fila levantada */
+.cal-celda--destino { background: var(--acento-apagado); }
+.cal-celda--destino .cal-celda-numero { border-color: var(--acento); }
+
+/* ── Mes: la rejilla ─────────────────────────────────────────────────────── */
+.cal-rejilla { display: flex; flex-direction: column; gap: 2px; }
+.cal-rejilla-cabecera,
+.cal-rejilla-fila { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-rejilla-cabecera span {
+  text-align: center;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  color: var(--texto-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 6px;
+}
+.cal-rejilla-fila .cal-celda { min-height: 52px; padding-top: 2px; }
+
+/* ── Semana: la tira ─────────────────────────────────────────────────────── */
+.cal-tira { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+
+/* la pista de «mover a otro día» */
+.cal-pista {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radio-campo);
+  background: var(--acento-apagado);
+  color: var(--acento-claro);
+  font-size: var(--t-secundario);
+  font-weight: 500;
+}
+.cal-pista span { flex: 1; }
+.cal-pista-cancelar { color: var(--texto-2); font-size: var(--t-secundario); font-weight: 500; padding: 4px 6px; }
+.cal-pista-cancelar:hover { color: var(--texto); }
+
+/* ── Lista del día ───────────────────────────────────────────────────────── */
+.cal-lista { display: flex; flex-direction: column; gap: 8px; }
+.cal-lista-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 38px; }
+.cal-lista-titulo { font-size: var(--t-cuerpo); font-weight: 600; }
+.cal-lista-cuenta { font-size: var(--t-secundario); color: var(--texto-2); }
+/* en componentes.css `.boton--pequeno` (padding 0 16px) va después de `.boton--icono` (padding 0)
+   y aplasta el icono a 6px; aquí se devuelve el padding hasta que se arregle en la base */
+.cal-lista-cabecera .boton--icono { padding: 0; }
+.cal-lista-filas { display: flex; flex-direction: column; gap: 8px; }
+.cal-lista .vacio,
+.cal-todo-el-dia .vacio { padding: 28px 24px; }
+.cal-cargando { margin: 8px 0 16px; }
+
+.cal-fila {
+  --cal-color: var(--texto-3);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radio-tarjeta);
+  background: var(--tarjeta);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: pan-y;
+  transition: background var(--dur-corta), box-shadow var(--dur-corta), opacity var(--dur-corta);
+}
+.cal-fila:hover { background: var(--tarjeta-alta); }
+.cal-fila-textos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cal-fila-titulo { font-size: var(--t-cuerpo); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-fila-meta { display: flex; align-items: center; gap: 8px; font-size: var(--t-secundario); color: var(--texto-2); overflow: hidden; white-space: nowrap; }
+.cal-fila-meta > span { overflow: hidden; text-overflow: ellipsis; }
+.cal-fila-hora { display: inline-flex; align-items: center; gap: 4px; flex: none; font-variant-numeric: tabular-nums; }
+.cal-fila-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--cal-color); }
+.cal-fila--hecha { opacity: 0.55; }
+.cal-fila--hecha .cal-fila-titulo { text-decoration: line-through; color: var(--texto-2); }
+/* fina: la que sólo atraviesa el día */
+.cal-fila--fina { padding: 8px 14px 8px 12px; background: transparent; border: 1px solid var(--linea); }
+.cal-fila--fina .cal-fila-titulo { font-size: var(--t-secundario); font-weight: 500; }
+.cal-fila--fina .cal-fila-meta { font-size: var(--t-micro); }
+.cal-fila-barra { flex: none; width: 3px; height: 28px; border-radius: 2px; background: var(--cal-color); }
+/* levantada: en el aire, esperando un día */
+.cal-fila--levantada {
+  background: var(--tarjeta-alta);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1.5px var(--acento);
+  z-index: 5;
+  /* mientras está en el aire el gesto es nuestro, no del scroll (el resto del tiempo, pan-y) */
+  touch-action: none;
+}
+
+/* ── Día: todo el día + timeline ─────────────────────────────────────────── */
+.cal-todo-el-dia { display: flex; flex-direction: column; gap: 8px; }
+
+.cal-timeline {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  margin-top: 14px; /* la etiqueta «06:00» se centra en su línea y asoma por arriba */
+}
+.cal-horas { position: relative; }
+.cal-hora {
+  position: absolute;
+  right: 10px;
+  transform: translateY(-50%);
+  font-size: var(--t-secundario);
+  color: var(--texto-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cal-pista-horas {
+  position: relative;
+  border-left: 1px solid var(--linea-fuerte);
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: pan-y;
+}
+.cal-linea-hora { position: absolute; left: 0; right: 0; height: 1px; background: var(--linea); pointer-events: none; }
+
+.tarjeta.cal-evento {
+  position: absolute;
+  padding: 10px 14px;
+  border-radius: var(--radio-campo);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+}
+.tarjeta.cal-evento--corta { padding: 4px 12px; }
+.cal-evento-titulo { font-size: var(--t-secundario); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-evento-meta { font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-evento--hecha { opacity: 0.5; }
+.cal-evento--hecha .cal-evento-titulo { text-decoration: line-through; }
+
+/* «ahora»: línea fina naranja con punto a la izquierda */
+.cal-ahora {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--acento);
+  pointer-events: none;
+  z-index: 3;
+}
+.cal-ahora-punto {
+  position: absolute;
+  left: -5px;
+  top: -3.75px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--acento);
+  box-shadow: 0 0 0 3px var(--fondo);
+}

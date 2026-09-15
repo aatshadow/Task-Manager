@@ -1,0 +1,138 @@
+/* 2day · pantalla Hoy — sólo lo que no cubren los componentes: la tarjeta destacada,
+   las filas de la lista (reordenables), la hoja de planificar y los hábitos del día.
+   Todo sale de los tokens; los colores de proyecto/cuadrante/hábito vienen del dato. */
+
+.hoy { display: flex; flex-direction: column; gap: 4px; }
+
+/* ── Aviso del día cerrado ───────────────────────────────────────────────── */
+.hoy-aviso-dia { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.hoy-aviso-dia .hoy-aviso-icono { color: var(--texto-2); display: flex; flex: none; }
+.hoy-aviso-dia .hoy-aviso-texto { flex: 1; min-width: 0; font-size: var(--t-secundario); color: var(--texto-2); }
+
+/* ── La destacada (primera de Hoy) ───────────────────────────────────────── */
+.hoy-destacada { display: flex; flex-direction: column; gap: 18px; min-height: 150px; margin-bottom: 22px; }
+.hoy-destacada-cabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.hoy-destacada-titulo {
+  font-size: var(--t-titulo);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.hoy-destacada-etiqueta { font-size: var(--t-secundario); color: var(--texto-2); margin-bottom: 6px; }
+.hoy-destacada-hora {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radio-pildora);
+  background: var(--acento);
+  color: var(--sobre-acento);
+  font-size: var(--t-secundario);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hoy-destacada-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; }
+
+/* avatares con inicial, solapados */
+.hoy-avatares { display: flex; align-items: center; }
+.hoy-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--texto);
+  background: var(--tarjeta-alta);
+  border: 2px solid var(--tarjeta);
+  margin-left: -8px;
+}
+.hoy-avatar:first-child { margin-left: 0; }
+.hoy-avatar--mas { color: var(--texto-2); }
+
+/* ── Cabeza de sección «Hoy» ─────────────────────────────────────────────── */
+.hoy-cabeza-seccion { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.hoy-cabeza-seccion .boton--fantasma,
+.hoy-cabeza-icono { color: var(--acento); }
+.hoy-cabeza-icono { display: flex; width: 44px; height: 44px; align-items: center; justify-content: center; }
+
+/* ── Lista de Hoy ────────────────────────────────────────────────────────── */
+.hoy-lista-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.hoy-lista-cabeza .seccion-titulo { margin-bottom: 0; }
+.hoy-cargando { margin: 8px 0 16px; }
+.hoy-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.hoy-fila {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  background: var(--tarjeta);
+  border-radius: var(--radio-campo); /* fila apretada: el radio de campo, no el de tarjeta */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* al arrastrar el relieve lo da el fondo elevado (§6: sombra mínima) */
+.hoy-fila--arrastrando { background: var(--tarjeta-alta); box-shadow: var(--sombra-minima); z-index: 2; }
+.hoy-fila-cuerpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.hoy-fila-titulo { font-size: var(--t-cuerpo); line-height: 1.3; overflow-wrap: anywhere; }
+.hoy-fila-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hoy-fila-hora { flex: none; font-size: var(--t-secundario); color: var(--texto-2); font-variant-numeric: tabular-nums; }
+.hoy-fila-asa {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 40px;
+  margin-right: -6px;
+  color: var(--texto-3);
+  cursor: grab;
+  touch-action: none; /* el asa arrastra; el resto de la fila sigue haciendo scroll */
+}
+.hoy-fila-asa:active { cursor: grabbing; }
+.hoy-fila--hecha { opacity: 0.55; }
+.hoy-fila--hecha .hoy-fila-titulo { text-decoration: line-through; color: var(--texto-2); }
+.hoy-hechas { margin-top: 8px; }
+
+/* ── Hoja Planificar ─────────────────────────────────────────────────────── */
+.hoy-planificar { display: flex; flex-direction: column; gap: 8px; }
+.hoy-planificar-ayuda { font-size: var(--t-secundario); color: var(--texto-2); margin-bottom: 8px; }
+.hoy-planificar-fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  background: var(--tarjeta-alta);
+  border-radius: var(--radio-campo);
+  -webkit-tap-highlight-color: transparent;
+}
+.hoy-planificar-fila:active { transform: scale(0.985); }
+.hoy-planificar-mas { flex: none; display: flex; color: var(--acento); }
+.hoy-planificar-vence { flex: none; font-size: var(--t-secundario); color: var(--texto-3); }
+.hoy-planificar-vence--atrasada { color: var(--peligro); }
+
+/* ── Hábitos de hoy ──────────────────────────────────────────────────────── */
+.tarjeta.hoy-habitos { display: flex; flex-direction: column; padding: 4px 18px; }
+.hoy-habito { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--linea); }
+.hoy-habito:last-child { border-bottom: 0; }
+.hoy-habito-icono {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: color-mix(in srgb, var(--habito-color, var(--acento)) 16%, transparent);
+}
+.hoy-habito-nombre { flex: 1; min-width: 0; font-size: var(--t-cuerpo); }
+.hoy-habito--hecho .hoy-habito-nombre { color: var(--texto-2); }

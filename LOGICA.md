@@ -1,4 +1,4 @@
-# HOY — la lógica
+# 2day — la lógica
 
 > Gestor de tareas y hábitos de Alex. **Un solo usuario.** Vive sobre la base de GrowthInfo
 > (Supabase `elgcvevgxolquwewejqc`) pero **no se ve desde GrowthInfo**: son tablas propias
@@ -9,11 +9,11 @@
 
 | # | Decisión |
 |---|---|
-| 1 | Nombre **HOY**, carpeta `~/CORE/hoy`, prefijo de tablas `hoy_`, dev en **:5400**. (Elegido por CORE en ausencia de nombre; renombrable.) |
+| 1 | Nombre **2day** (Alex, 16-09: «la app se llama 2day»), carpeta `~/CORE/2day`, dev en **:5400**. Las tablas se quedan **`hoy_*`**: un identificador de Postgres no puede empezar por dígito sin comillas, y «hoy» es la traducción literal. |
 | 2 | Se entra con **`alex@growthinfo.io`** (rol `agency`, scope `growthinfo`; es la ficha de equipo con login). **No se enlaza** la ficha «Alex» de Accelerator Launch: «no soy yo». |
 | 3 | De GrowthInfo entran: **asignadas a mí + en `assignees` + creadas por mí + las que sigo a mano**. La RLS ya limita a GrowthInfo (sin cabecera `x-portal`, `pc_portal_declarado()` cae en `growthinfo`). |
 | 4 | **Sin cupo de huecos en Hoy.** Lo que no se hizo pasa a «Siguiente» al reiniciar el día, y el día apunta planificadas/hechas. |
-| 5 | **Eisenhower fijo** (4 cuadrantes) con **etiqueta y color editables**. Al crear una tarea de GrowthInfo desde HOY se traduce una vez a `tasks.priority` (q1→urgente, q2→alta, q3→media, q4→baja); después van separados. |
+| 5 | **Eisenhower fijo** (4 cuadrantes) con **etiqueta y color editables**. Al crear una tarea de GrowthInfo desde 2day se traduce una vez a `tasks.priority` (q1→urgente, q2→alta, q3→media, q4→baja); después van separados. |
 | 6 | **Calendario** con vistas **día / semana / mes**, solo tareas. |
 | 7 | Estadísticas: hechas por día/proyecto/categoría/cuadrante **y un gráfico lineal temporal de creadas vs hechas por día**. |
 | 8 | **Un solo sitio para tareas y hábitos: este.** El JUEGO de SYSTEMA (§25) deja de llevar tareas y hábitos (se retira de allí más adelante; no se migran datos). |
@@ -22,7 +22,7 @@
 
 ## 1 · El principio: misma fila, dos puertas
 
-Una tarea de GrowthInfo **no se copia**: HOY lee y escribe **la misma fila de `public.tasks`** que
+Una tarea de GrowthInfo **no se copia**: 2day lee y escribe **la misma fila de `public.tasks`** que
 ve el portal. Es el patrón que ya funciona en `✅│task-afiliados` (Discord es «una segunda puerta a
 las mismas filas»). No hay sincronizador, luego no hay eco ni deriva.
 
@@ -34,7 +34,7 @@ tarea personal o del portal. Nadie del portal la ve (RLS por `owner_id`).
 en la misma escritura — `stage_id` (la columna de SU cliente) y `status` (el vocabulario común) —
 con la misma lógica que `cambiosAlMover()` de `portal-core/src/portal/portalTareas.js`: si la
 etapa tiene clave del vocabulario (`todo·in_progress·review·blocked·done`) el estado la sigue;
-`completed` = etapa terminal. Completar desde HOY = mover a la etapa `done` de su tablero.
+`completed` = etapa terminal. Completar desde 2day = mover a la etapa `done` de su tablero.
 
 ## 2 · Modelo de datos (`sql/2026-09-16-hoy.sql`)
 
@@ -66,7 +66,7 @@ seguida, notas, prioridad_portal, fase`. La app escribe en `hoy_tareas` o en `ta
 - `hoy_reiniciar_dia(p_hoy date)` → para cada `hoy_para < p_hoy`: apunta `hoy_dias(planificadas, hechas)` y quita `hoy_para` a las **no hechas** (las hechas conservan la fecha: son historia).
 
 **Realtime:** `tasks` entra en la publicación `supabase_realtime` para que un cambio hecho en el
-portal aparezca en HOY sin recargar. Las `hoy_*` no lo necesitan (un solo usuario); se recarga al
+portal aparezca en 2day sin recargar. Las `hoy_*` no lo necesitan (un solo usuario); se recarga al
 volver el foco.
 
 ## 3 · «Siempre limpio» — las reglas
@@ -92,10 +92,10 @@ El «hoy» de la app es `hoyLocal(hora_reinicio)`: a las 02:00 sigue siendo ayer
 | Crear | `hoy_tareas` + `hoy_capa` | `tasks` con `client_id`, `pipeline_id` = tablero por defecto del cliente, `stage_id` = etapa `todo`, `priority` traducida del cuadrante, `created_by` = yo, `visibilidad` interna; + `hoy_capa` |
 | Editar título/desc/fechas | `hoy_tareas` | `tasks` (`title/description/start_date/due_date`) |
 | Categoría | cualquiera de `hoy_categorias` | solo las 7 del portal |
-| Proyecto | `proyecto_id` | `client_id` (no se cambia de cliente desde HOY) |
+| Proyecto | `proyecto_id` | `client_id` (no se cambia de cliente desde 2day) |
 | Cuadrante · Hoy · orden · horas · notas · seguir | `hoy_capa` | `hoy_capa` |
 | Mover de etapa / completar | `etapa_id` + `estado` + `hecha` (dos ejes) | `stage_id` + `status` + `completed` (dos ejes, `cambiosAlMover`) |
-| Responsable | `responsable_id` (informativo: no ven HOY) | `assignee_id` (real: lo ven en su portal) |
+| Responsable | `responsable_id` (informativo: no ven 2day) | `assignee_id` (real: lo ven en su portal) |
 | Archivar | `archivado_at` | `archived_at` |
 | Borrar | sí | no (es de dirección desde el portal; aquí se archiva) |
 

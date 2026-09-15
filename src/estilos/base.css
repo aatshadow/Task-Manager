@@ -1,0 +1,64 @@
+/* 2day · base — reset mínimo, la columna centrada y la tipografía. */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--fuente);
+  font-size: var(--t-cuerpo);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+h1, h2, h3, p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: var(--acento-claro); text-decoration: none; }
+svg { display: block; }
+::selection { background: var(--acento-apagado); }
+
+/* foco visible solo con teclado; en móvil no estorba */
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 6px; }
+:focus:not(:focus-visible) { outline: none; }
+
+/* ── la columna ────────────────────────────────────────────────────────────
+   Móvil primero: en escritorio la misma columna de 430px centrada y el fondo alrededor.
+   La nav y el FAB van fijos pero se ciñen al mismo ancho (ver componentes.css). */
+.app {
+  position: relative;
+  width: 100%;
+  max-width: var(--ancho-columna);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(var(--safe-arriba) + 8px) var(--margen) 0;
+}
+
+/* la pantalla deja hueco para la nav + el FAB + el área segura */
+.pantalla {
+  padding-bottom: calc(var(--alto-nav) + var(--safe-abajo) + 96px);
+}
+
+/* escala de texto */
+.t-titulo { font-size: var(--t-titulo); font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
+.t-secundario { font-size: var(--t-secundario); color: var(--texto-2); }
+.t-terciario { font-size: var(--t-secundario); color: var(--texto-3); }
+.t-numero { font-size: var(--t-numero); font-weight: 600; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* utilidades cortas para componer pantallas sin repetir CSS */
+.fila { display: flex; align-items: center; gap: 10px; }
+.columna { display: flex; flex-direction: column; gap: 10px; }
+.espacio { flex: 1; }
+.rejilla-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.seccion { margin-top: 28px; }
+.seccion-titulo { font-size: var(--t-secundario); color: var(--texto-2); margin-bottom: 12px; font-weight: 500; }
+.oculto-visual { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

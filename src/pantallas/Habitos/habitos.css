@@ -1,0 +1,182 @@
+/* 2day · pantalla Hábitos — filas de hoy, rejilla de 4 semanas por hábito, formulario y archivados.
+   Todo sale de los tokens; el único color «de fuera» es el del propio hábito (viene del dato). */
+
+/* ── Hoy: filas con marca grande ─────────────────────────────────────────── */
+.habitos-hoy { display: flex; flex-direction: column; gap: 10px; }
+.habito-fila {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--radio-tarjeta);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra-minima);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-corta) var(--suave);
+}
+.habito-fila:hover { background: var(--tarjeta-alta); }
+.habito-fila--hecha .habito-nombre { color: var(--texto-2); }
+.habito-icono {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  /* red: el formulario ya recorta a un grafema, pero un dato viejo no debe romper la fila */
+  overflow: hidden;
+  /* el fondo lleva el color del hábito, muy apagado, para que el emoji no flote */
+  background: color-mix(in srgb, var(--habito-color, var(--acento)) 16%, transparent);
+}
+.habito-textos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.habito-nombre { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.habito-racha {
+  flex: none;
+  font-size: var(--t-secundario);
+  font-weight: 500;
+  color: var(--texto-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.habito-racha--viva { color: var(--texto); }
+
+/* ── Todos: tarjeta por hábito con rejilla ───────────────────────────────── */
+.habitos-todos { display: flex; flex-direction: column; gap: 12px; }
+.habito-tarjeta { padding: 16px; }
+.habito-tarjeta-cabeza { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.habito-tarjeta-cabeza .habito-icono { width: 36px; height: 36px; font-size: 18px; }
+.habito-cadencia { font-size: var(--t-secundario); color: var(--texto-3); }
+.habito-editar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--texto-3);
+}
+.habito-editar:hover { color: var(--texto); background: var(--linea); }
+.habito-tarjeta-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: var(--t-secundario);
+  color: var(--texto-2);
+}
+.habito-cumplimiento { font-variant-numeric: tabular-nums; }
+.habito-cumplimiento strong { color: var(--texto); font-weight: 600; }
+.habito-cumplimiento--pleno strong { color: var(--habito-color, var(--acento)); }
+
+/* la rejilla: 7 columnas, cabecera con las letras del día y 4 filas de celdas */
+.rejilla { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.rejilla-dia { text-align: center; font-size: var(--t-micro); color: var(--texto-3); padding-bottom: 2px; }
+.rejilla-celda {
+  --celda-color: var(--habito-color, var(--acento));
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 8px;
+  /* «no tocaba»: la más apagada. Nunca es un fallo (LOGICA §3.6) */
+  background: var(--linea);
+  transition: background var(--dur-corta) var(--suave), transform var(--dur-corta) var(--suave);
+  -webkit-tap-highlight-color: transparent;
+}
+.rejilla-celda--toca { background: color-mix(in srgb, var(--celda-color) 18%, var(--tarjeta-alta)); }
+.rejilla-celda--hecha { background: var(--celda-color); }
+.rejilla-celda--futuro { opacity: 0.35; cursor: default; }
+.rejilla-celda--hoy::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 10px;
+  border: 1.5px solid var(--celda-color);
+  pointer-events: none;
+}
+button.rejilla-celda:not(.rejilla-celda--futuro):active { transform: scale(0.9); }
+
+/* ── Archivados: acordeón de solo lectura ────────────────────────────────── */
+.habitos-archivados-cabeza {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  font-size: var(--t-secundario);
+  color: var(--texto-2);
+  font-weight: 500;
+}
+.habitos-archivados-cabeza svg { transition: transform var(--dur) var(--suave); }
+.habitos-archivados-cabeza[aria-expanded='true'] svg { transform: rotate(180deg); }
+.habitos-archivados-lista { overflow: hidden; }
+.habito-archivado {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--linea);
+  color: var(--texto-2);
+}
+.habito-archivado .habito-icono { width: 32px; height: 32px; font-size: 16px; opacity: 0.7; }
+.habito-archivado .habito-nombre { color: var(--texto-2); font-weight: 400; }
+
+/* ── Formulario (hoja) ───────────────────────────────────────────────────── */
+.habito-form { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.habito-form-emojis { display: flex; flex-wrap: wrap; gap: 6px; }
+.habito-form-emoji {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 18px;
+  background: var(--tarjeta-alta);
+  border: 1px solid transparent;
+}
+.habito-form-emoji[aria-pressed='true'] { border-color: var(--acento); background: var(--acento-apagado); }
+.habito-form-colores { display: flex; flex-wrap: wrap; gap: 10px; }
+.habito-form-color {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color);
+  border: 3px solid transparent;
+  box-shadow: 0 0 0 1px var(--linea-fuerte);
+  transition: transform var(--dur-corta) var(--suave);
+}
+.habito-form-color[aria-checked='true'] { border-color: var(--fondo); box-shadow: 0 0 0 2px var(--color); transform: scale(1.08); }
+.habito-form-dias { display: flex; gap: 6px; }
+.habito-form-dia {
+  flex: 1;
+  height: 40px;
+  border-radius: var(--radio-pildora);
+  background: var(--tarjeta-alta);
+  color: var(--texto-2);
+  font-size: var(--t-secundario);
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.habito-form-dia[aria-pressed='true'] { background: var(--acento-apagado); color: var(--acento-claro); border-color: color-mix(in srgb, var(--acento) 45%, transparent); }
+.habito-form-stepper { display: flex; align-items: center; gap: 14px; }
+.habito-form-stepper-valor { font-size: var(--t-numero); font-weight: 600; letter-spacing: -0.02em; min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.habito-form-stepper-texto { font-size: var(--t-secundario); color: var(--texto-2); }
+.habito-form-pie { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--linea); }
+.habito-form-confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radio-campo);
+  background: color-mix(in srgb, var(--peligro) 12%, var(--tarjeta-alta));
+  border: 1px solid color-mix(in srgb, var(--peligro) 40%, transparent);
+  font-size: var(--t-secundario);
+}
+.habito-form-confirmar .fila { justify-content: flex-end; }

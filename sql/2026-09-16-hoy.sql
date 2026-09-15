@@ -1,11 +1,11 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
--- HOY — gestor de tareas y hábitos de Alex, sobre la base de GrowthInfo
--- 16-09-2026 · decide Alex · ver ~/CORE/hoy/LOGICA.md (§2)
+-- 2day — gestor de tareas y hábitos de Alex, sobre la base de GrowthInfo
+-- 16-09-2026 · decide Alex · ver ~/CORE/2day/LOGICA.md (§2)
 -- ═══════════════════════════════════════════════════════════════════════════════
 --
 -- POR QUÉ ESTÁ EN ESTA BASE. Alex, 16-09: *«que sea bidireccional con las tareas de
 -- GrowthInfo […] simplemente utilizan la misma base de datos»*. Una tarea de GrowthInfo no
--- se copia: HOY lee y escribe LA MISMA FILA de `public.tasks` (misma fila, dos puertas,
+-- se copia: 2day lee y escribe LA MISMA FILA de `public.tasks` (misma fila, dos puertas,
 -- como `✅│task-afiliados`). Lo que `tasks` no sabe guardar de Alex va en `hoy_capa`.
 --
 -- QUIÉN VE QUÉ: un solo usuario. Todas las `hoy_*` llevan `owner_id = auth.uid()` en los
@@ -362,7 +362,7 @@ grant execute on function public.hoy_sembrar() to authenticated;
 grant execute on function public.hoy_reiniciar_dia(date) to authenticated;
 
 -- ── ⑰ REALTIME en `tasks` ─────────────────────────────────────────────────────
--- Para que un cambio hecho en el portal aparezca en HOY sin recargar. Respeta la RLS.
+-- Para que un cambio hecho en el portal aparezca en 2day sin recargar. Respeta la RLS.
 do $$
 begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'tasks') then

@@ -1,0 +1,174 @@
+/* 2day · Ajustes — estilos propios de la pantalla. Todo sale de los tokens; los colores
+   de proyectos, categorías, etapas y cuadrantes vienen del dato, nunca de aquí. */
+
+.ajustes { display: flex; flex-direction: column; }
+.ajustes .seccion:first-child { margin-top: 0; }
+.ajustes-ayuda { font-size: var(--t-secundario); color: var(--texto-3); margin-top: 10px; }
+.ajustes-cargando { padding: 24px 0; text-align: center; }
+.ajustes-subseccion { margin-top: 20px; }
+
+/* ── lista de filas (proyectos, categorías, etapas, cuadrantes) ──────────── */
+.ajustes-lista { list-style: none; margin: 0; padding: 0; }
+.ajustes-fila {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--linea);
+}
+.ajustes-lista > .ajustes-fila:last-child { border-bottom: 0; }
+.ajustes-fila--apagada .ajustes-inline { color: var(--texto-3); }
+/* segunda línea de una fila (clave, chips): ocupa todo el ancho, sangrada bajo el nombre */
+.ajustes-fila-sub {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 6px 36px;
+  font-size: var(--t-micro);
+  color: var(--texto-3);
+}
+.ajustes-acciones { display: flex; align-items: center; gap: 2px; flex: none; margin-left: auto; }
+
+/* nombre editable en línea: se escribe al soltar el foco (Enter suelta, Escape deshace) */
+.ajustes-inline {
+  flex: 1;
+  min-width: 80px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  padding: 6px 0;
+  font-size: var(--t-cuerpo);
+  color: var(--texto);
+  transition: border-color var(--dur-corta) var(--suave);
+}
+.ajustes-inline:focus { outline: none; border-bottom-color: var(--acento); }
+.ajustes-inline::placeholder { color: var(--texto-3); }
+
+/* el círculo de color con el <input type=color> nativo escondido encima */
+.ajustes-color {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--linea-fuerte);
+  overflow: hidden;
+  cursor: pointer;
+}
+.ajustes-color input { position: absolute; inset: -8px; width: 44px; height: 44px; opacity: 0; cursor: pointer; }
+.ajustes-color--apagado { opacity: 0.5; cursor: default; }
+
+/* emoji del proyecto */
+.ajustes-icono {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radio-campo);
+  background: var(--tarjeta-alta);
+  border: 0;
+  text-align: center;
+  font-size: 18px;
+  color: var(--texto);
+}
+.ajustes-icono:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
+.ajustes-icono::placeholder { color: var(--texto-3); font-size: 14px; }
+.ajustes-icono--lectura { display: inline-block; line-height: 36px; }
+
+/* botones pequeños de fila (▲ ▼ archivar borrar) */
+.boton--icono.ajustes-mini { width: 30px; height: 30px; background: transparent; color: var(--texto-3); }
+.boton--icono.ajustes-mini:hover:not(:disabled) { color: var(--texto); background: var(--linea); }
+.boton--icono.ajustes-mini:disabled { opacity: 0.25; }
+.boton--icono.ajustes-mini--peligro:hover:not(:disabled) { color: var(--peligro); }
+
+/* formulario de alta al pie de una tarjeta: campo + botón */
+.ajustes-anadir { display: flex; align-items: flex-end; gap: 8px; margin-top: 14px; }
+.ajustes-anadir .campo { flex: 1; min-width: 0; }
+.ajustes-anadir .boton { flex: none; height: 50px; }   /* a la altura del campo (50px) */
+.ajustes-anadir--etapa { margin-top: 6px; }
+
+/* grupo plegado de archivados */
+.ajustes-plegado {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: var(--t-secundario);
+  color: var(--texto-2);
+}
+.ajustes-plegado:hover { color: var(--texto); }
+
+/* confirmación en línea (borrar etapa / plantilla): mismo lenguaje que la hoja de detalle */
+.ajustes-confirmar {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 8px;
+  padding: 12px 14px;
+  border-radius: var(--radio-campo);
+  background: color-mix(in srgb, var(--peligro) 12%, var(--tarjeta-alta));
+  border: 1px solid color-mix(in srgb, var(--peligro) 40%, transparent);
+  font-size: var(--t-secundario);
+}
+.ajustes-confirmar .fila { justify-content: flex-end; }
+.ajustes-confirmar .selector { gap: 4px; }
+
+/* ── pipelines: un bloque por tablero dentro de la sección ──────────────── */
+.ajustes-tablero { display: flex; flex-direction: column; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--linea); }
+.ajustes-tablero:first-child { padding-top: 0; }
+.ajustes-tablero:last-of-type { border-bottom: 0; }
+.ajustes-tablero-cabecera { display: flex; align-items: center; gap: 8px; }
+.ajustes-tablero-cabecera .ajustes-inline { font-weight: 600; }
+.ajustes-tablero .ajustes-lista { padding-left: 4px; }
+
+/* ── plantillas ─────────────────────────────────────────────────────────── */
+.ajustes-plantillas { display: flex; flex-direction: column; gap: 10px; }
+.ajustes-plantilla { display: flex; flex-direction: column; gap: 8px; }
+.ajustes-plantilla-cabeza { display: flex; align-items: flex-start; gap: 10px; }
+.ajustes-plantilla-textos { flex: 1; min-width: 0; }
+.ajustes-plantilla-nombre { font-weight: 600; font-size: var(--t-cuerpo); overflow-wrap: anywhere; }
+.ajustes-plantilla-desc { font-size: var(--t-secundario); color: var(--texto-2); margin-top: 2px; overflow-wrap: anywhere; }
+.ajustes-plantilla-pie { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ajustes-plantilla-pie .espacio { min-width: 8px; }
+
+/* la hoja de edición: ítems plegados, uno abierto a la vez */
+.ajustes-hoja { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.ajustes-hoja-nombre { font-size: var(--t-titulo); font-weight: 600; }
+.ajustes-hoja-desc { margin-top: 6px; }
+.ajustes-hoja-sub { margin-top: 4px; }
+.ajustes-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ajustes-item { background: var(--tarjeta-alta); border-radius: var(--radio-campo); padding: 6px 10px 6px 12px; }
+.ajustes-item-cabeza { display: flex; align-items: center; gap: 6px; min-height: 40px; }
+.ajustes-item-orden { flex: none; display: flex; flex-direction: column; }
+/* ▲▼ apilados: 30×24 visibles, con el área táctil ampliada para el pulgar */
+.ajustes-item-orden .boton--icono.ajustes-mini { position: relative; width: 30px; height: 24px; }
+.ajustes-item-orden .boton--icono.ajustes-mini::before { content: ''; position: absolute; inset: -4px -8px; }
+.ajustes-item-titulo { flex: 1; min-width: 0; font-size: var(--t-cuerpo); }
+.ajustes-item-titulo--lectura { padding: 6px 0; overflow-wrap: anywhere; }
+.ajustes-item-resumen { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 8px 30px; }
+.ajustes-item-campos { display: flex; flex-direction: column; gap: 12px; padding: 6px 0 10px; border-top: 1px solid var(--linea); margin-top: 4px; }
+.ajustes-item-campos .campo-caja { background: var(--tarjeta); }
+.ajustes-item-lectura { font-size: var(--t-secundario); color: var(--texto-2); }
+
+/* ── día y cuenta ───────────────────────────────────────────────────────── */
+.ajustes-dia { display: flex; flex-direction: column; gap: 14px; }
+/* los dos números del día: etiqueta y ayuda a la izquierda, el número a la derecha
+   (a 390px la rejilla de dos columnas partía la ayuda en cuatro líneas) */
+.ajustes-dia-numero.campo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 4px;
+  align-items: center;
+}
+.ajustes-dia-numero .campo-etiqueta { grid-column: 1; grid-row: 1; align-self: end; }
+.ajustes-dia-numero .campo-ayuda { grid-column: 1; grid-row: 2; align-self: start; }
+.ajustes-dia-numero .campo-caja { grid-column: 2; grid-row: 1 / span 2; }
+.ajustes-dia-numero .campo-caja input { text-align: center; }
+.ajustes-cuenta { display: flex; align-items: center; gap: 12px; }
+.ajustes-cuenta-email { flex: 1; min-width: 0; overflow-wrap: anywhere; }
