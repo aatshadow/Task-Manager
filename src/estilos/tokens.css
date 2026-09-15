@@ -3,21 +3,31 @@
 :root {
   color-scheme: dark;
 
-  /* superficies */
-  --fondo: #151515;
-  --tarjeta: #1f1f1f;
-  --tarjeta-alta: #262626;
-  --nav: #191919;
+  /* superficies. Más profundidad que el mockup literal (Alex, 16-09: «al fondo más
+     profundidad»): fondo más hundido, tarjeta más despegada, un borde fino y una luz
+     interior arriba que las levanta. El fondo lleva además un halo cálido y una viñeta
+     (ver base.css), que es lo que da la sensación de capas. */
+  --fondo: #0e0e10;
+  --fondo-halo: radial-gradient(90% 50% at 50% -12%, rgba(255, 106, 26, 0.16) 0%, rgba(255, 106, 26, 0) 60%);
+  --fondo-vineta: radial-gradient(120% 70% at 50% 110%, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 60%);
+  --tarjeta: #1b1b1e;
+  --tarjeta-alta: #242427;
+  --tarjeta-borde: rgba(255, 255, 255, 0.055);
+  --tarjeta-luz: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --tarjeta-sombra: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --nav: rgba(17, 17, 19, 0.92);
 
   /* la destacada: degradado cálido con brillo naranja arriba-izquierda */
-  --degradado-calido: linear-gradient(135deg, #4a2a17 0%, #2a1b13 55%, #1f1f1f 100%);
-  --brillo-calido: radial-gradient(120% 80% at 0% 0%, rgba(255, 140, 66, 0.22) 0%, rgba(255, 140, 66, 0) 55%);
+  --degradado-calido: linear-gradient(135deg, #5a2f14 0%, #2e1c12 55%, #1b1b1e 100%);
+  --brillo-calido: radial-gradient(120% 80% at 0% 0%, rgba(255, 138, 61, 0.30) 0%, rgba(255, 138, 61, 0) 55%);
 
-  /* acento */
-  --acento: #f26b1b;
-  --acento-claro: #ff8c42;
-  --acento-apagado: rgba(242, 107, 27, 0.18);
+  /* acento: un punto más neón que el mockup (Alex, 16-09), con resplandor en lo activo */
+  --acento: #ff6a1a;
+  --acento-claro: #ff9448;
+  --acento-apagado: rgba(255, 106, 26, 0.2);
   --sobre-acento: #fff6ef;
+  --resplandor: 0 0 0 1px rgba(255, 138, 61, 0.25), 0 8px 28px rgba(255, 106, 26, 0.45), 0 0 48px rgba(255, 106, 26, 0.22);
+  --resplandor-suave: 0 0 18px rgba(255, 106, 26, 0.45);
 
   /* texto y líneas */
   --texto: #f5f3ef;
@@ -35,7 +45,7 @@
   --radio-tarjeta: 24px;
   --radio-pildora: 999px;
   --radio-campo: 14px;
-  --sombra-minima: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --sombra-minima: var(--tarjeta-luz), var(--tarjeta-sombra);
 
   /* tipografía */
   --fuente: 'Inter Tight Variable', 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;

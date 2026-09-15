@@ -23,7 +23,7 @@ create table if not exists public.hoy_ajustes (
   -- Eisenhower fijo (4 cuadrantes), etiqueta y color editables (decisión 5).
   cuadrantes     jsonb not null default '{
     "q1": {"nombre": "Urgente e importante",     "color": "#d7263d"},
-    "q2": {"nombre": "Importante, no urgente",   "color": "#f26b1b"},
+    "q2": {"nombre": "Importante, no urgente",   "color": "#ff6a1a"},
     "q3": {"nombre": "Urgente, no importante",   "color": "#e8b13a"},
     "q4": {"nombre": "Ni urgente ni importante", "color": "#8a8f98"}
   }'::jsonb,
@@ -37,7 +37,7 @@ create table if not exists public.hoy_proyectos (
   id           uuid primary key default gen_random_uuid(),
   owner_id     uuid not null default auth.uid(),
   nombre       text not null,
-  color        text not null default '#f26b1b',
+  color        text not null default '#ff6a1a',
   icono        text not null default '',
   posicion     integer not null default 0,
   archivado_at timestamptz,
@@ -149,7 +149,7 @@ create table if not exists public.hoy_habitos (
   owner_id     uuid not null default auth.uid(),
   nombre       text not null,
   icono        text not null default '',
-  color        text not null default '#f26b1b',
+  color        text not null default '#ff6a1a',
   cadencia     text not null default 'diario' check (cadencia in ('diario','dias','semana')),
   dias         smallint[] not null default '{}',
   veces_semana integer not null default 1 check (veces_semana between 1 and 7),

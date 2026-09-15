@@ -118,7 +118,7 @@ export async function cargarProyectos({ incluirArchivados = false } = {}) {
 
 export async function crearProyecto({ nombre, color, icono, posicion }) {
   listo()
-  const fila = aColumnasProyecto({ nombre, color: color || '#f26b1b', icono: icono || '' })
+  const fila = aColumnasProyecto({ nombre, color: color || '#ff6a1a', icono: icono || '' })
   if (!fila.nombre) throw new ErrorHoy('un proyecto necesita nombre')
   fila.posicion = posicion ?? (await siguientePosicion('hoy_proyectos'))
   const r = await supabase.from('hoy_proyectos').insert(fila).select().single()

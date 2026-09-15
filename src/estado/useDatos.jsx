@@ -24,7 +24,7 @@ const Contexto = createContext(null)
 // Etiqueta y color de cada cuadrante cuando los ajustes aún no han llegado (o vienen a medias).
 const CUADRANTES_BASE = {
   q1: { nombre: 'Urgente e importante', color: '#d7263d' },
-  q2: { nombre: 'Importante, no urgente', color: '#f26b1b' },
+  q2: { nombre: 'Importante, no urgente', color: '#ff6a1a' },
   q3: { nombre: 'Urgente, no importante', color: '#e8b13a' },
   q4: { nombre: 'Ni urgente ni importante', color: '#8a8f98' },
 }

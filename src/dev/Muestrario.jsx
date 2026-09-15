@@ -20,7 +20,7 @@ import Pestanas from '../componentes/Pestanas.jsx'
 
 const CUADRANTES = [
   { valor: 'q1', etiqueta: 'Urgente e importante', color: '#d7263d' },
-  { valor: 'q2', etiqueta: 'Importante', color: '#f26b1b' },
+  { valor: 'q2', etiqueta: 'Importante', color: '#ff6a1a' },
   { valor: 'q3', etiqueta: 'Urgente', color: '#e8b13a' },
   { valor: 'q4', etiqueta: 'Ni ni', color: '#8a8f98' },
 ]
@@ -77,7 +77,7 @@ export default function Muestrario() {
             <div className="t-secundario">Siguiente · 10:30</div>
             <div className="t-titulo" style={{ marginTop: 8 }}>Cerrar el módulo de finanzas</div>
             <div className="fila" style={{ marginTop: 16 }}>
-              <Chip color="#f26b1b" pequeno>Importante</Chip>
+              <Chip color="#ff6a1a" pequeno>Importante</Chip>
               <Chip color="#5b8def" pequeno>SYSTEMA</Chip>
             </div>
           </Tarjeta>
@@ -114,16 +114,16 @@ export default function Muestrario() {
         <Bloque titulo="Chip · colores del dato; pulsables como filtro">
           <div className="muestrario-fila">
             <Chip color="#d7263d">Urgente e importante</Chip>
-            <Chip color="#f26b1b">Importante</Chip>
+            <Chip color="#ff6a1a">Importante</Chip>
             <Chip color="#e8b13a">Urgente</Chip>
             <Chip color="#8a8f98">Ni ni</Chip>
             <Chip color="#5b8def" pequeno>SYSTEMA</Chip>
             <Chip color="#3ec27a" pequeno>ventas</Chip>
-            <Chip color="#f26b1b" solido punto={false}>hecha</Chip>
+            <Chip color="#ff6a1a" solido punto={false}>hecha</Chip>
           </div>
           <div className="muestrario-fila" style={{ marginTop: 10 }}>
             {['todo', 'proyecto', 'cuadrante'].map(f => (
-              <Chip key={f} color="#f26b1b" activo={filtro === f} onClick={() => setFiltro(f)}>{f}</Chip>
+              <Chip key={f} color="#ff6a1a" activo={filtro === f} onClick={() => setFiltro(f)}>{f}</Chip>
             ))}
           </div>
         </Bloque>
@@ -187,7 +187,7 @@ export default function Muestrario() {
         <Bloque titulo="Marca · el círculo de completar, en filas">
           <div className="columna">
             <FilaTarea titulo="Llamar a Víctor por los afiliados" hora="11:00 – 11:30" chip="ventas" color="#3ec27a" />
-            <FilaTarea titulo="Escribir el informe de la noche" hora="Todo el día" chip="q2" color="#f26b1b" />
+            <FilaTarea titulo="Escribir el informe de la noche" hora="Todo el día" chip="q2" color="#ff6a1a" />
             <div className="fila" style={{ marginTop: 6 }}>
               <Marca grande hecha={marcaGrande} alCambiar={setMarcaGrande} />
               <div className="t-secundario">Grande, para los hábitos de hoy</div>

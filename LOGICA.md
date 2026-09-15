@@ -97,7 +97,7 @@ El «hoy» de la app es `hoyLocal(hora_reinicio)`: a las 02:00 sigue siendo ayer
 | Mover de etapa / completar | `etapa_id` + `estado` + `hecha` (dos ejes) | `stage_id` + `status` + `completed` (dos ejes, `cambiosAlMover`) |
 | Responsable | `responsable_id` (informativo: no ven 2day) | `assignee_id` (real: lo ven en su portal) |
 | Archivar | `archivado_at` | `archived_at` |
-| Borrar | sí | no (es de dirección desde el portal; aquí se archiva) |
+| Borrar | sí | sí (Alex es dirección y `p_tasks_del` lo permite; desaparece también del portal. Decidido el 16-09: «déjame poder hacerlo») |
 
 **Explorar GrowthInfo**: dentro de Tareas, una lista de todas las tareas vivas de GrowthInfo por
 cliente (lo que la RLS deje ver) para **seguir** o **asignarme** una. Seguir = fila en `hoy_capa`

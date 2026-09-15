@@ -368,11 +368,18 @@ export async function archivar(tarea, si = true) {
   return actualizar(tarea, { archivadoEn: si ? new Date().toISOString() : null })
 }
 
-/** Borrar sólo una personal. Una de GrowthInfo es de dirección desde el portal: aquí se archiva. */
+/**
+ * Borrar, sea personal o de GrowthInfo (Alex, 16-09: «no puedo eliminar tareas. Déjame»).
+ * En `tasks` borrar es de dirección (`p_tasks_del` = `is_agency()`), y Alex lo es: la RLS
+ * es la que decide, no esta función. Si la política dijera que no, el delete no toca filas
+ * y aquí se dice en vez de fingir que se borró.
+ */
 export async function borrar(tarea) {
   listo()
-  if (tarea?.origen === 'portal') throw new ErrorHoy('una tarea de GrowthInfo no se borra desde 2day: archívala')
-  ok(await supabase.from('hoy_tareas').delete().eq('id', tarea.id), 'no se pudo borrar la tarea')
+  if (!tarea?.id) throw new ErrorHoy('falta la tarea')
+  const r = await supabase.from(tabla(tarea)).delete().eq('id', tarea.id).select('id')
+  const filas = uno(r, 'no se pudo borrar la tarea')
+  if (!filas?.length) throw new ErrorHoy('la tarea no se borró: no tienes permiso en el portal')
   // La capa no tiene FK (apunta a dos tablas): se limpia a mano.
   ok(await supabase.from('hoy_capa').delete().eq('tarea_id', tarea.id), 'no se pudo borrar la capa')
   return true

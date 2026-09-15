@@ -5,6 +5,7 @@
   position: relative;
   overflow: hidden;
   background: var(--tarjeta);
+  border: 1px solid var(--tarjeta-borde);
   border-radius: var(--radio-tarjeta);
   padding: 20px;
   box-shadow: var(--sombra-minima);
@@ -20,7 +21,7 @@
   background: var(--brillo-calido);
   pointer-events: none;
 }
-.tarjeta--naranja { background: var(--acento); color: var(--sobre-acento); }
+.tarjeta--naranja { background: linear-gradient(160deg, var(--acento-claro) 0%, var(--acento) 55%, #e85a10 100%); color: var(--sobre-acento); border-color: rgba(255, 180, 130, 0.35); box-shadow: var(--resplandor); }
 .tarjeta--naranja .t-secundario,
 .tarjeta--naranja .t-terciario { color: rgba(255, 246, 239, 0.72); }
 .tarjeta--compacta { padding: 14px 16px; }
@@ -209,6 +210,8 @@
   grid-template-columns: repeat(5, 1fr);
   background: var(--nav);
   border-top: 1px solid var(--linea);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 .nav-item {
   position: relative;
@@ -226,6 +229,7 @@
 }
 .nav-item:hover { color: var(--texto-2); }
 .nav-item--activa { color: var(--acento); }
+.nav-item--activa svg { filter: drop-shadow(0 0 8px rgba(255, 106, 26, 0.65)); }
 .nav-item--activa:hover { color: var(--acento); }
 .nav-punto {
   position: absolute;
@@ -234,6 +238,7 @@
   height: 4px;
   border-radius: 50%;
   background: var(--acento);
+  box-shadow: var(--resplandor-suave);
 }
 
 /* ── Cabecera ────────────────────────────────────────────────────────────── */
@@ -277,7 +282,7 @@
 }
 .marca:hover { border-color: var(--texto-2); }
 .marca--hecha { border-color: var(--marca-color); }
-.marca-relleno { position: absolute; inset: -1px; border-radius: 50%; background: var(--marca-color); }
+.marca-relleno { position: absolute; inset: -1px; border-radius: 50%; background: var(--marca-color); box-shadow: 0 0 14px color-mix(in srgb, var(--marca-color) 55%, transparent); }
 .marca-check { position: relative; color: var(--sobre-acento); display: flex; }
 .marca--grande { --marca-tamano: 44px; }
 
@@ -332,9 +337,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--acento);
+  background: linear-gradient(160deg, var(--acento-claro) 0%, var(--acento) 60%);
   color: var(--sobre-acento);
-  box-shadow: 0 8px 24px rgba(242, 107, 27, 0.35);
+  box-shadow: var(--resplandor);
   -webkit-tap-highlight-color: transparent;
 }
 

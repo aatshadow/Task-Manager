@@ -9,7 +9,7 @@ import { LETRAS_DIA } from './RejillaHabito.jsx'
 
 // Los 8 colores que ya viven en la base (cuadrantes, categorías y etapas sembradas): un
 // hábito no estrena color, elige uno de los que la app ya pinta.
-export const PALETA = ['#f26b1b', '#e8b13a', '#3fb950', '#38bdf8', '#4c8dff', '#a56bff', '#e8629a', '#d7263d']
+export const PALETA = ['#ff6a1a', '#e8b13a', '#3fb950', '#38bdf8', '#4c8dff', '#a56bff', '#e8629a', '#d7263d']
 
 // Atajos de emoji para no abrir el teclado de símbolos en el móvil; el campo admite cualquiera.
 const EMOJIS = ['💪', '📖', '🧘', '💧', '🏃', '🛏️', '✍️', '🥗']

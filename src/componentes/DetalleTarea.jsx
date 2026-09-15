@@ -19,7 +19,7 @@ import { textoFecha } from '../datos/fechas.js'
  *
  * Quién decide qué se puede tocar es `tarea.origen`:
  *   · portal → el cliente se ve pero no se cambia, categoría sólo las 7, etapas de SU
- *     tablero del portal, seguir, comentarios, y NO se borra (se archiva);
+ *     tablero del portal, seguir, comentarios; se borra igual (eres dirección: la RLS manda);
  *   · hoy    → proyecto propio, cualquier categoría, etapas de su pipeline, borrar.
  */
 export default function DetalleTarea() {
@@ -219,7 +219,20 @@ function Contenido({ tarea: t }) {
           aria-label="Título"
           enterKeyHint="done"
         />
+        {/* la papelera arriba: al final de la hoja nadie la encontraba (Alex, 16-09) */}
+        <button type="button" className="detalle-papelera" onClick={() => setConfirmarBorrado(true)} disabled={ocupado} aria-label="Borrar tarea">
+          <Trash2 size={18} strokeWidth={1.75} />
+        </button>
       </div>
+      {confirmarBorrado && (
+        <div className="detalle-confirmar" role="alertdialog" aria-label="Confirmar borrado">
+          <span>¿Borrar «{t.titulo}»?{esPortal ? ' Desaparece también del portal de GrowthInfo.' : ''} No se puede deshacer.</span>
+          <div className="fila">
+            <Boton variante="secundario" pequeno onClick={() => setConfirmarBorrado(false)} disabled={ocupado}>Cancelar</Boton>
+            <Boton variante="primario" pequeno onClick={borrar} cargando={ocupado} className="boton--borrar">Sí, borrar</Boton>
+          </div>
+        </div>
+      )}
 
       <div className="detalle-meta">
         <Chip color={esPortal ? 'var(--acento)' : 'var(--texto-2)'} pequeno>{origenTexto}</Chip>
@@ -363,22 +376,12 @@ function Contenido({ tarea: t }) {
           >
             {t.archivadoEn ? 'Desarchivar' : 'Archivar'}
           </Boton>
-          {!esPortal && !confirmarBorrado && (
+          {!confirmarBorrado && (
             <Boton variante="peligro" pequeno icono={<Trash2 size={16} strokeWidth={1.75} />} onClick={() => setConfirmarBorrado(true)} disabled={ocupado}>
               Borrar
             </Boton>
           )}
         </div>
-        {/* confirmación inline: nada de window.confirm */}
-        {!esPortal && confirmarBorrado && (
-          <div className="detalle-confirmar" role="alertdialog" aria-label="Confirmar borrado">
-            <span>¿Borrar «{t.titulo}»? No se puede deshacer.</span>
-            <div className="fila">
-              <Boton variante="secundario" pequeno onClick={() => setConfirmarBorrado(false)} disabled={ocupado}>Cancelar</Boton>
-              <Boton variante="primario" pequeno onClick={borrar} cargando={ocupado} className="boton--borrar">Sí, borrar</Boton>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

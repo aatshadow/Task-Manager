@@ -16,6 +16,17 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* el fondo en capas: halo cálido arriba y viñeta abajo, fijos aunque la página haga scroll
+   (un pseudo-elemento fijo y no background-attachment, que iOS ignora) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--fondo-halo), var(--fondo-vineta), var(--fondo);
+  pointer-events: none;
+}
+
 h1, h2, h3, p { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; padding: 0; }

@@ -124,10 +124,13 @@ try {
   assert.ok((await tareas.cargarTodas({ incluirArchivadas: true })).some((t) => t.id === k.id), 'con incluirArchivadas sí')
   ok('kiki: archivar escribe tasks.archived_at y la saca de la lista')
 
-  let borrarPortal
-  try { await tareas.borrar(kArch); borrarPortal = 'borró' } catch (e) { borrarPortal = e.message }
-  assert.match(borrarPortal, /no se borra desde 2day/)
-  ok('kiki: borrar una del portal se niega (se archiva)')
+  // Borrar una del portal (decisión de Alex, 16-09): la fila desaparece de `tasks` y su capa con ella.
+  assert.equal(await tareas.borrar(kArch), true)
+  const { data: kBorrada } = await sb.from('tasks').select('id').eq('id', k.id)
+  assert.equal(kBorrada.length, 0, 'ya no está en tasks')
+  const { data: capaBorrada } = await sb.from('hoy_capa').select('tarea_id').eq('tarea_id', k.id)
+  assert.equal(capaBorrada.length, 0, 'ni su capa')
+  ok('kiki: borrar una del portal la quita de tasks y de hoy_capa (rol agency)')
 
   /* ── 5 · explorar · comentarios ──────────────────────────────────────────── */
   const explorar = await tareas.cargarExplorar()
@@ -191,6 +194,9 @@ try {
     if (r1.error || r2.error) notas.push(`personal ${id}: ${(r1.error || r2.error).message}`)
   }
   for (const id of creado.portal) {
+    // la que el propio test ya borró (paso 4) no cuenta como resto
+    const { data: existe } = await sb.from('tasks').select('id').eq('id', id)
+    if (!existe?.length) continue
     await sb.from('task_comments').delete().eq('task_id', id)
     await sb.from('hoy_capa').delete().eq('tarea_id', id)
     const r = await sb.from('tasks').delete().eq('id', id).select('id')
