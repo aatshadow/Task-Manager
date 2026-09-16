@@ -22,7 +22,8 @@ import {
   esEstado, categoriaPortal, esCuadrante, prioridadDeCuadrante,
   cargarPipelines, pipelinePorDefecto, cargarTablerosDeCliente, tableroPorDefectoDeCliente,
 } from './catalogos.js'
-import { diasEntre, horaCorta } from './fechas.js'
+import { diasEntre, horaCorta, hoyLocal, sumarDias } from './fechas.js'
+import { esRegla, siguienteFecha } from './repetir.js'
 
 export { ErrorHoy }
 
@@ -61,6 +62,7 @@ const aTarea = (f) => ({
   horaFin: horaCorta(f.hora_fin),
   seguida: !!f.seguida,
   notas: f.notas || '',
+  repetir: esRegla(f.repetir) ? f.repetir : null,   // LOGICA §4.1
   // solo portal
   prioridadPortal: f.prioridad_portal || null,
   fase: f.fase || null,
@@ -98,7 +100,7 @@ export async function cargarExplorar() {
       hecha: k.completed, hecha_en: k.completed_at, archivado_at: k.archived_at,
       created_at: k.created_at, updated_at: k.updated_at, posicion: k.position,
       cuadrante: c.cuadrante, hoy_para: c.hoy_para, orden: c.orden, hora_inicio: c.hora_inicio, hora_fin: c.hora_fin,
-      seguida: c.seguida, notas: c.notas, prioridad_portal: k.priority, fase: k.fase,
+      seguida: c.seguida, notas: c.notas, repetir: c.repetir, prioridad_portal: k.priority, fase: k.fase,
     })
   })
 }
@@ -152,6 +154,7 @@ const aColumnasCapa = (c) => {
   if ('horaFin' in c) m.hora_fin = c.horaFin || null
   if ('seguida' in c) m.seguida = !!c.seguida
   if ('notas' in c) m.notas = c.notas || ''
+  if ('repetir' in c) m.repetir = esRegla(c.repetir) ? c.repetir : null
   return m
 }
 
@@ -235,6 +238,7 @@ export async function crear(datos = {}) {
     cuadrante, hoyPara: datos.hoyPara || null, orden: datos.orden ?? 0,
     horaInicio: datos.horaInicio || null, horaFin: datos.horaFin || null,
     seguida: origen === 'portal', notas: datos.notas || '',
+    repetir: esRegla(datos.repetir) ? datos.repetir : null,
   })
   return releer(fila.id, origen)
 }
@@ -294,6 +298,63 @@ export async function mover(tarea, etapa, { posicion, estadoPedido = null } = {}
   if (posicion != null) cambios.posicion = posicion
   const m = traducir(tarea, cambios)
   ok(await supabase.from(tabla(tarea)).update(m).eq('id', tarea.id), 'no se pudo mover la tarea')
+  const nueva = await releer(tarea.id, tarea.origen)
+  // Se repite y acaba de pasar a hecha (por la puerta que sea: marca, hoja, kanban): nace la
+  // siguiente (LOGICA §4.1). Si engendrar falla, la tarea ya está hecha: se avisa, no se deshace.
+  if (nueva.hecha && !tarea.hecha && nueva.repetir) await engendrarSiguiente(nueva)
+  return nueva
+}
+
+/* ── REPETIR (LOGICA §4.1) ─────────────────────────────────────────────────── */
+
+/** `vence` de la siguiente ocurrencia de `t`, o null si no se repite. */
+export function siguienteDe(t, hoy = hoyLocal()) {
+  if (!t?.repetir) return null
+  const ancla = t.vence || hoy
+  return siguienteFecha(t.repetir, ancla, ancla > hoy ? ancla : hoy)
+}
+
+/**
+ * Crea la siguiente ocurrencia: la misma tarea con `vence` en la siguiente fecha de la serie
+ * y planificada para ese día. Sin duplicar: si ya hay una viva igual (título, regla y vence),
+ * es que ya nació (des-completar y volver a completar no engendra dos).
+ */
+async function engendrarSiguiente(t) {
+  const vence = siguienteDe(t)
+  if (!vence) return null
+  const ya = await supabase.from('hoy_todas').select('id')
+    .eq('titulo', t.titulo).eq('repetir', t.repetir).eq('vence', vence).eq('hecha', false).is('archivado_at', null).limit(1)
+  if (filas(ya, 'no se pudo comprobar la siguiente ocurrencia').length) return null
+  return crear({
+    titulo: t.titulo,
+    descripcion: t.descripcion,
+    origen: t.origen,
+    proyectoId: t.proyectoId,
+    clientId: t.clientId,
+    categoria: t.categoria,
+    pipelineId: t.origen === 'hoy' ? t.pipelineId : undefined,
+    responsableId: t.responsableId,
+    fase: t.fase,
+    cuadrante: t.cuadrante,
+    // un período se desplaza entero, como al mover de día en el calendario
+    inicio: t.inicio && t.vence ? sumarDias(t.inicio, diasEntre(t.vence, vence)) : null,
+    vence,
+    hoyPara: vence,
+    horaInicio: t.horaInicio,
+    horaFin: t.horaFin,
+    repetir: t.repetir,
+  })
+}
+
+/** Salta a la siguiente fecha de la serie SIN completar: es la misma tarea, movida (§4.1.4). */
+export async function saltar(tarea) {
+  listo()
+  const vence = siguienteDe(tarea)
+  if (!vence) throw new ErrorHoy('esta tarea no se repite')
+  const cambios = { vence }
+  if (tarea.inicio && tarea.vence) cambios.inicio = sumarDias(tarea.inicio, diasEntre(tarea.vence, vence))
+  await actualizar(tarea, cambios)
+  await capa(tarea.id, tarea.origen, { hoyPara: vence })
   return releer(tarea.id, tarea.origen)
 }
 
@@ -331,7 +392,7 @@ export async function completar(tarea, hecha = true) {
 const aCapa = (c) => ({
   tareaId: c.tarea_id, origen: c.origen, cuadrante: c.cuadrante || null, hoyPara: c.hoy_para || null,
   orden: Number(c.orden) || 0, horaInicio: horaCorta(c.hora_inicio), horaFin: horaCorta(c.hora_fin),
-  seguida: !!c.seguida, notas: c.notas || '', actualizadaEn: c.updated_at,
+  seguida: !!c.seguida, notas: c.notas || '', repetir: esRegla(c.repetir) ? c.repetir : null, actualizadaEn: c.updated_at,
 })
 
 /** Upsert de la capa personal de cualquier tarea (`onConflict: tarea_id`). */

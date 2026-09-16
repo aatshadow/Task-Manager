@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion'
+import { Repeat } from 'lucide-react'
 import Marca from '../../componentes/Marca.jsx'
 import Chip from '../../componentes/Chip.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { esAtrasada } from '../../datos/tareas.js'
 import { textoFecha } from '../../datos/fechas.js'
+import { nombreRegla } from '../../datos/repetir.js'
 
 /**
  * La fila de tarea que comparten las pestañas de la lista. Un toque abre el detalle;
@@ -27,7 +29,7 @@ export default function FilaTarea({ tarea: t, conMarca = false, alCompletar, acc
   const cuadrante = t.cuadrante ? cuadrantes[t.cuadrante] : null
   const atrasada = esAtrasada(t, hoy)
 
-  const metaPorDefecto = (proyecto || categoria || cuadrante || t.vence) && (
+  const metaPorDefecto = (proyecto || categoria || cuadrante || t.vence || t.repetir) && (
     <div className="fila-tarea-meta">
       {proyecto && <Chip color={colorProyecto(t) || 'var(--texto-2)'} pequeno>{proyecto}</Chip>}
       {categoria && <Chip color={colorCategoria(t.categoria) || 'var(--texto-2)'} pequeno>{categoria}</Chip>}
@@ -37,6 +39,7 @@ export default function FilaTarea({ tarea: t, conMarca = false, alCompletar, acc
           {atrasada ? 'venció ' : 'vence '}{textoFecha(t.vence)}
         </span>
       )}
+      {t.repetir && <span className="fila-tarea-repite" title={`Se repite ${nombreRegla(t.repetir)}`}><Repeat size={12} strokeWidth={2} /></span>}
     </div>
   )
 

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/forma.mjs && node tests/e2e-alex.mjs"
+    "test": "node tests/forma.mjs && node tests/e2e-alex.mjs && node tests/repetir.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter-tight": "^5.1.1",

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Sun } from 'lucide-react'
+import { ChevronDown, ChevronUp, Repeat, Sun } from 'lucide-react'
 import Hoja from './Hoja.jsx'
 import Campo from './Campo.jsx'
 import Boton from './Boton.jsx'
 import Chip from './Chip.jsx'
 import Selector from './Selector.jsx'
+import SelectorRepetir from './SelectorRepetir.jsx'
 import { useDatos } from '../estado/useDatos.jsx'
 import * as datosTareas from '../datos/tareas.js'
 import { textoFecha } from '../datos/fechas.js'
+import { nombreRegla } from '../datos/repetir.js'
 
 // La captura rápida del «+» (LOGICA §5): un título y listo → Bandeja. Lo demás (proyecto,
 // cuadrante, fecha, Hoy) está plegado bajo «más» para que capturar no cueste nada.
@@ -65,6 +67,7 @@ function Formulario({ prefill, hoy, proyectos, clientes, listaCuadrantes, alCrea
   )
   const [cuadrante, setCuadrante] = useState(prefill?.cuadrante || null)
   const [vence, setVence] = useState(prefill?.vence || '')
+  const [repetir, setRepetir] = useState(prefill?.repetir || null)
   const [enHoy, setEnHoy] = useState(Boolean(prefill?.hoyPara))
   // «más» nace abierto si el prefill ya trae algo que enseñar: que se vea lo que viene puesto
   const [mas, setMas] = useState(Boolean(prefill?.clientId || prefill?.proyectoId || prefill?.cuadrante || prefill?.vence))
@@ -91,7 +94,9 @@ function Formulario({ prefill, hoy, proyectos, clientes, listaCuadrantes, alCrea
       origen: esCliente ? 'portal' : 'hoy',
       ...(esCliente ? { clientId: proyecto.slice(2) } : proyecto ? { proyectoId: proyecto.slice(2) } : {}),
       cuadrante: cuadrante || null,
-      vence: vence || null,
+      // una serie necesita ancla: con regla y sin fecha, vence hoy (LOGICA §4.1.6)
+      vence: vence || (repetir ? hoy : null),
+      repetir: repetir || null,
       hoyPara: enHoy ? (prefill?.hoyPara || hoy) : null,
     }
     try {
@@ -130,6 +135,7 @@ function Formulario({ prefill, hoy, proyectos, clientes, listaCuadrantes, alCrea
           <Sun size={14} strokeWidth={1.75} /> Hoy
         </Chip>
         {vence && <Chip color="var(--texto-2)" pequeno>{textoFecha(vence)}</Chip>}
+        {repetir && <Chip color="var(--acento)" pequeno punto={false}><Repeat size={12} strokeWidth={2} /> {nombreRegla(repetir)}</Chip>}
         <span className="espacio" />
         <button type="button" className="nueva-mas" onClick={() => setMas((v) => !v)} aria-expanded={mas}>
           {mas ? 'menos' : 'más'}
@@ -156,6 +162,7 @@ function Formulario({ prefill, hoy, proyectos, clientes, listaCuadrantes, alCrea
             permitirVacio
           />
           <Campo etiqueta="Vence" type="date" valor={vence} alCambiar={setVence} />
+          <SelectorRepetir valor={repetir} alCambiar={(r) => { setRepetir(r); if (r && !vence) setVence(hoy) }} />
         </div>
       )}
 

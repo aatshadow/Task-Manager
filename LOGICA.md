@@ -48,7 +48,7 @@ cuatro verbos, `revoke all from anon` (la RLS es la puerta, el GRANT es el muro)
 | `hoy_categorias` | `clave` estable + nombre + color + posicion + `archivado_at`. Se siembran las 7 del portal con sus claves (`proyecto·soporte·contenido·ventas·ia·afiliados·general`) para que una tarea del portal se pinte nativa. Las tuyas se añaden; una tarea del portal solo admite las 7 (check del portal). |
 | `hoy_pipelines` · `hoy_etapas` | Varios tableros; etapas con `clave`, color, posicion, `es_terminal`. Solo para tareas personales. Se siembra «Principal» con las 5 etapas del vocabulario. |
 | `hoy_tareas` | **Solo las personales**: titulo, descripcion, proyecto_id, categoria (clave), pipeline_id, etapa_id, estado, inicio, vence, responsable_id (`team_members`), hecha, hecha_en, posicion, `archivado_at`. |
-| `hoy_capa` | La capa personal de **cualquier** tarea: `tarea_id` (id de `hoy_tareas` o de `tasks`, sin FK), `origen` (`hoy`/`portal`), cuadrante (`q1..q4`), `hoy_para` (date), orden, hora_inicio, hora_fin, seguida, notas. |
+| `hoy_capa` | La capa personal de **cualquier** tarea: `tarea_id` (id de `hoy_tareas` o de `tasks`, sin FK), `origen` (`hoy`/`portal`), cuadrante (`q1..q4`), `hoy_para` (date), orden, hora_inicio, hora_fin, seguida, notas, **`repetir`** (regla, §4.1; `sql/2026-09-16-repetir.sql`). |
 | `hoy_dias` | Cierre del día: fecha, planificadas, hechas, nota. Lo único que no se puede derivar después. |
 | `hoy_habitos` · `hoy_marcas` | Hábito: nombre, icono, color, cadencia (`diario`/`dias`/`semana`), `dias` (1=L…7=D), `veces_semana`, `archivado_at`. Marca: una por (hábito, fecha). |
 | `hoy_plantillas` · `hoy_plantilla_items` | Ítem: titulo, descripcion, categoria, cuadrante, grupo (fase), `dias_offset`, posicion. |
@@ -58,7 +58,7 @@ cuatro verbos, `revoke all from anon` (la RLS es la puerta, el GRANT es el muro)
 capa ya pegada. Columnas: `id, origen, titulo, descripcion, proyecto_id, client_id, categoria,
 pipeline_id, etapa_id, estado, inicio, vence, responsable_id, participantes, hecha, hecha_en,
 archivado_at, created_at, updated_at, posicion, cuadrante, hoy_para, orden, hora_inicio, hora_fin,
-seguida, notas, prioridad_portal, fase`. La app escribe en `hoy_tareas` o en `tasks` según `origen`.
+seguida, notas, prioridad_portal, fase, repetir`. La app escribe en `hoy_tareas` o en `tasks` según `origen`.
 
 **Funciones:**
 - `hoy_mi_ficha()` → id de mi `team_members` (la que tiene `user_id = auth.uid()`).
@@ -93,11 +93,38 @@ El «hoy» de la app es `hoyLocal(hora_reinicio)`: a las 02:00 sigue siendo ayer
 | Editar título/desc/fechas | `hoy_tareas` | `tasks` (`title/description/start_date/due_date`) |
 | Categoría | cualquiera de `hoy_categorias` | solo las 7 del portal |
 | Proyecto | `proyecto_id` | `client_id` (no se cambia de cliente desde 2day) |
-| Cuadrante · Hoy · orden · horas · notas · seguir | `hoy_capa` | `hoy_capa` |
+| Cuadrante · Hoy · orden · horas · notas · seguir · **repetir** | `hoy_capa` | `hoy_capa` |
 | Mover de etapa / completar | `etapa_id` + `estado` + `hecha` (dos ejes) | `stage_id` + `status` + `completed` (dos ejes, `cambiosAlMover`) |
 | Responsable | `responsable_id` (informativo: no ven 2day) | `assignee_id` (real: lo ven en su portal) |
 | Archivar | `archivado_at` | `archived_at` |
 | Borrar | sí | sí (Alex es dirección y `p_tasks_del` lo permite; desaparece también del portal. Decidido el 16-09: «déjame poder hacerlo») |
+
+### 4.1 · Tareas que se repiten (Alex, 16-09-2026)
+
+Una tarea puede llevar una **regla de repetición** en su capa (`hoy_capa.repetir`), sea personal o
+de GrowthInfo. Vocabulario, fijo: `diario` (cada día) · `laborables` (cada día entre semana) ·
+`semanal` (cada semana, mismo día) · `mensual` (cada mes, mismo número; si el mes no lo tiene, el
+último) · `cada:N` (cada N días, N de 1 a 999; el selector propone 3).
+
+**El modelo es el de un gestor de tareas, no el de un calendario:** sólo existe la **próxima**
+ocurrencia. No se generan copias a futuro y no hay «serie» que editar; cada ocurrencia es una
+tarea normal con la regla pegada.
+
+1. **Al completar** una tarea con regla (por cualquier puerta: marca, hoja, kanban a `done`, Hoy),
+   la capa de datos crea la **siguiente**: mismo título, descripción, proyecto o cliente, categoría,
+   cuadrante, horas, responsable y regla; `vence` = la primera fecha de la serie **posterior a
+   `max(vence, hoy)`** (completar tarde no engendra una atrasada; completar pronto no duplica la
+   de mañana); `hoy_para` = ese mismo día (que aparezca en Hoy cuando toque); un período
+   (`inicio`) se desplaza lo mismo que `vence`. Sin `vence`, la serie ancla en hoy.
+2. **Sin duplicar:** si ya existe una tarea viva con el mismo título, la misma regla y ese `vence`,
+   no nace otra (des-completar y volver a completar no engendra dos).
+3. **Des-completar no borra** la siguiente ya nacida: es una tarea como cualquiera; se borra a mano.
+4. **Saltar:** desde la hoja, «Saltar → <fecha>» mueve ESA tarea a la siguiente fecha de la serie sin
+   marcarla hecha (no nace otra).
+5. **Quitar la regla** (Nunca) deja la tarea como está; sólo deja de engendrar.
+6. Poner una regla a una tarea sin `vence` le pone `vence = hoy` (la serie necesita ancla).
+
+La regla se ve como chip en la hoja («Se repite · cada semana») y como icono ↻ en las filas.
 
 **Explorar GrowthInfo**: dentro de Tareas, una lista de todas las tareas vivas de GrowthInfo por
 cliente (lo que la RLS deje ver) para **seguir** o **asignarme** una. Seguir = fila en `hoy_capa`
@@ -186,6 +213,8 @@ tareas.js       cargarTodas({ incluirArchivadas }) → [Tarea]           (de hoy
                 completar(tarea, hecha=true) // = mover a la terminal de su tablero
                 capa(tareaId, origen, cambios) // cuadrante, hoyPara, orden, horaInicio, horaFin, seguida, notas
                 planificarHoy(tarea, fecha|null) · programar(tarea, { horaInicio, horaFin }) · seguir(tarea, si) · archivar(tarea, si) · borrar(tarea)
+                saltar(tarea)                // a la siguiente fecha de su regla, sin completar (§4.1)
+repetir.js      puro: REGLAS · esRegla · nombreRegla(regla) · siguienteFecha(regla, ancla, despuesDe) · reglaCadaN(n)
                 reiniciarDia(hoy) · cargarDias(desde, hasta)
                 cargarComentarios(taskId) · comentar(taskId, texto)   // solo portal
                 esAtrasada(t, hoy) · esNevera(t, ajustes, hoy) · esBandeja(t)

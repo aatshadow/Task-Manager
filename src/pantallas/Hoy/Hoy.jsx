@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, Reorder, motion, useDragControls } from 'framer-motion'
-import { CalendarDays, Clock, CloudOff, GripVertical, ListPlus, Sun, X } from 'lucide-react'
+import { CalendarDays, Clock, CloudOff, GripVertical, ListPlus, Repeat, Sun, X } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import NumeroGrande from '../../componentes/NumeroGrande.jsx'
 import Chip from '../../componentes/Chip.jsx'
@@ -323,6 +323,7 @@ function CuerpoFila({ tarea: t }) {
           </div>
         )}
       </div>
+      {t.repetir && <span className="hoy-fila-repite" aria-label="Se repite"><Repeat size={12} strokeWidth={2} /></span>}
       {t.horaInicio && <span className="hoy-fila-hora">{t.horaInicio}</span>}
     </>
   )

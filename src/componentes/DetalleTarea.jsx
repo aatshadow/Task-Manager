@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Archive, ArchiveRestore, Eye, EyeOff, MessageSquare, Send, Sun, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Eye, EyeOff, MessageSquare, Repeat, Send, SkipForward, Sun, Trash2 } from 'lucide-react'
 import Hoja from './Hoja.jsx'
 import Marca from './Marca.jsx'
 import Chip from './Chip.jsx'
 import Campo from './Campo.jsx'
 import Boton from './Boton.jsx'
 import Selector from './Selector.jsx'
+import SelectorRepetir from './SelectorRepetir.jsx'
 import { useDatos } from '../estado/useDatos.jsx'
 import * as datosTareas from '../datos/tareas.js'
 import { cargarTablerosDeCliente } from '../datos/catalogos.js'
 import { textoFecha } from '../datos/fechas.js'
+import { nombreRegla } from '../datos/repetir.js'
 
 /**
  * La hoja de detalle: TODO lo que se puede hacer con una tarea (LOGICA §4), sea personal
@@ -82,7 +84,7 @@ function Contenido({ tarea: t }) {
   // La capa no se relee por la vista: `capa()` ya devuelve la fila escrita, que es lo mismo.
   const editarCapa = (cambios) => guardar(cambios, async () => {
     const c = await datosTareas.capa(t.id, t.origen, cambios)
-    return { ...t, cuadrante: c.cuadrante, hoyPara: c.hoyPara, orden: c.orden, horaInicio: c.horaInicio, horaFin: c.horaFin, seguida: c.seguida, notas: c.notas }
+    return { ...t, cuadrante: c.cuadrante, hoyPara: c.hoyPara, orden: c.orden, horaInicio: c.horaInicio, horaFin: c.horaFin, seguida: c.seguida, notas: c.notas, repetir: c.repetir }
   })
 
   /* ── texto ─────────────────────────────────────────────────────────────── */
@@ -149,6 +151,22 @@ function Contenido({ tarea: t }) {
   /* ── Hoy ───────────────────────────────────────────────────────────────── */
   const enHoy = Boolean(t.hoyPara) && t.hoyPara <= hoy
   const alternarHoy = () => guardar({ hoyPara: enHoy ? null : hoy }, () => datosTareas.planificarHoy(t, enHoy ? null : hoy))
+
+  /* ── repetir (LOGICA §4.1) ─────────────────────────────────────────────── */
+  // Una serie necesita ancla: poner regla a una tarea sin `vence` le pone vence = hoy, en la
+  // misma pasada (dos escrituras, un solo parche optimista: si se hicieran por separado la
+  // segunda pisaría la fecha con el `t` viejo de su cierre).
+  const cambiarRepetir = (r) => {
+    const regla = r || null
+    const necesitaAncla = !!regla && !t.vence
+    return guardar({ repetir: regla, ...(necesitaAncla ? { vence: hoy } : {}) }, async () => {
+      const base = necesitaAncla ? await datosTareas.actualizar(t, { vence: hoy }) : t
+      const c = await datosTareas.capa(t.id, t.origen, { repetir: regla })
+      return { ...base, repetir: c.repetir }
+    })
+  }
+  const siguiente = t.repetir ? datosTareas.siguienteDe(t, hoy) : null
+  const saltar = () => guardar({ vence: siguiente, hoyPara: siguiente }, () => datosTareas.saltar(t))
 
   /* ── seguir (solo portal) ──────────────────────────────────────────────── */
   const alternarSeguir = () => guardar({ seguida: !t.seguida }, () => datosTareas.seguir(t, !t.seguida))
@@ -240,6 +258,7 @@ function Contenido({ tarea: t }) {
         {esPortal && t.prioridadPortal && <Chip color="var(--texto-2)" pequeno punto={false}>prioridad {t.prioridadPortal}</Chip>}
         {esPortal && t.fase && <Chip color="var(--texto-2)" pequeno punto={false}>{t.fase}</Chip>}
         {t.vence && t.vence < hoy && !t.hecha && <Chip color="var(--peligro)" pequeno>Atrasada</Chip>}
+        {t.repetir && <Chip color="var(--acento)" pequeno punto={false}><Repeat size={12} strokeWidth={2} /> {nombreRegla(t.repetir)}</Chip>}
       </div>
 
       {/* Hoy + seguir: los dos toggles que más se usan, arriba */}
@@ -247,6 +266,11 @@ function Contenido({ tarea: t }) {
         <Chip color="var(--acento)" activo={enHoy} onClick={alternarHoy} punto={false} aria-label={enHoy ? 'Quitar de Hoy' : 'Poner en Hoy'}>
           <Sun size={14} strokeWidth={1.75} /> {enHoy ? 'En Hoy' : 'Hoy'}
         </Chip>
+        {siguiente && !t.hecha && (
+          <Chip color="var(--texto-2)" onClick={saltar} punto={false} aria-label={`Saltar a la siguiente, ${textoFecha(siguiente)}`}>
+            <SkipForward size={14} strokeWidth={1.75} /> Saltar → {textoFecha(siguiente)}
+          </Chip>
+        )}
         {esPortal && (
           <Chip color="var(--acento)" activo={t.seguida} onClick={alternarSeguir} punto={false} aria-label={t.seguida ? 'Dejar de seguir' : 'Seguir'}>
             {t.seguida ? <Eye size={14} strokeWidth={1.75} /> : <EyeOff size={14} strokeWidth={1.75} />} {t.seguida ? 'Siguiendo' : 'Seguir'}
@@ -309,6 +333,8 @@ function Contenido({ tarea: t }) {
           <Campo etiqueta="Desde" type="time" valor={t.horaInicio || ''} alCambiar={(v) => editarCapa({ horaInicio: v || null })} />
           <Campo etiqueta="Hasta" type="time" valor={t.horaFin || ''} alCambiar={(v) => editarCapa({ horaFin: v || null })} />
         </div>
+
+        <SelectorRepetir valor={t.repetir} alCambiar={cambiarRepetir} />
 
         {opcionesEtapa.length > 0 && (
           <Selector etiqueta="Etapa" opciones={opcionesEtapa} valor={t.etapaId} alCambiar={moverA} />

@@ -1,10 +1,11 @@
 import { motion, useDragControls } from 'framer-motion'
-import { Clock } from 'lucide-react'
+import { Clock, Repeat } from 'lucide-react'
 import Marca from '../../componentes/Marca.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarGuardarTarea, usarPulsacion } from './ganchos.js'
 import { esPeriodo, textoHoras } from './calendario.js'
 import { textoFecha } from '../../datos/fechas.js'
+import { nombreRegla } from '../../datos/repetir.js'
 
 /**
  * El día (`data-dia`) que hay bajo el puntero al soltar, o null si no se soltó sobre uno.
@@ -93,6 +94,7 @@ export default function FilaTarea({ tarea: t, fina = false, levantada = false, a
         <div className="cal-fila-meta">
           {fina && esPeriodo(t) && <span>hasta el {textoFecha(t.vence)}</span>}
           {!fina && horas && <span className="cal-fila-hora"><Clock size={12} strokeWidth={1.75} />{horas}</span>}
+          {!fina && t.repetir && <span className="cal-fila-repite" title={`Se repite ${nombreRegla(t.repetir)}`}><Repeat size={12} strokeWidth={2} /></span>}
           {meta && <span>{meta}</span>}
         </div>
       </div>
