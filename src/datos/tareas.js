@@ -356,6 +356,19 @@ export async function planificarHoy(tarea, fecha = null, { orden } = {}) {
   return releer(tarea.id, tarea.origen)
 }
 
+/**
+ * La hora del día (capa personal): `horaInicio`/`horaFin` como 'HH:MM' o null. Sólo se
+ * escribe lo que viene; `undefined` no toca la columna. Es lo que escribe el arrastre del
+ * calendario (LOGICA §5.1) y podría escribir cualquiera.
+ */
+export async function programar(tarea, { horaInicio, horaFin } = {}) {
+  const cambios = {}
+  if (horaInicio !== undefined) cambios.horaInicio = horaInicio || null
+  if (horaFin !== undefined) cambios.horaFin = horaFin || null
+  await capa(tarea.id, tarea.origen, cambios)
+  return releer(tarea.id, tarea.origen)
+}
+
 export async function seguir(tarea, si = true) {
   await capa(tarea.id, tarea.origen, { seguida: !!si })
   // Al dejar de seguir una que no me toca, sale de la vista: releer no la encontraría.

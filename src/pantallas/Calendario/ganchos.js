@@ -1,6 +1,6 @@
 /**
  * ganchos.js — los hooks que necesita Calendario y que no tienen sitio en otro lado:
- * pulsación larga, el reloj de «ahora» y las escrituras (completar, mover de día).
+ * pulsación larga, el reloj de «ahora» y las escrituras (completar, mover de día, programar).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { horaAhora, sumarDias } from '../../datos/fechas.js'
@@ -90,5 +90,12 @@ export function usarGuardarTarea() {
     return guardar(tarea, cambios, () => datosTareas.actualizar(tarea, cambios))
   }, [guardar])
 
-  return { guardar, completar, moverDeDia }
+  // Poner, mover o quitar la hora del día (LOGICA §5.1). Las dos horas van en la misma
+  // escritura: un inicio nuevo con el fin viejo sería una duración inventada.
+  const programar = useCallback((tarea, horaInicio, horaFin) => {
+    const cambios = { horaInicio: horaInicio || null, horaFin: horaFin || null }
+    return guardar(tarea, cambios, () => datosTareas.programar(tarea, cambios))
+  }, [guardar])
+
+  return { guardar, completar, moverDeDia, programar }
 }

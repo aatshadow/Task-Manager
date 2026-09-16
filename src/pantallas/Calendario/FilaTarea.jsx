@@ -28,12 +28,16 @@ function diaBajo(evento) {
  * y arranca el arrastre (dragListener=false, para que el dedo siga pudiendo hacer scroll),
  * y al soltar se mira qué día hay debajo. Si el navegador se queda el gesto (en móvil el
  * scroll vertical gana), la fila sigue levantada y el padre acepta un toque en un día.
+ *
+ * Con `arrastre` (la vista Día, LOGICA §5.1) la fila se puede llevar al timeline para
+ * ponerle hora: son los manejadores de `usarArrastreHora`, que sustituyen al arrastre de
+ * framer. `enVuelo` la apaga mientras su fantasma viaja con el dedo.
  */
-export default function FilaTarea({ tarea: t, fina = false, levantada = false, alLevantar, alSoltar }) {
+export default function FilaTarea({ tarea: t, fina = false, levantada = false, alLevantar, alSoltar, arrastre = null, enVuelo = false }) {
   const { abrirTarea, nombreProyecto, colorProyecto, nombreCategoria } = useDatos()
   const { completar } = usarGuardarTarea()
   const controles = useDragControls()
-  const movible = !!alLevantar && !fina
+  const movible = !!alLevantar && !fina && !arrastre
 
   const color = colorProyecto(t) || 'var(--texto-3)'
   const proyecto = nombreProyecto(t)
@@ -52,6 +56,7 @@ export default function FilaTarea({ tarea: t, fina = false, levantada = false, a
     fina && 'cal-fila--fina',
     t.hecha && 'cal-fila--hecha',
     levantada && 'cal-fila--levantada',
+    enVuelo && 'cal-fila--en-vuelo',
   ].filter(Boolean).join(' ')
 
   const propsArrastre = movible ? {
@@ -76,6 +81,7 @@ export default function FilaTarea({ tarea: t, fina = false, levantada = false, a
       style={{ '--cal-color': color }}
       {...propsArrastre}
       {...pulsacion}
+      {...(arrastre && !fina ? arrastre : {})}
     >
       {fina ? (
         <span className="cal-fila-barra" aria-hidden="true" />

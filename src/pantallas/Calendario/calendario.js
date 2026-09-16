@@ -126,3 +126,32 @@ export function textoHoras(t) {
   if (!t.horaInicio) return ''
   return t.horaFin ? `${t.horaInicio} – ${t.horaFin}` : t.horaInicio
 }
+
+/* ── Arrastrar para poner hora (LOGICA §5.1) ─────────────────────────────── */
+
+/** El imán del arrastre: los minutos se redondean a múltiplos de esto. */
+export const PASO_IMAN = 5
+
+/** Duración en minutos de una tarea con las dos horas bien puestas, o null si no la tiene. */
+export function duracionDe(t) {
+  if (!t?.horaInicio || !t?.horaFin) return null
+  const d = aMinutos(t.horaFin) - aMinutos(t.horaInicio)
+  return d > 0 ? d : null
+}
+
+/** Alto en píxeles con el que se pinta una duración (o la hora por defecto), con el mínimo tocable. */
+export function altoDeDuracion(duracion) {
+  return Math.max(ALTO_MINIMO, ((duracion ?? 60) / 60) * PX_HORA)
+}
+
+/**
+ * Píxeles desde el borde superior de la pista → minuto de inicio imantado. Se queda dentro
+ * del día pintado: nunca antes de las 6:00 ni tan tarde que el final pase de las 24:00.
+ */
+export function minutoEnPista(px, duracion = null) {
+  const min = HORA_MIN * 60
+  const max = Math.max(min, HORA_MAX * 60 - (duracion ?? 60))
+  const bruto = min + (px / PX_HORA) * 60
+  const imantado = Math.round(bruto / PASO_IMAN) * PASO_IMAN
+  return Math.min(Math.max(imantado, min), max)
+}

@@ -243,7 +243,15 @@
   justify-content: center;
   gap: 2px;
   box-sizing: border-box;
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: pan-y;
+  /* al soltar, la tarjeta real se desliza a su hora nueva en vez de aparecer de golpe */
+  transition: top var(--dur) var(--suave), height var(--dur) var(--suave), opacity var(--dur-corta);
 }
+/* su fantasma viaja con el dedo: la de verdad se queda apagada en el sitio viejo */
+.tarjeta.cal-evento--en-vuelo { opacity: 0.28; }
+.cal-fila--en-vuelo { opacity: 0.28; }
 .tarjeta.cal-evento--corta { padding: 4px 12px; }
 .cal-evento-titulo { font-size: var(--t-secundario); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal-evento-meta { font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -270,3 +278,105 @@
   background: var(--acento);
   box-shadow: 0 0 0 3px var(--fondo);
 }
+
+/* ── Arrastrar para poner hora (LOGICA §5.1) ─────────────────────────────── */
+body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+
+/* el fantasma: la tarjeta que va con el dedo. Posición y ancho los pone el hook en style. */
+.tarjeta.cal-fantasma {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 70;
+  pointer-events: none;
+  will-change: transform;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), var(--resplandor-suave);
+  animation: cal-levantar 160ms var(--suave);
+}
+.tarjeta.cal-fantasma.tarjeta--calida { box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), 0 0 0 1.5px var(--acento); }
+.tarjeta.cal-fantasma--sin-hora { background: var(--tarjeta-alta); border: 1.5px dashed var(--texto-3); color: var(--texto-2); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55); }
+.cal-fantasma-hora { font-weight: 700; font-variant-numeric: tabular-nums; color: inherit; }
+.tarjeta--naranja .cal-fantasma-hora { color: var(--sobre-acento); }
+@keyframes cal-levantar {
+  from { transform: scale(0.96); opacity: 0.6; }
+  to { opacity: 1; }
+}
+
+/* la línea imán y la hora exacta en el margen */
+.cal-iman {
+  position: absolute;
+  left: -1px;
+  right: 0;
+  height: 1.5px;
+  background: var(--acento-claro);
+  box-shadow: 0 0 10px rgba(255, 148, 72, 0.7);
+  z-index: 4;
+  pointer-events: none;
+}
+.cal-iman::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -3.75px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--acento-claro);
+  box-shadow: 0 0 0 3px var(--fondo);
+}
+.cal-hora--iman {
+  z-index: 2;
+  padding: 2px 6px;
+  margin-right: -6px;
+  border-radius: 6px;
+  background: var(--fondo);
+  color: var(--acento-claro);
+  font-weight: 700;
+}
+
+/* «Todo el día» como destino: soltar aquí quita la hora */
+.cal-todo-el-dia {
+  border-radius: var(--radio-tarjeta);
+  outline: 1.5px dashed transparent;
+  outline-offset: 6px;
+  transition: outline-color var(--dur-corta), background var(--dur-corta);
+}
+.cal-todo-el-dia--destino { outline-color: var(--acento); background: var(--acento-apagado); }
+.cal-lista-cuenta--destino { color: var(--acento-claro); }
+
+/* «¿Cuánto?»: el selector rápido de duración, pegado a la tarjeta recién soltada */
+.cal-duracion {
+  position: absolute;
+  left: 8px;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: var(--radio-campo);
+  background: var(--tarjeta-alta);
+  border: 1px solid var(--tarjeta-borde);
+  box-shadow: var(--tarjeta-luz), 0 16px 40px rgba(0, 0, 0, 0.5);
+  transform-origin: top left;
+}
+.cal-duracion--arriba { transform: translateY(-100%); transform-origin: bottom left; }
+.cal-duracion-titulo { font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto-2); }
+/* siete opciones en una rejilla de cuatro (4 + 3): a 390px no caben en una fila legible y
+   una fila que se corta escondería el 1h30 y el 2h */
+.cal-duracion-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.cal-duracion-chip {
+  height: 34px;
+  padding: 0 6px;
+  border-radius: var(--radio-pildora);
+  background: var(--tarjeta);
+  border: 1px solid var(--linea-fuerte);
+  color: var(--texto);
+  font-size: var(--t-secundario);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-corta), border-color var(--dur-corta), color var(--dur-corta), transform 120ms;
+}
+.cal-duracion-chip:hover { background: var(--acento-apagado); border-color: var(--acento); color: var(--acento-claro); }
+.cal-duracion-chip:active { transform: scale(0.95); background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }

@@ -118,11 +118,36 @@ opcionalmente proyecto/cuadrante/fecha desplegando).
 |---|---|
 | **Hoy** | «Hola Alex» + «N tareas pendientes». Tarjeta grande naranja-degradado con la **primera de Hoy** (o la siguiente con hora). 4 números grandes: Hechas hoy · En Hoy · Atrasadas · Bandeja. Lista de Hoy (marcar hecha con un toque, reordenar). Hábitos que tocan hoy con su marca. Al abrir, si hay días sin cerrar, ejecuta `hoy_reiniciar_dia` y avisa «ayer: 7 planificadas · 4 hechas». |
 | **Tareas** | Pestañas: **Bandeja** (sin triar) · **Siguiente** (todo lo vivo no hecho, agrupable por proyecto/cuadrante/categoría, filtro por proyecto y por responsable) · **Tableros** (kanban por pipeline propio; los tableros de cliente se ven con sus etapas del portal) · **Explorar GrowthInfo** · **Nevera**. Toque en una tarea → hoja de detalle (bottom sheet) con todos los campos, comentarios si es del portal. |
-| **Calendario** | Día (timeline por horas como el «Ongoing» del mockup; las sin hora arriba como «todo el día»; línea naranja de «ahora») · Semana (7 columnas) · Mes (rejilla con puntos; toque → lista del día). Cabecera con mes y flechas como el mockup. Solo tareas (por `vence`, y por `inicio→vence` si hay período). Arrastrar/asignar fecha desde la hoja. |
+| **Calendario** | Día (timeline por horas como el «Ongoing» del mockup; las sin hora arriba como «todo el día»; línea naranja de «ahora»; **el día se organiza arrastrando, §5.1**) · Semana (7 columnas) · Mes (rejilla con puntos; toque → lista del día). Cabecera con mes y flechas como el mockup. Solo tareas (por `vence`, y por `inicio→vence` si hay período). Arrastrar/asignar fecha desde la hoja. |
 | **Hábitos** | Los de hoy con marca grande; rejilla de las últimas 4 semanas por hábito; racha; cumplimiento de la semana. Alta/edición con cadencia. |
 | **Stats** | Selector 7 · 30 · 90 días. **Gráfico lineal temporal: creadas vs hechas por día.** Hechas por proyecto, por categoría, por cuadrante (barras). Sobrecarga: planificadas vs hechas por día (de `hoy_dias`). Racha de días con ≥1 hecha. Hábitos: cumplimiento por semana. |
 | **Ajustes** | Proyectos · Categorías · Pipelines y etapas · Cuadrantes (etiqueta y color) · Plantillas (crear/editar/instanciar) · Día (hora de reinicio, nevera, bandeja) · Cuenta (salir). |
 | **Acceso** | Email + contraseña (Supabase Auth). Sesión persistida. |
+
+### 5.1 · Organizar el día arrastrando (Alex, 16-09-2026)
+
+En la vista **Día** la hora de una tarea se pone **con el dedo**, no desde la hoja:
+
+1. **Levantar.** Con el dedo, pulsación sostenida (~300 ms sin moverse) sobre una tarea de «Todo el
+   día» o del timeline: vibra y se levanta. Con ratón, basta tirar de ella. Moverse antes de que
+   levante es un scroll, no un arrastre: el gesto se lo queda el navegador.
+2. **Arrastrar.** La tarjeta fantasma sigue al dedo. Sobre el timeline se **imanta a 5 minutos**:
+   una línea naranja cruza la pista a la altura del borde superior y la hora exacta (`09:35`) se
+   pinta en el margen de las horas, tapando la etiqueta que hubiera debajo. Cerca del borde de la
+   pantalla, la página se desplaza sola. Escape cancela; soltar fuera de la pista y de «Todo el
+   día» también.
+3. **Soltar en la pista** escribe `hora_inicio` (capa personal, `programar`). Si la tarea **ya tenía
+   duración** (`hora_fin > hora_inicio`), se desplaza entera: `hora_fin` se mueve lo mismo. Si **no
+   la tenía**, se escribe `hora_inicio` (y `hora_fin` a null) y aparece pegado a la tarjeta el
+   **selector rápido de duración**: `5m · 15m · 30m · 45m · 1h · 1h30 · 2h`. Elegir escribe
+   `hora_fin`. Tocar fuera lo cierra sin escribir: la tarea se queda con hora de inicio y se pinta
+   de una hora, como siempre (`tramoDe`).
+4. **Soltar una tarjeta del timeline sobre «Todo el día»** le quita la hora (`hora_inicio` y
+   `hora_fin` a null). Es el gesto inverso; la zona se enciende mientras hay algo en el aire.
+5. Límites: de 6:00 a 24:00 menos la duración. Lo demás no cambia: ni `vence`, ni `hoy_para`.
+
+Es una escritura optimista por el `usarGuardar` de la casa: la tarjeta aterriza al instante y, si
+la base dice que no, vuelve donde estaba y avisa.
 
 ## 6 · Diseño — el mockup, en tokens
 
@@ -160,7 +185,7 @@ tareas.js       cargarTodas({ incluirArchivadas }) → [Tarea]           (de hoy
                 mover(tarea, etapa)          // dos ejes, ambas tablas
                 completar(tarea, hecha=true) // = mover a la terminal de su tablero
                 capa(tareaId, origen, cambios) // cuadrante, hoyPara, orden, horaInicio, horaFin, seguida, notas
-                planificarHoy(tarea, fecha|null) · seguir(tarea, si) · archivar(tarea, si) · borrar(tarea)
+                planificarHoy(tarea, fecha|null) · programar(tarea, { horaInicio, horaFin }) · seguir(tarea, si) · archivar(tarea, si) · borrar(tarea)
                 reiniciarDia(hoy) · cargarDias(desde, hasta)
                 cargarComentarios(taskId) · comentar(taskId, texto)   // solo portal
                 esAtrasada(t, hoy) · esNevera(t, ajustes, hoy) · esBandeja(t)
