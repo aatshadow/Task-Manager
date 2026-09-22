@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import './estilos/ensamblaje.css'
+import './estilos/escritorio.css'
 import Cabecera from './componentes/Cabecera.jsx'
-import Nav from './componentes/Nav.jsx'
+import Nav, { PESTANAS } from './componentes/Nav.jsx'
+import Rail from './componentes/Rail.jsx'
 import FAB from './componentes/FAB.jsx'
 import Aviso from './componentes/Aviso.jsx'
 import DetalleTarea from './componentes/DetalleTarea.jsx'
@@ -16,6 +18,7 @@ import Ajustes from './pantallas/Ajustes/Ajustes.jsx'
 import Acceso from './pantallas/Acceso/Acceso.jsx'
 import Muestrario from './dev/Muestrario.jsx'
 import { ProveedorDatos, useDatos } from './estado/useDatos.jsx'
+import { usarEscritorio } from './estado/usarEscritorio.js'
 import { resumenHoy } from './datos/estadisticas.js'
 import { diaDelReto } from './datos/retos.js'
 
@@ -71,6 +74,7 @@ function Raiz() {
 
 function Armazon() {
   const { tareas, hoy, cargando, yo, sesion, nuevaTarea, reto } = useDatos()
+  const escritorio = usarEscritorio()
   const [pestana, setPestana] = useState('hoy')
   const [pestanaAnterior, setPestanaAnterior] = useState('hoy')
 
@@ -97,14 +101,31 @@ function Armazon() {
   // Desde Hoy, lo capturado entra ya planificado para hoy; desde el resto va a Bandeja limpia.
   const capturar = () => nuevaTarea(pestana === 'hoy' ? { hoyPara: hoy } : {})
 
-  return (
-    <div className="app">
+  /* ── atajos de teclado, sólo en escritorio (§10.0-9) ───────────────────── */
+  // `1`–`5` pestañas · `t` Hoy · `n` nueva tarea. Escape lo gestiona cada hoja (cierra el
+  // panel), así que aquí no se toca. Nada de esto se dispara escribiendo en un campo.
+  useEffect(() => {
+    if (!escritorio) return undefined
+    const alTeclear = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const en = e.target
+      if (en && (en.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(en.tagName))) return
+      if (e.key >= '1' && e.key <= '5') { irA(PESTANAS[Number(e.key) - 1].clave); return }
+      if (e.key === 't' || e.key === 'T') { irA('hoy'); return }
+      if (e.key === 'n' || e.key === 'N') { e.preventDefault(); capturar() }
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  })
+
+  const contenido = (
+    <>
       <Cabecera
         titulo={pestana === 'hoy' ? tituloHoy : titulo}
         subtitulo={pestana === 'hoy' ? subtituloHoy : subtitulo}
         inicial={inicial}
-        alAvatar={abrirAjustes}
-        alAtras={enAjustes ? () => irA(pestanaAnterior) : undefined}
+        alAvatar={escritorio ? undefined : abrirAjustes}
+        alAtras={!escritorio && enAjustes ? () => irA(pestanaAnterior) : undefined}
       />
 
       {/* Solo animación de ENTRADA (key remonta la pantalla). Sin AnimatePresence a propósito:
@@ -120,11 +141,36 @@ function Armazon() {
         {/* onIrA: Hoy lo usa para los atajos (calendario, Atrasadas/Bandeja); el resto lo ignora */}
         <Pantalla onIrA={irA} />
       </motion.div>
+    </>
+  )
 
+  // En escritorio el armazón es una rejilla raíl | contenido; en móvil, la columna de
+  // siempre con nav inferior y FAB. Mismo árbol de pantallas en los dos.
+  if (escritorio) {
+    return (
+      <div className="app app--escritorio">
+        <Rail
+          activa={enAjustes ? null : pestana}
+          alCambiar={irA}
+          alNueva={capturar}
+          alAjustes={enAjustes ? () => irA(pestanaAnterior) : abrirAjustes}
+          enAjustes={enAjustes}
+          inicial={inicial}
+          nombre={nombre}
+        />
+        <main className="app-contenido">{contenido}</main>
+        {/* las dos hojas viven aquí, una vez, para cualquier pantalla */}
+        <DetalleTarea />
+        <NuevaTarea />
+      </div>
+    )
+  }
+
+  return (
+    <div className="app">
+      {contenido}
       {!enAjustes && <FAB alPulsar={capturar} />}
       <Nav activa={enAjustes ? null : pestana} alCambiar={irA} />
-
-      {/* las dos hojas viven aquí, una vez, para cualquier pantalla */}
       <DetalleTarea />
       <NuevaTarea />
     </div>

@@ -18,6 +18,8 @@ import * as datosTareas from '../../datos/tareas.js'
 import { esAtrasada, esBandeja, esDeHoy } from '../../datos/tareas.js'
 import { diaDe, aISO } from '../../datos/fechas.js'
 import { bloqueActual, contiene } from '../../datos/bloques.js'
+import { usarEscritorio } from '../../estado/usarEscritorio.js'
+import VistaDia from '../Calendario/VistaDia.jsx'
 import './Hoy.css'
 
 /**
@@ -39,9 +41,10 @@ import './Hoy.css'
 export default function Hoy({ onIrA } = {}) {
   const {
     tareas, hoy, ahora, bloques, cargando, error, avisoDia, descartarAviso,
-    abrirTarea, actualizarLocal, recargar, avisar,
+    abrirTarea, actualizarLocal, recargar, avisar, nuevaTarea,
   } = useDatos()
   const [planificando, setPlanificando] = useState(false)
+  const escritorio = usarEscritorio()
 
   /* ── derivadas ─────────────────────────────────────────────────────────── */
   const vivas = useMemo(() => (tareas || []).filter((t) => !t.archivadoEn), [tareas])
@@ -150,8 +153,24 @@ export default function Hoy({ onIrA } = {}) {
   const arrancando = cargando && !vivas.length
   const sinCargar = !!error && !vivas.length && !cargando
 
+  // En escritorio (§10.0-9) lo mismo se reparte en tres columnas: el día a la izquierda,
+  // el reto y la lista en el centro, hábitos y frentes a la derecha. Son las MISMAS piezas
+  // y el mismo estado: sólo cambia dónde caen.
+  const columnaDia = escritorio && (
+    <div className="hoy-col">
+      <section className="seccion" style={{ marginTop: 0 }}>
+        <div className="seccion-titulo">El día</div>
+        <div className="hoy-dia-escritorio">
+          <VistaDia tareas={vivas} fecha={hoy} hoy={hoy} alNueva={(f) => nuevaTarea({ vence: f, hoyPara: f })} />
+        </div>
+      </section>
+    </div>
+  )
+
   return (
-    <div className="pantalla hoy">
+    <div className={`pantalla hoy${escritorio ? ' hoy--escritorio' : ''}`}>
+      {columnaDia}
+      <div className="hoy-col">
       <CabeceraReto />
 
       {/* aviso del día que se acaba de cerrar */}
@@ -282,9 +301,12 @@ export default function Hoy({ onIrA } = {}) {
         )}
       </section>
 
-      <HabitosHoy bloqueActualId={bloque?.id || null} />
+      </div>
 
-      <Frentes />
+      <div className="hoy-col">
+        <HabitosHoy bloqueActualId={bloque?.id || null} />
+        <Frentes />
+      </div>
 
       <HojaPlanificar abierta={planificando} alCerrar={() => setPlanificando(false)} alPlanificar={planificar} />
     </div>

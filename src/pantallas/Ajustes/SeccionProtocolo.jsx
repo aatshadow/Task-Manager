@@ -61,7 +61,7 @@ export default function SeccionProtocolo() {
   }
 
   return (
-    <section className="seccion">
+    <section className="seccion seccion--ancha">
       <div className="seccion-titulo">Protocolo · el raíl del día</div>
       <Tarjeta>
         <div className="ajustes-lista">

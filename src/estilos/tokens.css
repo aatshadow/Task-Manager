@@ -66,6 +66,10 @@
 
   /* medidas del armazón */
   --ancho-columna: 430px;
+  /* escritorio (≥1024px, §10.0-9): raíl a la izquierda, contenido ancho, panel a la derecha */
+  --ancho-escritorio: 1280px;
+  --ancho-rail: 220px;
+  --ancho-panel: 420px;
   --margen: 20px;
   --alto-nav: 64px;
   --safe-abajo: env(safe-area-inset-bottom, 0px);

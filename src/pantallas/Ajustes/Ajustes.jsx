@@ -1,5 +1,6 @@
 import './ajustes.css'
 import { useDatos } from '../../estado/useDatos.jsx'
+import { usarEscritorio } from '../../estado/usarEscritorio.js'
 import SeccionProtocolo from './SeccionProtocolo.jsx'
 import SeccionReto from './SeccionReto.jsx'
 import SeccionFrentes from './SeccionFrentes.jsx'
@@ -18,6 +19,7 @@ import SeccionCuenta from './SeccionCuenta.jsx'
  */
 export default function Ajustes() {
   const { cargando } = useDatos()
+  const escritorio = usarEscritorio()
   // Se puede llegar desde el avatar con el arranque aún en vuelo: hasta que lleguen los
   // catálogos no se pintan las secciones, que con listas vacías mentirían («Sin proyectos»).
   if (cargando) {
@@ -28,7 +30,8 @@ export default function Ajustes() {
     )
   }
   return (
-    <div className="pantalla ajustes">
+    <div className={`pantalla ajustes${escritorio ? ' ajustes--escritorio' : ''}`}>
+      {/* el Protocolo son 22 filas: en dos columnas se leería fatal, así que ocupa el ancho */}
       <SeccionProtocolo />
       <SeccionReto />
       <SeccionFrentes />

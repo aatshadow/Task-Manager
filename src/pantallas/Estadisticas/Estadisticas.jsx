@@ -25,6 +25,7 @@ import Vacio from '../../componentes/Vacio.jsx'
 import Boton from '../../componentes/Boton.jsx'
 import { GraficoLineas, BarrasHorizontales, BarrasDobles, ColumnasSemanas } from './graficos.jsx'
 import BloqueReto from './Reto.jsx'
+import { usarEscritorio } from '../../estado/usarEscritorio.js'
 import {
   RANGOS, rangoDe, diaEnCurso, totalSobrecarga, sobrecargaSinHuecos, sobrecargaPorSemana, cumplimientoPorSemana, plegarOtros, num,
 } from './calculos.js'
@@ -41,6 +42,7 @@ export default function Estadisticas() {
     // más atrás de lo que pide el selector de esta pantalla (§10.7)
     dias: diasReto,
   } = useDatos()
+  const escritorio = usarEscritorio()
   const [n, setN] = useState(30)
   // la base histórica (con archivadas); null = aún no leída
   const [base, setBase] = useState(null)
@@ -147,7 +149,7 @@ export default function Estadisticas() {
   }
 
   return (
-    <div className="pantalla stats">
+    <div className={`pantalla stats${escritorio ? ' stats--escritorio' : ''}`}>
       {/* 0 · el reto: el mapa de calor manda sobre su propio rango (los 90 días), no
           sobre el selector de arriba — por eso va antes que él. */}
       <BloqueReto dias={diasReto} />

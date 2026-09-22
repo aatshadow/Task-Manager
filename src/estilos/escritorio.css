@@ -1,0 +1,205 @@
+/* 2day · escritorio (≥1024px, LOGICA §10.0-9).
+   El mismo motor y las mismas pantallas: lo único que cambia es la disposición. Fuera de
+   este fichero no hay ni una media query de escritorio, para que el móvil (que es lo
+   primero, §0.9) no se pueda romper desde aquí. */
+
+@media (min-width: 1024px) {
+  /* ── el armazón: raíl | contenido ──────────────────────────────────────── */
+  .app--escritorio {
+    display: grid;
+    grid-template-columns: var(--ancho-rail) minmax(0, 1fr);
+    max-width: none;
+    padding: 0;
+    align-items: start;
+  }
+  .app-contenido {
+    min-width: 0;
+    max-width: var(--ancho-escritorio);
+    padding: 28px 32px 64px;
+  }
+  /* El panel se abre ENCIMA (con su fondo oscurecido), no aparta el contenido: apartarlo
+     dejaba las tres columnas de Hoy en 900 px y el título de AHORA salía a una palabra
+     por línea (medido el 22-09). */
+
+  /* ── el raíl ───────────────────────────────────────────────────────────── */
+  .rail {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 24px 14px 18px;
+    border-right: 1px solid var(--linea);
+    background: color-mix(in srgb, var(--nav) 92%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .rail-marca {
+    font-size: var(--t-titulo);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--acento);
+    padding: 0 10px 14px;
+  }
+  .rail-nueva {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 14px;
+    margin-bottom: 14px;
+    border-radius: var(--radio-pildora);
+    background: linear-gradient(160deg, var(--acento-claro) 0%, var(--acento) 60%);
+    color: var(--sobre-acento);
+    font-size: var(--t-cuerpo);
+    font-weight: 600;
+    box-shadow: var(--resplandor-suave);
+  }
+  .rail-nueva:hover { filter: brightness(1.06); }
+  .rail-lista { display: flex; flex-direction: column; gap: 2px; }
+  .rail-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border-radius: var(--radio-campo);
+    color: var(--texto-2);
+    font-size: var(--t-cuerpo);
+    text-align: left;
+  }
+  .rail-item:hover { color: var(--texto); background: var(--linea); }
+  .rail-item--activa { color: var(--acento); }
+  .rail-item--activa:hover { background: transparent; }
+  .rail-fondo {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: var(--radio-campo);
+    background: var(--acento-apagado);
+  }
+  .rail-etiqueta { flex: 1; min-width: 0; }
+  .rail-tecla {
+    flex: none;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    border: 1px solid var(--linea-fuerte);
+    color: var(--texto-3);
+    font-size: 10px;
+    font-family: var(--fuente);
+  }
+  .rail-nueva .rail-tecla { border-color: rgba(0, 0, 0, 0.25); color: rgba(255, 255, 255, 0.75); }
+  .rail-pie { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+  .rail-cuenta { display: flex; align-items: center; gap: 10px; padding: 8px 12px 0; border-top: 1px solid var(--linea); }
+  .rail-avatar {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--degradado-calido);
+    border: 1px solid var(--tarjeta-borde);
+    font-size: var(--t-secundario);
+    font-weight: 600;
+  }
+  .rail-nombre { min-width: 0; font-size: var(--t-secundario); color: var(--texto-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── la hoja como panel lateral ────────────────────────────────────────── */
+  .hoja--panel {
+    left: auto;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--ancho-panel);
+    max-width: 92vw;
+    max-height: none;
+    border-radius: 0;
+    border-left: 1px solid var(--linea);
+    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.45);
+    touch-action: auto;
+  }
+  .hoja--panel .hoja-asa-zona { cursor: default; padding: 20px var(--margen) 8px; }
+  .hoja-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .hoja-cerrar {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: var(--texto-2);
+  }
+  .hoja-cerrar:hover { color: var(--texto); background: var(--linea); }
+
+  /* ── la cabecera de la pantalla ────────────────────────────────────────── */
+  .app--escritorio .cabecera { padding-top: 0; margin-bottom: 22px; }
+  /* la cuenta vive en el raíl: un segundo avatar arriba a la derecha sólo confunde */
+  .app--escritorio .cabecera-avatar { display: none; }
+
+  /* ── Hoy: tres columnas (día | lo de hoy | hábitos y frentes) ──────────── */
+  /* Con `.app--escritorio` delante a propósito: `.hoy` ya es un flex en columna y, según
+     el orden en que Vite junte los CSS, una regla de la misma especificidad puede perder
+     (medido el 22-09: las tres columnas salían apiladas). */
+  .app--escritorio .hoy--escritorio {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .app--escritorio .hoy-col { display: flex; flex-direction: column; min-width: 0; gap: 0; }
+  .app--escritorio .hoy-col > .seccion:first-child { margin-top: 0; }
+  /* el día de la izquierda: con su propio scroll, para que las otras dos columnas no se estiren */
+  .hoy-dia-escritorio { position: relative; max-height: calc(100dvh - 210px); overflow-y: auto; padding-right: 6px; }
+  .hoy-dia-escritorio .cal-todo-el-dia { margin-bottom: 10px; }
+  /* dentro de la columna el timeline no necesita el alto de una pantalla entera */
+  .hoy-dia-escritorio .cal-timeline { min-height: 0; }
+
+  /* ── Calendario: la semana con 7 columnas de ancho real ────────────────── */
+  /* La tira de días es una rejilla de 7 en los dos tamaños; en escritorio se le da aire
+     y altura para que una columna sea una columna de verdad y no una pila de puntos. */
+  .app--escritorio .cal-tira { gap: 10px; }
+  /* la rejilla del MES sí gana con celdas altas; la tira de la semana es una fila de
+     números y se quedaba con 160 px de hueco vacío debajo (medido el 22-09) */
+  .app--escritorio .cal-rejilla .cal-celda { min-height: 110px; }
+  .app--escritorio .cal-timeline { min-height: 720px; }
+
+  /* ── Tableros: las columnas del kanban, lado a lado ────────────────────── */
+  /* En móvil el kanban es un carrusel con scroll-snap; en escritorio caben varias y el
+     snap estorba (deja media columna a la vista al soltar). */
+  .app--escritorio .kanban { scroll-snap-type: none; gap: 16px; margin: 0; padding: 2px 0 8px; }
+  .app--escritorio .kanban-columna { width: 300px; scroll-snap-align: none; scroll-margin-left: 0; }
+
+  /* El mapa de calor es un SVG con viewBox: a ancho completo los cuadrados salían
+     enormes. Se le pone tope para que un día siga siendo un cuadradito. */
+  .st-mapa svg { max-width: 520px; }
+
+  /* ── Stats y Ajustes: dos columnas ─────────────────────────────────────── */
+  .stats--escritorio, .ajustes--escritorio {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 28px;
+    align-items: start;
+  }
+  .stats--escritorio > .seccion, .ajustes--escritorio > .seccion { min-width: 0; }
+  /* lo que manda sobre toda la pantalla ocupa el ancho entero */
+  .stats--escritorio > .stats-rango { grid-column: 1 / -1; }
+  .stats--escritorio > .seccion--ancha, .ajustes--escritorio > .seccion--ancha { grid-column: 1 / -1; }
+
+  /* ── Hábitos: rejilla de tarjetas ──────────────────────────────────────── */
+  /* con `.app--escritorio` delante, como en Hoy: las listas ya son flex en columna y la
+     regla suelta perdía según el orden de los CSS */
+  .app--escritorio .habitos-todos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .app--escritorio .habitos-hoy { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+  .app--escritorio .habito-fila { border-radius: var(--radio-campo); }
+
+  /* la pantalla ya no deja hueco para una nav que no existe */
+  .app--escritorio .pantalla { padding-bottom: 24px; }
+}
