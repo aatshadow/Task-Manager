@@ -269,6 +269,8 @@ Timer por tarea · dependencias · sprints · notificaciones push · multiusuari
 | 13 | *(a solas)* **Hora maestra = la «Rutina del Operador ajustada»** (comida 1 ANTES del gym, gym 06:40–07:30). Los otros dos documentos decían 05:15–06:00 y «comida 1 a las 06:00 post-entreno»: no cuadraban entre sí; del Protocolo de Forja se toma sólo el **contenido** de cada día. Miércoles sin gym y spa completo (Alex, 22-09: «los miércoles haremos sesión de sauna más larga y ya»); sábado caminata + movilidad; domingo descanso + meal prep. |
 | 14 | *(a solas)* **Fin de semana**: se conservan calibración, comidas, spa, planificación y apagado (son diarios); los bloques de trabajo y los dailies son L–V. La rutina dictada no decía nada del fin de semana; el entreno sí. |
 | 15 | *(a solas)* Objetivo de sueño **6,5 h** (22:00 → 04:30, lo que dicta la rutina). Se mide, no se juzga. |
+| 16 | *(a solas)* En la **adherencia** un hábito de cadencia `semana` («3 veces por semana») sólo cuenta los días en que se marca: no puede penalizar cada día. `hoy_adherencia_dia(fecha)` es la única fórmula (la app la replica en `adherencia()`); `hoy_reiniciar_dia` cierra también los días que sólo tienen marcas (sin tareas planificadas) y completa la adherencia de un día cerrado con 0/0. |
+| 17 | *(a solas)* `hoy_sembrar_protocolo(p_restaurar)`: sin `p_restaurar` crea lo que falte y sólo rellena lo vacío (se puede llamar en cada arranque); con `p_restaurar = true` («Restaurar el protocolo») vuelve a dejar bloques y hábitos como dicta §10. Las marcas no se tocan nunca. |
 
 ### 10.1 · Bloques — el raíl del día (`hoy_bloques`)
 

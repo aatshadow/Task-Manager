@@ -128,6 +128,24 @@ try {
   paso('las plantillas de la agencia se listan en solo lectura', pls.some((p) => p.origen === 'agencia' && p.soloLectura))
 } catch (e) { ko('la base', e) }
 
+/* ── 5b · el Protocolo (LOGICA §10): tablas, columnas y funciones nuevas ───────── */
+try {
+  for (const tabla of ['hoy_bloques', 'hoy_retos', 'hoy_hitos']) {
+    const r = await sb.from(tabla).select('id').limit(1)
+    paso(`${tabla} responde con login`, !r.error, r.error)
+  }
+  const hab = await sb.from('hoy_habitos').select('hora, grupo, tipo, unidad, objetivo, bloque_id, plan, descripcion').limit(1)
+  paso('hoy_habitos tiene hora · grupo · tipo · unidad · objetivo · bloque_id · plan · descripcion', !hab.error, hab.error)
+  const mar = await sb.from('hoy_marcas').select('valor').limit(1)
+  paso('hoy_marcas tiene valor', !mar.error, mar.error)
+  const dia = await sb.from('hoy_dias').select('habitos_tocaban, habitos_hechos').limit(1)
+  paso('hoy_dias tiene habitos_tocaban · habitos_hechos', !dia.error, dia.error)
+  const adh = await sb.rpc('hoy_adherencia_dia', { p_fecha: '1970-01-01' })
+  paso('hoy_adherencia_dia() existe (en 1970 no tocaba nada)', !adh.error && adh.data?.[0]?.tocaban === 0, adh.error)
+  const sem = await sb.rpc('hoy_sembrar_protocolo')
+  paso('hoy_sembrar_protocolo() existe y no falla', !sem.error, sem.error)
+} catch (e) { ko('el Protocolo', e) }
+
 /* ── 6 · el muro: anon fuera ────────────────────────────────────────────────── */
 try {
   const anon = clienteAnon()
@@ -137,6 +155,12 @@ try {
   paso('anon no puede leer hoy_todas', !!v.error, !v.error && new Error('anon leyó la vista'))
   const f = await anon.rpc('hoy_sembrar')
   paso('anon no puede ejecutar hoy_sembrar()', !!f.error, !f.error && new Error('anon sembró'))
+  for (const tabla of ['hoy_bloques', 'hoy_retos', 'hoy_hitos']) {
+    const b = await anon.from(tabla).select('id').limit(1)
+    paso(`anon no puede leer ${tabla} (revoke)`, !!b.error, !b.error && new Error(`anon leyó ${tabla}`))
+  }
+  const p = await anon.rpc('hoy_sembrar_protocolo')
+  paso('anon no puede ejecutar hoy_sembrar_protocolo()', !!p.error, !p.error && new Error('anon sembró el protocolo'))
 } catch (e) { ko('el muro', e) }
 
 cerrar('forma.mjs')
