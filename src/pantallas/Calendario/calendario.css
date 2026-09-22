@@ -380,3 +380,37 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
 }
 .cal-duracion-chip:hover { background: var(--acento-apagado); border-color: var(--acento); color: var(--acento-claro); }
 .cal-duracion-chip:active { transform: scale(0.95); background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
+
+/* ── Las bandas del Protocolo (LOGICA §10.6) ─────────────────────────────── */
+/* Fondo del timeline: el raíl del día. No reciben toques (el arrastre y la pulsación
+   larga del hueco siguen siendo de la pista) y se quedan por debajo de las tarjetas. */
+.cal-banda {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--banda-color, var(--acento)) 12%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--banda-color, var(--acento)) 55%, transparent);
+  overflow: hidden;
+}
+.cal-banda--actual {
+  background: color-mix(in srgb, var(--banda-color, var(--acento)) 22%, transparent);
+  border-left-color: var(--banda-color, var(--acento));
+}
+.cal-banda-nombre {
+  position: absolute;
+  top: 3px;
+  left: 8px;
+  right: 8px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--texto-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-banda--actual .cal-banda-nombre { color: var(--texto); }
+/* las tarjetas y la línea de ahora, por encima del raíl */
+.cal-evento, .cal-ahora, .cal-iman { z-index: 1; }

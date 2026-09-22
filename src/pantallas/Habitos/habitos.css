@@ -180,3 +180,28 @@ button.rejilla-celda:not(.rejilla-celda--futuro):active { transform: scale(0.9);
   font-size: var(--t-secundario);
 }
 .habito-form-confirmar .fila { justify-content: flex-end; }
+
+/* ── El Protocolo en Hábitos (LOGICA §10.6) ──────────────────────────────── */
+.habito-hora {
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--texto-2);
+  font-variant-numeric: tabular-nums;
+}
+.habito-tipo {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--linea-fuerte);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-2);
+}
+/* la mini-línea de un hábito que se mide, en lugar de la rejilla de marcas */
+.habito-medida { width: 100%; height: 56px; margin: 6px 0 2px; overflow: visible; }
+.habito-medida-vacia { padding: 14px 0; text-align: center; }
+/* el día activo del editor del plan */
+.habito-form-dia--activo { background: var(--acento); border-color: transparent; color: var(--sobre-acento); }
+.habito-form-dia--lleno:not(.habito-form-dia--activo) { border-color: var(--acento); color: var(--acento-claro); }

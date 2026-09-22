@@ -1,5 +1,8 @@
 import './ajustes.css'
 import { useDatos } from '../../estado/useDatos.jsx'
+import SeccionProtocolo from './SeccionProtocolo.jsx'
+import SeccionReto from './SeccionReto.jsx'
+import SeccionFrentes from './SeccionFrentes.jsx'
 import SeccionProyectos from './SeccionProyectos.jsx'
 import SeccionCategorias from './SeccionCategorias.jsx'
 import SeccionPipelines from './SeccionPipelines.jsx'
@@ -26,6 +29,9 @@ export default function Ajustes() {
   }
   return (
     <div className="pantalla ajustes">
+      <SeccionProtocolo />
+      <SeccionReto />
+      <SeccionFrentes />
       <SeccionProyectos />
       <SeccionCategorias />
       <SeccionPipelines />

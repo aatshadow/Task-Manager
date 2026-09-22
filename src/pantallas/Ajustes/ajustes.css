@@ -172,3 +172,89 @@
 .ajustes-dia-numero .campo-caja input { text-align: center; }
 .ajustes-cuenta { display: flex; align-items: center; gap: 12px; }
 .ajustes-cuenta-email { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+/* ══ Protocolo · Reto · Frentes (LOGICA §10.6) ═════════════════════════════ */
+
+/* ── Bloques del raíl ────────────────────────────────────────────────────── */
+.bloque-fila {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--linea);
+  flex-wrap: wrap;
+}
+.bloque-fila:last-child { border-bottom: 0; }
+.bloque-fila--apagado { opacity: 0.45; }
+.bloque-barra { flex: none; width: 3px; align-self: stretch; min-height: 34px; border-radius: 999px; background: var(--bloque-color, var(--acento)); }
+/* los ▲▼ y el ojo, en columna a la derecha para no robar ancho a las horas */
+.bloque-fila .ajustes-acciones { flex: none; display: grid; grid-template-columns: repeat(2, auto); gap: 0; }
+.bloque-cuerpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Las dos horas y la fase. Envuelven si no caben: un `input[type=time]` con reloj de 12 h
+   necesita sitio para el AM/PM, y recortarlo enseñaba «07:30» donde ponía 19:30. */
+.bloque-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.bloque-hora {
+  flex: none;
+  width: 96px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 10px;
+  border: 1px solid var(--linea-fuerte);
+  background: var(--tarjeta-alta);
+  color: var(--texto);
+  font-size: var(--t-secundario);
+  font-variant-numeric: tabular-nums;
+}
+.bloque-hora:focus { outline: none; border-color: var(--acento); }
+.bloque-fase {
+  flex: 1;
+  min-width: 92px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 10px;
+  border: 1px solid var(--linea-fuerte);
+  background: var(--tarjeta-alta);
+  color: var(--texto-2);
+  font-size: var(--t-secundario);
+}
+.bloque-dias { display: flex; gap: 4px; flex-wrap: nowrap; }
+.bloque-dia {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--linea-fuerte);
+  color: var(--texto-3);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bloque-dia--activo { background: var(--acento-apagado); border-color: transparent; color: var(--acento-claro); }
+.bloque-dia--lleno { border-color: var(--acento); }
+.bloque-fila .ajustes-confirmar { flex-basis: 100%; }
+
+/* ── Reto ────────────────────────────────────────────────────────────────── */
+.reto-ajustes-cabeza { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.reto-ajustes-dia { font-size: var(--t-numero); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
+/* antes de empezar el marcador es una frase, no un número: no puede ir a 36 px */
+.reto-ajustes-dia--texto { font-size: var(--t-titulo); }
+.reto-ajustes-cabeza { flex-wrap: wrap; }
+
+/* ── Frentes ─────────────────────────────────────────────────────────────── */
+.hito-fila { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--linea); flex-wrap: wrap; }
+.hito-fila:last-child { border-bottom: 0; }
+.hito-fila--hecho { opacity: 0.5; }
+.hito-cuerpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hito-cuerpo .hito-frente { font-size: var(--t-micro); color: var(--texto-3); }
+.hito-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hito-fila .ajustes-confirmar { flex-basis: 100%; }
+
+/* Un `input[type=date]`/`[type=time]` trae un ancho mínimo propio: dentro de una rejilla
+   de dos columnas se salía de la tarjeta (medido el 22-09). */
+/* y el hijo de una rejilla hereda ese mínimo si no se le quita: por eso los dos, el campo
+   y su input. Sin esto, «Fin» se salía de la tarjeta. */
+.rejilla-2 > .campo, .rejilla-2 > .selector { min-width: 0; }
+.campo-caja input[type="date"], .campo-caja input[type="time"] { min-width: 0; width: 100%; }
+.hito-meta .bloque-hora { width: 124px; }

@@ -4,7 +4,9 @@ import Hoja from '../../componentes/Hoja.jsx'
 import Campo from '../../componentes/Campo.jsx'
 import Boton from '../../componentes/Boton.jsx'
 import Segmentos from '../../componentes/Segmentos.jsx'
-import { crearHabito, actualizarHabito, archivarHabito } from '../../datos/habitos.js'
+import Selector from '../../componentes/Selector.jsx'
+import { crearHabito, actualizarHabito, archivarHabito, TIPOS, GRUPOS } from '../../datos/habitos.js'
+import { useDatos } from '../../estado/useDatos.jsx'
 import { LETRAS_DIA } from './RejillaHabito.jsx'
 
 // Los 8 colores que ya viven en la base (cuadrantes, categorías y etapas sembradas): un
@@ -35,7 +37,13 @@ function primerGrafema(texto) {
   return Array.from(t).slice(0, 1).join('')
 }
 
-const VACIO = { nombre: '', icono: '', color: PALETA[0], cadencia: 'diario', dias: [1, 2, 3, 4, 5], vecesSemana: 3 }
+const TIPOS_SEG = TIPOS.map((t) => ({ valor: t.clave, etiqueta: t.nombre }))
+const SIN_GRUPO = '—'
+
+const VACIO = {
+  nombre: '', icono: '', color: PALETA[0], cadencia: 'diario', dias: [1, 2, 3, 4, 5], vecesSemana: 3,
+  hora: '', grupo: '', tipo: 'hacer', unidad: '', objetivo: '', bloqueId: '', descripcion: '', plan: {},
+}
 
 /**
  * Alta y edición de un hábito, en una hoja. El mismo formulario para las dos cosas:
@@ -45,6 +53,7 @@ const VACIO = { nombre: '', icono: '', color: PALETA[0], cadencia: 'diario', dia
  */
 export default function FormularioHabito({ abierta, habito, alCerrar, alGuardado, alArchivado, avisar }) {
   const editando = Boolean(habito)
+  const { bloques } = useDatos()
   const [form, setForm] = useState(VACIO)
   const [error, setError] = useState('')
   const [ocupado, setOcupado] = useState(false)
@@ -58,6 +67,10 @@ export default function FormularioHabito({ abierta, habito, alCerrar, alGuardado
       nombre: habito.nombre, icono: habito.icono || '', color: habito.color || PALETA[0],
       cadencia: habito.cadencia || 'diario', dias: habito.dias?.length ? habito.dias : VACIO.dias,
       vecesSemana: habito.vecesSemana || VACIO.vecesSemana,
+      hora: habito.hora || '', grupo: habito.grupo || '', tipo: habito.tipo || 'hacer',
+      unidad: habito.unidad || '', objetivo: habito.objetivo == null ? '' : String(habito.objetivo),
+      bloqueId: habito.bloqueId || '', descripcion: habito.descripcion || '',
+      plan: habito.plan && typeof habito.plan === 'object' ? habito.plan : {},
     } : VACIO)
     setError(''); setConfirmar(false); setOcupado(false)
   }, [abierta, habito])
@@ -72,7 +85,13 @@ export default function FormularioHabito({ abierta, habito, alCerrar, alGuardado
     if (form.cadencia === 'dias' && !form.dias.length) { setError('Elige al menos un día'); return }
     setError(''); setOcupado(true)
     try {
-      const datos = { nombre, icono: primerGrafema(form.icono), color: form.color, cadencia: form.cadencia, dias: form.dias, vecesSemana: form.vecesSemana }
+      const datos = {
+        nombre, icono: primerGrafema(form.icono), color: form.color, cadencia: form.cadencia, dias: form.dias, vecesSemana: form.vecesSemana,
+        hora: form.hora || null, grupo: form.grupo.trim(), tipo: form.tipo,
+        unidad: form.tipo === 'medir' ? form.unidad.trim() : '',
+        objetivo: form.tipo === 'medir' && form.objetivo !== '' ? Number(String(form.objetivo).replace(',', '.')) : null,
+        bloqueId: form.bloqueId || null, descripcion: form.descripcion.trim(), plan: form.plan,
+      }
       const h = editando ? await actualizarHabito(habito.id, datos) : await crearHabito(datos)
       await alGuardado?.(h)
     } catch (e) {
@@ -173,6 +192,48 @@ export default function FormularioHabito({ abierta, habito, alCerrar, alGuardado
           {error && form.nombre.trim() && <div className="campo-ayuda" style={{ color: 'var(--peligro)' }}>{error}</div>}
         </div>
 
+        <div className="rejilla-2">
+          <Campo etiqueta="Hora" type="time" valor={form.hora} alCambiar={(v) => poner({ hora: v })} ayuda="A qué hora toca" />
+          <Selector
+            etiqueta="Grupo"
+            valor={GRUPOS.includes(form.grupo) ? form.grupo : (form.grupo ? 'otro' : SIN_GRUPO)}
+            alCambiar={(v) => poner({ grupo: v === SIN_GRUPO ? '' : v === 'otro' ? (GRUPOS.includes(form.grupo) ? '' : form.grupo) : v })}
+            modo="desplegable"
+            opciones={[{ valor: SIN_GRUPO, etiqueta: 'Sin grupo' }, ...GRUPOS.map((g) => ({ valor: g, etiqueta: g })), { valor: 'otro', etiqueta: 'Otro…' }]}
+          />
+        </div>
+        {!GRUPOS.includes(form.grupo) && form.grupo !== '' && (
+          <Campo etiqueta="Nombre del grupo" valor={form.grupo} alCambiar={(v) => poner({ grupo: v })} placeholder="Calibración" />
+        )}
+
+        <div className="columna" style={{ gap: 10 }}>
+          <div className="campo-etiqueta">Tipo</div>
+          <Segmentos opciones={TIPOS_SEG} valor={form.tipo} alCambiar={(v) => poner({ tipo: v })} />
+          <div className="campo-ayuda">
+            {form.tipo === 'hacer' && 'Marcar es haberlo hecho.'}
+            {form.tipo === 'evitar' && 'Marcar es haber resistido: cuenta igual que un «hacer».'}
+            {form.tipo === 'medir' && 'Se cumple escribiendo el número del día (peso, horas…).'}
+          </div>
+          {form.tipo === 'medir' && (
+            <div className="rejilla-2">
+              <Campo etiqueta="Unidad" valor={form.unidad} alCambiar={(v) => poner({ unidad: v })} placeholder="kg" />
+              <Campo etiqueta="Objetivo" inputMode="decimal" valor={form.objetivo} alCambiar={(v) => poner({ objetivo: v })} placeholder="6,5" ayuda="Línea punteada" />
+            </div>
+          )}
+        </div>
+
+        <Selector
+          etiqueta="Bloque del día"
+          valor={form.bloqueId || SIN_GRUPO}
+          alCambiar={(v) => poner({ bloqueId: v === SIN_GRUPO ? '' : v })}
+          modo="desplegable"
+          opciones={[{ valor: SIN_GRUPO, etiqueta: 'Sin bloque' }, ...(bloques || []).map((b) => ({ valor: b.id, etiqueta: `${b.inicio} · ${b.nombre}` }))]}
+        />
+
+        <Campo etiqueta="Descripción" valor={form.descripcion} alCambiar={(v) => poner({ descripcion: v })} placeholder="Lo que hay que hacer, en una línea" multilinea rows={2} />
+
+        <EditorPlan plan={form.plan} alCambiar={(plan) => poner({ plan })} />
+
         {editando && (
           <div className="habito-form-pie">
             {confirmar ? (
@@ -190,5 +251,57 @@ export default function FormularioHabito({ abierta, habito, alCerrar, alGuardado
         )}
       </div>
     </Hoja>
+  )
+}
+
+/**
+ * El editor del plan por día (LOGICA §10.3): siete pestañas L–D, cada una con un título y
+ * las líneas de la sesión (una por renglón). Es lo que enseña Hoy al desplegar el hábito
+ * (Entreno). Un día sin título ni líneas se borra del plan: un plan vacío es `{}`.
+ */
+function EditorPlan({ plan, alCambiar }) {
+  const [dia, setDia] = useState(1)
+  const actual = plan?.[String(dia)] || { titulo: '', lineas: [] }
+  const tiene = (d) => { const p = plan?.[String(d)]; return !!(p && (p.titulo || (p.lineas || []).length)) }
+
+  const poner = (parche) => {
+    const nuevo = { ...(plan || {}) }
+    const fusion = { titulo: actual.titulo || '', lineas: actual.lineas || [], ...parche }
+    if (!fusion.titulo && !fusion.lineas.length) delete nuevo[String(dia)]
+    else nuevo[String(dia)] = fusion
+    alCambiar(nuevo)
+  }
+
+  return (
+    <div className="columna" style={{ gap: 10 }}>
+      <div className="campo-etiqueta">Plan por día <span className="t-terciario">(opcional)</span></div>
+      <div className="habito-form-dias" role="tablist" aria-label="Día del plan">
+        {LETRAS_DIA.map((l, i) => {
+          const d = i + 1
+          return (
+            <button
+              key={d}
+              type="button"
+              role="tab"
+              aria-selected={dia === d}
+              className={`habito-form-dia${dia === d ? ' habito-form-dia--activo' : ''}${tiene(d) ? ' habito-form-dia--lleno' : ''}`}
+              onClick={() => setDia(d)}
+            >
+              {l}
+            </button>
+          )
+        })}
+      </div>
+      <Campo etiqueta="Título de la sesión" valor={actual.titulo || ''} alCambiar={(v) => poner({ titulo: v })} placeholder="Leopardo — explosividad" />
+      <Campo
+        etiqueta="Líneas"
+        valor={(actual.lineas || []).join('\n')}
+        alCambiar={(v) => poner({ lineas: v.split('\n').map((x) => x.trim()).filter(Boolean) })}
+        placeholder={'Calentamiento 5\'\n4 rondas: saco 3\' · burpees 12'}
+        multilinea
+        rows={4}
+        ayuda="Una línea por ejercicio o paso"
+      />
+    </div>
   )
 }

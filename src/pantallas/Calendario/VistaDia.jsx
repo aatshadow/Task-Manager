@@ -10,7 +10,8 @@ import SelectorDuracion from './SelectorDuracion.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarAhora, usarGuardarTarea, usarPulsacion } from './ganchos.js'
 import { usarArrastreHora } from './arrastreHora.js'
-import { HORAS, PX_HORA, altoDeDuracion, alturaDe, colocarEnTimeline, enCurso, tareasDelDia } from './calendario.js'
+import { HORAS, PX_HORA, altoDeDuracion, alturaDe, bandasDeBloques, colocarEnTimeline, enCurso, tareasDelDia } from './calendario.js'
+import { bloqueActual } from '../../datos/bloques.js'
 import { aMinutos, deMinutos } from '../../datos/fechas.js'
 
 const ALTO_SELECTOR = 78   // lo que ocupa «¿Cuánto?» (para decidir si va debajo o encima)
@@ -18,16 +19,21 @@ const ALTO_NAV = 64 + 24
 
 /**
  * Día: el «Ongoing» del mockup. Arriba «Todo el día» (las que vencen sin hora y las que
- * atraviesan el día); debajo el timeline de 6:00 a 24:00 con las horas a la izquierda y
+ * atraviesan el día); debajo el timeline de 4:00 a 24:00 con las horas a la izquierda y
  * las tarjetas colocadas por hora (altura proporcional; sin hora de fin, una hora).
  * La que está en curso ahora va en NARANJA, el resto en CÁLIDA; la línea naranja con punto
  * marca «ahora» y se mueve cada minuto. Pulsación larga en el hueco → nueva tarea del día.
  *
  * El día se organiza arrastrando (LOGICA §5.1): una fila de «Todo el día» o una tarjeta del
  * timeline se levanta y se suelta a la hora exacta; sin duración, sale «¿Cuánto?».
+ *
+ * De fondo van las BANDAS del Protocolo (§10.6): los bloques que tocan ese día, a su
+ * altura y con el color de su fase. No cambian nada de la lógica del arrastre — soltar
+ * dentro de un bloque sólo escribe la hora, como siempre; son el raíl para saber dónde
+ * cae cada tarea.
  */
 export default function VistaDia({ tareas, fecha, hoy, estado = null, alNueva }) {
-  const { abrirTarea, nombreProyecto } = useDatos()
+  const { abrirTarea, nombreProyecto, bloques } = useDatos()
   const { programar } = usarGuardarTarea()
   const ahora = usarAhora()
   const dia = useMemo(() => tareasDelDia(tareas, fecha), [tareas, fecha])
@@ -44,6 +50,9 @@ export default function VistaDia({ tareas, fecha, hoy, estado = null, alNueva })
   useEffect(() => {
     if (lineaAhora && refAhora.current) refAhora.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [fecha, esHoy]) // sólo al cambiar de día, no cada minuto
+
+  const bandas = useMemo(() => bandasDeBloques(bloques, fecha), [bloques, fecha])
+  const bloqueAhoraId = useMemo(() => (esHoy ? bloqueActual(bloques, fecha, ahora)?.id || null : null), [bloques, fecha, ahora, esHoy])
 
   const hueco = usarPulsacion({ alLargo: () => alNueva(fecha), soloPropio: true })
 
@@ -119,6 +128,18 @@ export default function VistaDia({ tareas, fecha, hoy, estado = null, alNueva })
         </div>
 
         <div className="cal-pista-horas" ref={pistaRef} {...hueco}>
+          {/* el raíl del Protocolo, de fondo: ni recibe toques ni estorba al arrastre */}
+          {bandas.map(({ clave, bloque: b, top, alto, color }) => (
+            <div
+              key={clave}
+              className={`cal-banda${b.id === bloqueAhoraId ? ' cal-banda--actual' : ''}`}
+              style={{ top, height: alto, '--banda-color': color }}
+              aria-hidden="true"
+            >
+              <span className="cal-banda-nombre">{b.icono ? `${b.icono} ` : ''}{b.nombre}</span>
+            </div>
+          ))}
+
           {HORAS.map((h) => <span key={h} className="cal-linea-hora" style={{ top: (h - HORAS[0]) * PX_HORA }} aria-hidden="true" />)}
 
           {colocadas.map(({ tarea: t, top, alto, columna, columnas, inicio, fin }) => {

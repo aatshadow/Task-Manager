@@ -6,16 +6,19 @@ import Marca from '../../componentes/Marca.jsx'
 import Boton from '../../componentes/Boton.jsx'
 import Vacio from '../../componentes/Vacio.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
-import { cargarHabitos, marcar, tocaHoy, racha, cumplimientoSemana } from '../../datos/habitos.js'
-import { textoFecha, diaDe } from '../../datos/fechas.js'
+import { cargarHabitos, marcar, tocaHoy, racha, cumplimientoSemana, estaHecho, serieMedida, GRUPOS } from '../../datos/habitos.js'
+import { textoFecha, diaDe, aMinutos, sumarDias } from '../../datos/fechas.js'
 import RejillaHabito, { LETRAS_DIA } from './RejillaHabito.jsx'
+import LineaMedida from './LineaMedida.jsx'
 import FormularioHabito from './FormularioHabito.jsx'
 import './habitos.css'
 
 /**
- * Pantalla Hábitos (LOGICA §5): arriba los que tocan hoy con marca grande y racha; debajo
- * todos, cada uno con su rejilla de 4 semanas y el cumplimiento de la semana; al final
- * los archivados, plegados y sólo de lectura. Un hábito no se borra: se archiva (§3.6).
+ * Pantalla Hábitos (LOGICA §5 y §10.6): arriba los que tocan hoy con marca grande y racha;
+ * debajo todos **agrupados por grupo del Protocolo y ordenados por hora**, cada uno con su
+ * hora, su tipo, su racha y su cumplimiento — rejilla de 4 semanas, o una línea de los
+ * valores si es de los que se miden; al final los archivados, plegados y sólo de lectura.
+ * Un hábito no se borra: se archiva (§3.6).
  *
  * Marcar es optimista: se pinta la marca en `marcas` del contexto, se escribe, y si falla
  * se deshace y se avisa. Hábitos y marcas vienen del contexto y se tocan en memoria con
@@ -31,17 +34,32 @@ export default function Habitos() {
   const [verArchivados, setVerArchivados] = useState(false)
 
   const deHoy = useMemo(() => habitos.filter((h) => tocaHoy(h, hoy)), [habitos, hoy])
-  const marcadasHoy = useMemo(() => new Set(marcas.filter((m) => m.fecha === hoy).map((m) => m.habitoId)), [marcas, hoy])
+  const marcasHoy = useMemo(() => marcas.filter((m) => m.fecha === hoy), [marcas, hoy])
+  const marcadasHoy = useMemo(() => new Set(habitos.filter((h) => estaHecho(h, marcasHoy, hoy)).map((h) => h.id)), [habitos, marcasHoy, hoy])
+
+  // Todos, agrupados por grupo (los 5 del Protocolo primero, en su orden) y por hora.
+  const porGrupo = useMemo(() => {
+    const orden = (g) => { const i = GRUPOS.indexOf(g); return i === -1 ? GRUPOS.length : i }
+    const mapa = new Map()
+    for (const h of habitos) {
+      const g = h.grupo || 'Sin grupo'
+      if (!mapa.has(g)) mapa.set(g, [])
+      mapa.get(g).push(h)
+    }
+    return [...mapa.entries()]
+      .sort((a, b) => orden(a[0]) - orden(b[0]) || a[0].localeCompare(b[0]))
+      .map(([grupo, hs]) => [grupo, hs.sort((x, y) => aMinutos(x.hora || '00:00') - aMinutos(y.hora || '00:00') || (x.posicion ?? 0) - (y.posicion ?? 0))])
+  }, [habitos])
 
   /* ── marcar / desmarcar, optimista ─────────────────────────────────────── */
-  const alternar = useCallback(async (habito, fecha, si) => {
+  const alternar = useCallback(async (habito, fecha, si, extra = null) => {
     const quitar = (ms) => ms.filter((m) => !(m.habitoId === habito.id && m.fecha === fecha))
-    const marca = { habitoId: habito.id, fecha, nota: '', marcadoEn: new Date().toISOString() }
+    const marca = { habitoId: habito.id, fecha, nota: extra?.nota || '', valor: extra?.valor ?? null, marcadoEn: new Date().toISOString() }
     setMarcas((ms) => (si ? [...quitar(ms), marca] : quitar(ms)))
     try {
       // `marcar()` devuelve la fila escrita (null al desmarcar, que ya está fuera del estado):
       // con eso basta, sin releer tareas + hábitos + marcas por cada toque.
-      const real = await marcar(habito.id, fecha, si)
+      const real = await marcar(habito.id, fecha, si, extra || {})
       if (real) setMarcas((ms) => ms.map((m) => (m.habitoId === habito.id && m.fecha === fecha ? real : m)))
     } catch (e) {
       // La inversa del parche, no una foto de antes: entre medias pudo haber otro toque.
@@ -148,40 +166,57 @@ export default function Habitos() {
         )}
       </section>
 
-      {/* ── Todos ── */}
-      {habitos.length > 0 && (
-        <section className="seccion">
-          <div className="seccion-titulo">Todos · últimas 4 semanas</div>
+      {/* ── Todos, por grupo ── */}
+      {habitos.length > 0 && porGrupo.map(([grupo, hs]) => (
+        <section className="seccion" key={grupo}>
+          <div className="seccion-titulo">{grupo}</div>
           <div className="habitos-todos">
-            {habitos.map((h) => {
+            {hs.map((h) => {
               const { hechas, objetivo } = cumplimientoSemana(h, marcas, hoy)
               const n = racha(h, marcas, hoy)
+              const mide = h.tipo === 'medir'
+              const serie = mide ? serieMedida(h, marcas, sumarDias(hoy, -27), hoy) : []
               return (
                 <Tarjeta key={h.id} className="habito-tarjeta" style={{ '--habito-color': h.color }}>
                   <div className="habito-tarjeta-cabeza">
                     <span className="habito-icono" aria-hidden="true">{h.icono || '•'}</span>
                     <div className="habito-textos">
                       <div className="habito-nombre">{h.nombre}</div>
-                      <div className="habito-cadencia">{textoCadencia(h)}</div>
+                      <div className="habito-cadencia">
+                        {h.hora && <span className="habito-hora">{h.hora}</span>}
+                        {textoCadencia(h)}
+                        {h.tipo && h.tipo !== 'hacer' && <span className="habito-tipo">{h.tipo === 'evitar' ? 'evitar' : `medir${h.unidad ? ` · ${h.unidad}` : ''}`}</span>}
+                      </div>
                     </div>
                     <span className={`habito-racha ${n > 0 ? 'habito-racha--viva' : ''}`} title={tituloRacha(h)}>{textoRacha(h, n)}</span>
                     <button type="button" className="habito-editar" aria-label={`Editar ${h.nombre}`} onClick={() => abrirEditar(h)}>
                       <Pencil size={16} strokeWidth={1.75} />
                     </button>
                   </div>
-                  <RejillaHabito habito={h} marcas={marcas} hoy={hoy} alAlternar={(fecha, si) => alternar(h, fecha, si)} />
+                  {mide
+                    ? <LineaMedida serie={serie} objetivo={h.objetivo} unidad={h.unidad} color={h.color} />
+                    : <RejillaHabito habito={h} marcas={marcas} hoy={hoy} alAlternar={(fecha, si) => alternar(h, fecha, si)} />}
                   <div className="habito-tarjeta-pie">
-                    <span className={`habito-cumplimiento ${hechas >= objetivo ? 'habito-cumplimiento--pleno' : ''}`}>
-                      Esta semana <strong>{hechas}/{objetivo}</strong>
-                    </span>
-                    <span className="t-terciario">{objetivo === 0 ? '' : hechas >= objetivo ? 'Objetivo cumplido' : `${objetivo - hechas} por hacer`}</span>
+                    {mide ? (
+                      <>
+                        <span className="habito-cumplimiento">Últimas 4 semanas <strong>{serie.length}</strong> medidas</span>
+                        <span className="t-terciario">{serie.length ? `último ${serie.at(-1).valor} ${h.unidad}` : 'sin datos'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className={`habito-cumplimiento ${hechas >= objetivo ? 'habito-cumplimiento--pleno' : ''}`}>
+                          Esta semana <strong>{hechas}/{objetivo}</strong>
+                        </span>
+                        <span className="t-terciario">{objetivo === 0 ? '' : hechas >= objetivo ? 'Objetivo cumplido' : `${objetivo - hechas} por hacer`}</span>
+                      </>
+                    )}
                   </div>
                 </Tarjeta>
               )
             })}
           </div>
         </section>
-      )}
+      ))}
 
       {/* ── Archivados (sólo lectura) ── */}
       <section className="seccion">

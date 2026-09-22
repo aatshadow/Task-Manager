@@ -6,9 +6,13 @@
  * tiene `inicio`, es un período y se pinta como barra fina en todos sus días.
  */
 import { aMinutos, rangoDias, sumarDias } from '../../datos/fechas.js'
+import { bloquesDelDia, cruzaMedianoche, colorBloque } from '../../datos/bloques.js'
 
-/** El día que se pinta va de 6:00 a 24:00; lo de antes de las 6 se pega arriba. */
-export const HORA_MIN = 6
+/**
+ * El día que se pinta va de 4:00 a 24:00; lo de antes de las 4 se pega arriba. Empieza a
+ * las 4 desde el Protocolo (LOGICA §10.0-8): el día del Operador arranca a las 04:30.
+ */
+export const HORA_MIN = 4
 export const HORA_MAX = 24
 export const PX_HORA = 56
 export const HORAS = Array.from({ length: HORA_MAX - HORA_MIN }, (_, i) => HORA_MIN + i)
@@ -55,7 +59,7 @@ export function tramoDe(t) {
   return { inicio, fin }
 }
 
-/** Minutos → píxeles desde las 6:00. Lo anterior a las 6 se pega arriba; lo de después de las 24 abajo. */
+/** Minutos → píxeles desde las 4:00. Lo anterior a las 4 se pega arriba; lo de después de las 24 abajo. */
 export function alturaDe(minutos) {
   const min = HORA_MIN * 60
   const max = HORA_MAX * 60
@@ -146,7 +150,7 @@ export function altoDeDuracion(duracion) {
 
 /**
  * Píxeles desde el borde superior de la pista → minuto de inicio imantado. Se queda dentro
- * del día pintado: nunca antes de las 6:00 ni tan tarde que el final pase de las 24:00.
+ * del día pintado: nunca antes de las 4:00 ni tan tarde que el final pase de las 24:00.
  */
 export function minutoEnPista(px, duracion = null) {
   const min = HORA_MIN * 60
@@ -154,4 +158,34 @@ export function minutoEnPista(px, duracion = null) {
   const bruto = min + (px / PX_HORA) * 60
   const imantado = Math.round(bruto / PASO_IMAN) * PASO_IMAN
   return Math.min(Math.max(imantado, min), max)
+}
+
+/* ── Las bandas del Protocolo (LOGICA §10.6 · Día) ───────────────────────── */
+
+/**
+ * Los bloques que tocan en `fecha`, como bandas de fondo del timeline:
+ * `[{ clave, bloque, top, alto, color }]`. Uno que cruza medianoche (Sueño 22:00–04:30)
+ * da DOS bandas: 22:00→24:00 hoy y 04:00→04:30 (la cola de la noche anterior, que sólo se
+ * pinta si el bloque tocaba ayer). El fondo no decide nada: es el raíl, para saber dónde
+ * cae cada tarea.
+ */
+export function bandasDeBloques(bloques, fecha) {
+  const banda = (b, desde, hasta, sufijo = '') => ({
+    clave: `${b.id}${sufijo}`, bloque: b, color: colorBloque(b),
+    top: alturaDe(desde), alto: Math.max(ALTO_MINIMO, alturaDe(hasta) - alturaDe(desde)),
+  })
+  const out = []
+  for (const b of bloquesDelDia(bloques, fecha)) {
+    const ini = aMinutos(b.inicio)
+    const fin = aMinutos(b.fin)
+    if (!cruzaMedianoche(b)) { out.push(banda(b, ini, fin)); continue }
+    out.push(banda(b, ini, HORA_MAX * 60))
+  }
+  // la cola de la madrugada: bloques de AYER que cruzan medianoche y siguen vivos hoy
+  for (const b of bloquesDelDia(bloques, sumarDias(fecha, -1))) {
+    if (!cruzaMedianoche(b)) continue
+    const fin = aMinutos(b.fin)
+    if (fin > HORA_MIN * 60) out.push(banda(b, HORA_MIN * 60, fin, '-cola'))
+  }
+  return out
 }

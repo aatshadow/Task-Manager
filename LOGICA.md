@@ -397,17 +397,17 @@ Un hito con `hecho = true` desaparece de Hoy. `client_id` es opcional: Alfredo a
 | Pantalla | Qué cambia |
 |---|---|
 | **Hoy** | Arriba, fina: **«Día N / 90 · Zero Agent Challenge»** + adherencia de hoy `H/T` con barra + «racha de perfectos R». Después la tarjeta **AHORA** (decisión 7) con las tareas del bloque. Los 4 números. La lista de Hoy sin las ya pintadas en AHORA. **Hábitos por bloque**: una sección por bloque del día en orden de hora; el actual primero y desplegado, los pasados plegados con «3/4», los futuros plegados. `evitar` con estilo propio; `medir` con campo numérico inline (unidad; escribir = marcar); **Entreno** se despliega con la sesión de hoy y una nota corta. Al final, **Frentes**: los hitos con «en 3 días» / «hoy» / «pasado» / «sin fecha», rojo si ≤ 3 días. |
-| **Calendario → Día** | Timeline **04:00–24:00**. Los bloques del día como bandas de fondo (color de fase al 12 %, nombre en pequeño); el actual más encendido; la línea de «ahora» encima. El arrastre de §5.1 no cambia: soltar dentro de un bloque sólo escribe la hora. Semana: sólo tareas. |
-| **Hábitos** | Agrupados por `grupo` en orden de hora; en cada fila hora, tipo, racha, cumplimiento. El formulario edita hora, grupo (los 5 + libre), tipo, unidad y objetivo (solo `medir`), bloque, descripción y, para Entreno, el **editor del plan** (7 pestañas L–D, título + líneas). Los `medir` enseñan una mini-línea de 4 semanas en vez de la rejilla. |
+| **Calendario → Día** | Timeline **04:00–24:00** (`HORA_MIN = 4`). Los bloques del día como bandas de fondo (`bandasDeBloques`, color de fase al 12 %, nombre en pequeño); el actual más encendido; la línea de «ahora» encima. Las bandas no reciben toques (`pointer-events: none`) y van por debajo de las tarjetas: el arrastre de §5.1 no cambia nada — soltar dentro de un bloque sólo escribe la hora. El que cruza medianoche da **dos** bandas: 22:00→24:00 y, del día anterior, 04:00→04:30. Semana y Mes: sólo tareas. |
+| **Hábitos** | Agrupados por `grupo` (los 5 del Protocolo en su orden, el resto después) y por hora; en cada fila hora, tipo, racha, cumplimiento. El formulario edita hora, grupo (los 5 + «Otro…» libre), tipo, unidad y objetivo (solo `medir`), bloque, descripción y el **editor del plan** (7 pestañas L–D, título + líneas; un día sin nada se borra del plan). Los `medir` enseñan una mini-línea de 4 semanas con el objetivo punteado (`LineaMedida`) en vez de la rejilla. |
 | **Stats** | Arriba, **Zero Agent Challenge**: mapa de calor de los 90 días (13 semanas × 7; nivel 0–4 por adherencia; futuro hueco; hoy con borde; toque → «25 sep · 11/14»), días perfectos, racha actual, adherencia media, mejor semana; selector de hábito → el mismo mapa por hábito; **líneas de peso y de sueño** con el objetivo punteado. Días pasados desde `hoy_dias`; hoy, en vivo. Lo demás, intacto. |
-| **Ajustes** | **Protocolo**: bloques por hora (nombre, fase, horas, días como chips, activar, editar, reordenar; «Restaurar el protocolo» = siembra idempotente). **Reto**: nombre, inicio, fin, descripción, «día N/90». **Frentes**: alta y edición de hitos. |
+| **Ajustes** | **Protocolo**: bloques por hora (nombre editable en línea, horas, fase, días como chips, activar/desactivar, ▲▼, borrar, añadir; «Restaurar el protocolo» = `hoy_sembrar_protocolo(true)`, que no toca ninguna marca). **Reto**: nombre, inicio, fin, descripción y el marcador «N / 90». **Frentes**: alta, edición y borrado de hitos. ⚠️ Un `input[type=time]` con reloj de 12 h necesita sitio para el AM/PM (recortado enseñaba «07:30» donde ponía 19:30) y un `[type=date]` dentro de `.rejilla-2` se sale de la tarjeta si no se le quita el `min-width` **al campo y al input**. |
 | **Escritorio** | Decisión 9. Hoy = tres columnas (Día \| reto + AHORA + lista + números \| Hábitos + Frentes). Semana con 7 columnas de ancho real. Kanban con columnas lado a lado. Stats en dos columnas. |
 
 ### 10.7 · Capa de datos (amplía §7)
 
 ```
 bloques.js      cargarBloques · crearBloque · actualizarBloque · borrarBloque · reordenarBloques · restaurarProtocolo (p_restaurar)
-                FASES · nombreFase · puros: tocaBloque(b, fecha) · bloquesDelDia(bloques, fecha) · contiene(b, fecha, hhmm)
+                FASES · nombreFase · colorBloque (token de la fase) · puros: tocaBloque(b, fecha) · bloquesDelDia(bloques, fecha) · contiene(b, fecha, hhmm)
                 bloqueActual(bloques, fecha, hhmm) · siguienteBloque(bloques, fecha, hhmm) → { bloque, fecha }
                 minutosRestantes(b, hhmm) · duracion(b) · textoMinutos(min) («1h 12m») · cruzaMedianoche(b)
 retos.js        cargarRetos · cargarReto(fecha) · guardarReto(id|null, cambios) · retoVigente(retos, fecha)
@@ -420,6 +420,7 @@ habitos.js      (+) hora · grupo · tipo · unidad · objetivo · bloqueId · p
                        diaPerfecto · rachaPerfectos(habitos, marcas, hoy, desde) · nivelAdherencia({tocaban, hechos}) → 0-4
                        planDeHoy(h, fecha) → { titulo, lineas } · agruparPorBloque(habitos, bloques, fecha) → [{ bloque, habitos }]
                        serieMedida(h, marcas, desde, hasta) → [{ fecha, valor }]
+calendario.js   (+) HORA_MIN = 4 · bandasDeBloques(bloques, fecha) → [{ clave, bloque, top, alto, color }]
 estadisticas.js (+) mapaCalorReto(habitos, marcas, reto, { dias, hoy, habito }) → celdas { fecha, tocaban, hechos, nivel, futuro, hoy }
                     resumenReto(mapa) → { diasPasados, perfectos, media, mejorSemana }
 tareas.js       cargarDias devuelve también habitosTocaban · habitosHechos
