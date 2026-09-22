@@ -24,6 +24,7 @@ import NumeroGrande from '../../componentes/NumeroGrande.jsx'
 import Vacio from '../../componentes/Vacio.jsx'
 import Boton from '../../componentes/Boton.jsx'
 import { GraficoLineas, BarrasHorizontales, BarrasDobles, ColumnasSemanas } from './graficos.jsx'
+import BloqueReto from './Reto.jsx'
 import {
   RANGOS, rangoDe, diaEnCurso, totalSobrecarga, sobrecargaSinHuecos, sobrecargaPorSemana, cumplimientoPorSemana, plegarOtros, num,
 } from './calculos.js'
@@ -36,6 +37,9 @@ export default function Estadisticas() {
   const {
     tareas, habitos, marcas, hoy, proyectosTodos, clientes, categoriasTodas, cuadrantes,
     colorCategoria, avisar, cargando, error, recargar,
+    // los días cerrados que ya trae el contexto: van desde el inicio del reto, que es
+    // más atrás de lo que pide el selector de esta pantalla (§10.7)
+    dias: diasReto,
   } = useDatos()
   const [n, setN] = useState(30)
   // la base histórica (con archivadas); null = aún no leída
@@ -144,6 +148,10 @@ export default function Estadisticas() {
 
   return (
     <div className="pantalla stats">
+      {/* 0 · el reto: el mapa de calor manda sobre su propio rango (los 90 días), no
+          sobre el selector de arriba — por eso va antes que él. */}
+      <BloqueReto dias={diasReto} />
+
       <Segmentos opciones={RANGOS} valor={n} alCambiar={setN} className="stats-rango" />
 
       {/* 1 · creadas vs hechas */}

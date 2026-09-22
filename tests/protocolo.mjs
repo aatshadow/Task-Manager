@@ -192,6 +192,11 @@ try {
   assert.equal(r.media, 67, '(100 + 50 + 50) / 3')
   assert.equal(r.mejorSemana?.lunes, '2026-09-21')
   assert.equal(stats.mapaCalorReto([], [], null).length, 0, 'sin reto, sin mapa')
+  // el desplazamiento de la primera columna: el 23-09-2026 es MIÉRCOLES, así que la
+  // rejilla arranca con dos huecos (L y M) para que cada fila sea el mismo día siempre
+  const dow = (iso) => (new Date(`${iso}T12:00:00`).getDay() + 6) % 7
+  assert.equal(dow('2026-09-23'), 2, 'el día 1 del reto cae en miércoles')
+  assert.equal(Math.ceil((dow(R.inicio) + 90) / 7), 14, '90 días desde un miércoles ocupan 14 columnas')
   ok('mapa de calor: 90 celdas, cerrados desde hoy_dias, hoy en vivo, futuro hueco, por hábito, resumen')
 } catch (e) { ko('mapa de calor', e) }
 

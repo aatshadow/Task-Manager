@@ -387,3 +387,141 @@ export function ColumnasSemanas({ semanas }) {
     </div>
   )
 }
+
+/* ── El reto (LOGICA §10.6) ──────────────────────────────────────────────── */
+
+const MC = { lado: 13, hueco: 3, izquierda: 22, arriba: 16 }
+const LETRAS_MC = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
+/**
+ * El mapa de calor de los 90 días: una columna por semana (lunes arriba), un cuadrado
+ * por día. El nivel 0–4 lo decide la adherencia (`mapaCalorReto`); el futuro va hueco
+ * —un día que no ha llegado no es un cero— y hoy lleva borde. Tocar un cuadrado enseña
+ * «25 sep · 11/14».
+ *
+ * El primer día del reto puede no ser lunes: la primera columna arranca con los huecos
+ * que falten para que cada fila sea siempre el mismo día de la semana.
+ */
+export function MapaCalor({ celdas }) {
+  const [activa, setActiva] = useState(null)
+  if (!celdas?.length) return <p className="st-vacio">Sin reto.</p>
+
+  const desplazamiento = (new Date(`${celdas[0].fecha}T12:00:00`).getDay() + 6) % 7 // lunes = 0
+  const total = desplazamiento + celdas.length
+  const semanas = Math.ceil(total / 7)
+  const paso = MC.lado + MC.hueco
+  const ancho = MC.izquierda + semanas * paso
+  const alto = MC.arriba + 7 * paso
+  const pos = (i) => {
+    const k = i + desplazamiento
+    return { x: MC.izquierda + Math.floor(k / 7) * paso, y: MC.arriba + (k % 7) * paso }
+  }
+  const sel = activa != null ? celdas[activa] : null
+
+  return (
+    <div className="st-grafico st-mapa">
+      <svg viewBox={`0 0 ${ancho} ${alto}`} width="100%" className="st-svg" role="img" aria-label="Adherencia día a día del reto">
+        {LETRAS_MC.map((l, i) => (
+          <text key={l} x={0} y={MC.arriba + i * paso + MC.lado - 2} className="st-eje">{l}</text>
+        ))}
+        {celdas.map((c, i) => {
+          const { x, y } = pos(i)
+          const clases = [
+            'st-mc-celda',
+            c.futuro ? 'st-mc-celda--futuro' : `st-mc-celda--n${c.nivel}`,
+            c.hoy && 'st-mc-celda--hoy',
+            activa === i && 'st-mc-celda--activa',
+          ].filter(Boolean).join(' ')
+          return (
+            <rect
+              key={c.fecha}
+              x={x}
+              y={y}
+              width={MC.lado}
+              height={MC.lado}
+              rx="3"
+              className={clases}
+              onPointerEnter={() => setActiva(i)}
+              onPointerLeave={() => setActiva((a) => (a === i ? null : a))}
+              onClick={() => setActiva((a) => (a === i ? null : i))}
+            />
+          )
+        })}
+      </svg>
+      <div className="st-mapa-pie">
+        <span className="st-mapa-dato" aria-live="polite">
+          {sel
+            ? `${textoFecha(sel.fecha, true)} · ${sel.futuro ? 'aún no' : `${sel.hechos}/${sel.tocaban}`}`
+            : `${celdas.filter((c) => !c.futuro).length} de ${celdas.length} días`}
+        </span>
+        <span className="st-mapa-escala" aria-hidden="true">
+          menos
+          {[0, 1, 2, 3, 4].map((n) => <i key={n} className={`st-mc-celda st-mc-celda--n${n}`} />)}
+          más
+        </span>
+      </div>
+      <TablaOculta
+        titulo="Adherencia día a día"
+        columnas={['Día', 'Hechos', 'Tocaban']}
+        filas={celdas.filter((c) => !c.futuro).map((c) => [textoFecha(c.fecha), c.hechos, c.tocaban])}
+      />
+    </div>
+  )
+}
+
+/**
+ * La línea de un hábito que se mide (peso, horas de sueño) a lo largo del reto, con el
+ * objetivo punteado y el último valor etiquetado. Misma mecánica que el resto: se mide el
+ * ancho real y se dibuja en píxeles.
+ */
+export function LineaMedidaGrande({ serie, objetivo = null, unidad = '', color }) {
+  const [ref, medido] = useAncho()
+  const ancho = medido || 310
+  const x0 = H.izquierda
+  const x1 = ancho - H.derecha - 18
+  const y0 = H.arriba
+  const y1 = H.alto - H.abajo
+  const total = serie.length
+  const valores = serie.map((p) => p.valor)
+  const conObjetivo = objetivo != null ? [...valores, objetivo] : valores
+  let mn = Math.min(...conObjetivo)
+  let mx = Math.max(...conObjetivo)
+  if (mx === mn) { mn -= 1; mx += 1 }
+  const cx = (i) => (total === 1 ? (x0 + x1) / 2 : x0 + (i / (total - 1)) * (x1 - x0))
+  const py = (v) => y1 - ((v - mn) / (mx - mn)) * (y1 - y0)
+  const aIndice = useCallback((x) => (total <= 1 ? 0 : Math.round(((x - x0) / (x1 - x0)) * (total - 1))), [total, x0, x1])
+  const { activo, props } = useActivo(total, aIndice)
+  const ultimo = serie[total - 1]
+
+  return (
+    <div ref={ref} className="st-grafico">
+      <svg width={ancho} height={H.alto} className="st-svg" role="img" aria-label={`Medidas${unidad ? ` en ${unidad}` : ''}`} {...props}>
+        {[mn, (mn + mx) / 2, mx].map((m, i) => (
+          <g key={i}>
+            <line x1={x0} x2={x1} y1={py(m)} y2={py(m)} className="st-rejilla" />
+            <text x={x0 - 6} y={py(m) + 4} textAnchor="end" className="st-eje">{num(m, 1)}</text>
+          </g>
+        ))}
+        {objetivo != null && (
+          <line x1={x0} x2={x1} y1={py(objetivo)} y2={py(objetivo)} className="st-objetivo" />
+        )}
+        <path d={serie.map((p, i) => `${i ? 'L' : 'M'}${cx(i)} ${py(p.valor)}`).join(' ')} fill="none" stroke={color || 'var(--st-hechas)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {serie.map((p, i) => <circle key={p.fecha} cx={cx(i)} cy={py(p.valor)} r={activo === i ? 4 : 2.5} fill={color || 'var(--st-hechas)'} />)}
+        {ultimo && activo == null && (
+          <text x={cx(total - 1) + 6} y={py(ultimo.valor) + 4} className="st-etiqueta-final">{num(ultimo.valor, 1)}</text>
+        )}
+        {activo != null && serie[activo] && (
+          <Tooltip
+            x={cx(activo)}
+            y={y0}
+            ancho={ancho}
+            titulo={textoFecha(serie[activo].fecha)}
+            anchoCaja={124}
+            filas={[{ nombre: unidad || 'valor', valor: num(serie[activo].valor, 1), color: color || 'var(--st-hechas)' }]}
+          />
+        )}
+      </svg>
+      <TablaOculta titulo="Medidas" columnas={['Día', unidad || 'Valor']} filas={serie.map((p) => [textoFecha(p.fecha), p.valor])} />
+    </div>
+  )
+}
