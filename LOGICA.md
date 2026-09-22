@@ -239,3 +239,188 @@ Realtime en `tasks` → `recargar()` con debounce. `visibilitychange` → `recar
 ## 9 · Fuera de v1
 
 Timer por tarea · dependencias · sprints · notificaciones push · multiusuario · migrar datos del JUEGO.
+
+## 10 · El Protocolo — 2day como centro de control del reto (Alex, 22-09-2026)
+
+> El 22-09 Alex abre dos meses de sprint en GrowthInfo (cinco frentes, dos lanzamientos en tres
+> días) y dicta tres documentos: la **Rutina del Operador ajustada** (04:30), el **Protocolo de
+> Forja** (entreno semanal) y la **dieta cetogénica adaptativa**. Los tres son la conducta de los
+> próximos 90 días: el **Zero Agent Challenge**. El mandato: 2day deja de ser «una lista de
+> tareas» y pasa a ser el sitio donde se ve el día entero, se marca lo que toca y se mide el reto.
+> Diagnóstico previo (22-09): 4 hábitos, 5 marcas en total, y los días 17, 18 y 19 cerrados con
+> 0 hechas. La app funcionaba, pero no era el sitio al que Alex volvía.
+
+### 10.0 · Decisiones cerradas (Alex, 22-09-2026; las marcadas «a solas» las cerró CORE sin preguntar, por mandato)
+
+| # | Decisión |
+|---|---|
+| 1 | **La rutina NO son tareas.** Veinte tareas idénticas cada día reventarían la lista y la estadística de sobrecarga. Es un **raíl fijo de bloques con hora** (`hoy_bloques`) que se pinta de fondo en la vista Día; las tareas se arrastran **dentro** de un bloque. Modo túnel: se decide qué entra en cada bloque, nunca el bloque. |
+| 2 | Los hábitos ganan `hora`, `grupo`, `tipo` (`hacer` / `evitar` / `medir`), `unidad`, `objetivo`, `bloque_id`, `descripcion` y `plan` (jsonb por día de semana ISO, para el entreno). Un `evitar` se marca igual que un `hacer` (marcado = cumplido); un `medir` cuenta como hecho cuando tiene `valor`. |
+| 3 | `hoy_marcas` gana `valor numeric` (lo que se mide: kg, horas). La `nota` que ya existía sirve para pesos y rondas del entreno. |
+| 4 | `hoy_retos`: una fila **«Zero Agent Challenge»**, `inicio` **2026-09-23** (arranca a las **04:30**), 90 días → `fin` **2026-12-21**. Día del reto = días desde `inicio` + 1, tope 90. Antes del inicio la app enseña «empieza mañana a las 04:30»; después del fin, «90/90 · completado». |
+| 5 | `hoy_dias` gana `habitos_tocaban` y `habitos_hechos` (la adherencia del día). `hoy_reiniciar_dia` los apunta al cerrar el día, igual que planificadas/hechas. |
+| 6 | `hoy_hitos` (nombre, frente, fecha nullable, `client_id` nullable, hecho): los lanzamientos de los frentes de GrowthInfo. Se ven en Hoy («en 3 días», rojo si ≤ 3) y se editan en Ajustes. |
+| 7 | La tarjeta destacada de Hoy pasa a ser **«AHORA: ‹bloque› · quedan Xh Ym · siguiente ‹bloque› HH:MM»** con las tareas de ese bloque debajo. Si el día no tiene bloque (protocolo desactivado), cae a la lógica de §5 (la primera de Hoy). |
+| 8 | Timeline del Día de **04:00 a 24:00** (antes 06:00): el día empieza a las 04:30. El bloque de Sueño (22:00–04:30) cruza medianoche y se pinta en dos trozos. |
+| 9 | **Escritorio ≥ 1024 px**: raíl de navegación a la izquierda (fuera la nav inferior), contenido ancho, la hoja de detalle como **panel lateral derecho**; Hoy = **Día \| Hábitos \| Frentes**; atajos `n` (nueva), `1–5` (pestañas), `t` (Hoy), `Esc` (cierra). Mismo motor, misma capa de datos: CSS grid + un hook, no una segunda app. En móvil no cambia nada. |
+| 10 | *(a solas)* Los dailies (socio 13:00, comercial 14:15) pasan a **bloques de lunes a viernes**. Las tareas «Daily con Pere» y «Daily con Adri» (regla `diario`) se **archivan**, no se borran: el bloque y el hábito ya los cuentan. |
+| 11 | Los 4 hábitos existentes se conservan con sus marcas: «45 min training» se **renombra «Entreno»** y recibe el plan; «Leer protocolo», «No redbull» (pasa a tipo `evitar`) y «Journal process to 520424,26$» se recolocan en su grupo y hora. |
+| 12 | Compra semanal y meal prep son **tareas con regla `semanal`** (domingo), no hábitos: tienen lista, duran dos horas y se pueden mover. |
+| 13 | *(a solas)* **Hora maestra = la «Rutina del Operador ajustada»** (comida 1 ANTES del gym, gym 06:40–07:30). Los otros dos documentos decían 05:15–06:00 y «comida 1 a las 06:00 post-entreno»: no cuadraban entre sí; del Protocolo de Forja se toma sólo el **contenido** de cada día. Miércoles sin gym y spa completo (Alex, 22-09: «los miércoles haremos sesión de sauna más larga y ya»); sábado caminata + movilidad; domingo descanso + meal prep. |
+| 14 | *(a solas)* **Fin de semana**: se conservan calibración, comidas, spa, planificación y apagado (son diarios); los bloques de trabajo y los dailies son L–V. La rutina dictada no decía nada del fin de semana; el entreno sí. |
+| 15 | *(a solas)* Objetivo de sueño **6,5 h** (22:00 → 04:30, lo que dicta la rutina). Se mide, no se juzga. |
+
+### 10.1 · Bloques — el raíl del día (`hoy_bloques`)
+
+Columnas: `nombre`, `fase`, `inicio time`, `fin time`, `dias smallint[]` (ISO, 1=L … 7=D), `icono`,
+`color`, `posicion`, `activo`, `archivado_at`. Un bloque cuyo `fin` es menor que su `inicio` cruza
+medianoche. Se siembran exactamente estos 22 (`hoy_sembrar_protocolo()`, idempotente por nombre):
+
+| Fase | Bloque | Horas | Días |
+|---|---|---|---|
+| calibracion | Activación del Emperador (agua con sal, luz roja, «Soberanía Inmutable») | 04:30–04:45 | 1-7 |
+| calibracion | Meditación de No-Mente (20') + Visualización del día (25') | 04:45–05:30 | 1-7 |
+| nutricion | Comida 1 — combustible (huevos, aguacate, salmón, MCT, café) | 05:30–06:15 | 1-7 |
+| cuerpo | Preparación y tránsito al gimnasio | 06:15–06:40 | 1,2,4,5 |
+| cuerpo | Entrenamiento de alta intensidad | 06:40–07:30 | 1,2,4,5 |
+| cuerpo | Caminata rápida sin música | 06:40–07:10 | 6 |
+| cuerpo | Regeneración: ducha de hielo 2' + café | 07:30–08:00 | 1-7 |
+| ofensiva | Inmersión total — Lanzamiento 1 | 08:00–11:00 | 1-5 |
+| ofensiva | Recarga cerebral (Ojo de la Tormenta) | 11:00–11:15 | 1-5 |
+| ofensiva | Inmersión — tareas críticas y métricas | 11:15–12:00 | 1-5 |
+| nutricion | Comida 2 + calibración (sauna rápida o ducha de contraste) | 12:00–13:00 | 1-7 |
+| reuniones | Daily con el Socio | 13:00–14:00 | 1-5 |
+| reuniones | Pausa estratégica | 14:00–14:15 | 1-5 |
+| reuniones | Daily con el Director Comercial | 14:15–15:15 | 1-5 |
+| nutricion | Comida 3 — Nutrición del General (última ingesta, empieza el ayuno) | 15:15–16:00 | 1-7 |
+| consolidacion | Ejecución de tareas críticas | 16:00–18:30 | 1-5 |
+| cuerpo | Movilidad y estiramientos profundos | 16:00–16:30 | 6 |
+| nutricion | Meal prep de la semana | 16:00–18:00 | 7 |
+| cuerpo | Protocolo de Spa (miércoles: completo, 3 ciclos) | 18:30–19:30 | 1-7 |
+| consolidacion | Planificación del mañana | 19:30–20:00 | 1-7 |
+| apagado | Desconexión total | 20:00–22:00 | 1-7 |
+| apagado | Sueño de alta performance | 22:00–04:30 | 1-7 |
+
+**Fases y color** (tokens nuevos en `tokens.css`, nada de hex sueltos): `calibracion` violeta suave ·
+`nutricion` verde · `cuerpo` naranja · `ofensiva` naranja intenso (el acento) · `reuniones` azul ·
+`consolidacion` ámbar · `apagado` gris. En el timeline se pintan al 12 % de opacidad; el bloque
+actual, un punto más encendido.
+
+**Bloque actual** = el que contiene la hora de ahora en un día en que toca (`dias`). El de Sueño
+contiene tanto las 23:30 como las 03:00. Si dos se solapan (no ocurre en la siembra), gana el de
+menor `posicion`. **Siguiente** = el primero cuyo `inicio` es posterior a ahora, hoy; si no queda
+ninguno, el primero de mañana.
+
+### 10.2 · Hábitos — el checklist del operador
+
+Se siembran ordenados por hora dentro de su grupo. Los cuatro existentes se reutilizan (decisión 11).
+`hacer` = marcar es cumplir · `evitar` = marcar es haber resistido · `medir` = escribir el valor es cumplir.
+
+| Grupo | Hábito | Tipo | Hora | Días | Bloque |
+|---|---|---|---|---|---|
+| Calibración | Levantarse a las 04:30 | hacer | 04:30 | 1-7 | Activación del Emperador |
+| Calibración | Agua con sal del Himalaya | hacer | 04:30 | 1-7 | Activación del Emperador |
+| Calibración | Luz roja + «Soberanía Inmutable» | hacer | 04:35 | 1-7 | Activación del Emperador |
+| Calibración | Leer protocolo *(existente)* | hacer | 04:40 | 1-7 | Activación del Emperador |
+| Calibración | Peso | medir (kg) | 04:40 | 1-7 | Activación del Emperador |
+| Calibración | Horas de sueño | medir (h, objetivo 6,5) | 04:40 | 1-7 | Activación del Emperador |
+| Calibración | Meditación 20' | hacer | 04:45 | 1-7 | Meditación + Visualización |
+| Calibración | Visualización del día 25' | hacer | 05:05 | 1-7 | Meditación + Visualización |
+| Cuerpo | Entreno *(era «45 min training»; plan por día, §10.3)* | hacer | 06:40 | 1,2,4,5 | Entrenamiento de alta intensidad |
+| Cuerpo | Caminata 30' sin música | hacer | 06:40 | 6 | Caminata rápida sin música |
+| Cuerpo | Ducha de hielo 2' | hacer | 07:30 | 1-7 | Regeneración |
+| Cuerpo | Movilidad 30' | hacer | 16:00 | 6 | Movilidad y estiramientos |
+| Cuerpo | Spa (miércoles: completo, 3 ciclos) | hacer | 18:30 | 1-7 | Protocolo de Spa |
+| Nutrición | Comida 1 | hacer | 05:30 | 1-7 | Comida 1 |
+| Nutrición | Comida 2 | hacer | 12:00 | 1-7 | Comida 2 |
+| Nutrición | Sin azúcar ni carbohidratos | evitar | 12:00 | 1-7 | Comida 2 |
+| Nutrición | No redbull *(existente → evitar)* | evitar | 12:00 | 1-7 | Comida 2 |
+| Nutrición | Comida 3 | hacer | 15:15 | 1-7 | Comida 3 |
+| Nutrición | Ayuno cerrado desde las 16:00 | evitar | 16:00 | 1-7 | Comida 3 |
+| Trabajo | Inmersión 3 h sin distracciones | hacer | 08:00 | 1-5 | Inmersión total — Lanzamiento 1 |
+| Trabajo | Daily con el Socio | hacer | 13:00 | 1-5 | Daily con el Socio |
+| Trabajo | Daily con el Director Comercial | hacer | 14:15 | 1-5 | Daily con el Director Comercial |
+| Trabajo | Planificar el mañana | hacer | 19:30 | 1-7 | Planificación del mañana |
+| Trabajo | Journal process to 520424,26$ *(existente)* | hacer | 19:45 | 1-7 | Planificación del mañana |
+| Apagado | Desconexión total a las 20:00 (pantallas de trabajo) | evitar | 20:00 | 1-7 | Desconexión total |
+| Apagado | En la cama a las 22:00 | hacer | 22:00 | 1-7 | Sueño de alta performance |
+
+Los hábitos de comida llevan en `descripcion` el plato de §10.4. Un hábito con `dias` sigue la
+regla de §3.6: un día que no toca no aparece ni cuenta.
+
+### 10.3 · Plan de entreno (`plan` jsonb del hábito Entreno, clave = día ISO)
+
+Cada entrada es `{ titulo, lineas: [] }`. Al abrir Entreno en Hoy se enseña la de hoy y se admite una
+nota (pesos, rondas) que va a `hoy_marcas.nota`.
+
+| Día | Título | Sesión |
+|---|---|---|
+| 1 | Leopardo — explosividad | calentamiento 5' (cuerda + movilidad) · 4 rondas: saco 3' explosivo / burpees 12 / kettlebell swings 15 / descanso 90'' · enfriamiento 10' |
+| 2 | Tanque — fuerza bruta | calentamiento 5' · press banca 4×6-8 · sentadilla con barra 4×6-8 · peso muerto rumano 4×8-10 · descanso 2' entre series · enfriamiento 5' |
+| 3 | Arma biológica — recuperación | sin gimnasio; por la tarde spa completo 3× (sauna finlandesa 10' · hielo 1' · jacuzzi 5') + sauna de hierbas 10' |
+| 4 | Gacela — velocidad | calentamiento 5' · HIIT 30' en cinta/elíptica: 10× (1' al 80 % / 2' al 40 %) · core 10': plancha 3× al fallo · elevaciones de piernas colgado 3×15 · enfriamiento 5' |
+| 5 | León — dominio total | circuito ×4 sin descanso: dominadas al fallo (máx 10) · flexiones al fallo (máx 25) · zancadas con mancuernas 10/pierna · remo con barra 10 pesado · 90'' al final de cada ronda |
+| 6 | Recuperación activa | caminata rápida 30' sin música (mañana) + estiramientos y movilidad 30' de caderas y espalda (tarde) |
+| 7 | Descanso total | nada intenso; caminar sin forzar |
+
+### 10.4 · Dieta — cetogénica adaptativa, idéntica cada día
+
+Ventana de alimentación **05:30–16:00**; de 16:00 a 05:30 sólo agua, café o té sin azúcar.
+
+- **Comida 1 (05:30)**: 4 huevos revueltos con espinacas, medio aguacate, 2 lonchas de salmón ahumado, café negro con MCT o mantequilla. Alternativa: tortilla de 3 huevos con espinacas y ajo + medio aguacate.
+- **Comida 2 (12:00)**: pechuga a la plancha 200 g o 2 muslos al horno + brócoli al vapor o salteado con AOVE y ajo + 20 g de macadamias.
+- **Comida 3 (15:15)**: lomo de cerdo 150 g a la plancha o el resto del pollo + ensalada grande (puerro crudo, espinacas, aguacate, AOVE, limón, sal) + 20 g de almendras si falta energía.
+
+Estos platos van en la `descripcion` de los tres hábitos de comida.
+
+**Dos tareas semanales** (regla `semanal`, domingo, proyecto «Personal», categoría `general`; nacen en la siembra con `vence` = 2026-09-27):
+1. **«Compra semanal cetogénica (80–100 €)»** — descripción = la lista entera: pollo entero 1,5 kg · salmón ahumado 200 g · 12 huevos L · chorizo ibérico 300 g · lomo embuchado 300 g · espinacas 500 g · brócoli 500 g · puerros · 5 aguacates · ajo · 4 limones · AOVE 750 ml · mantequilla 250 g · nata 35 % 1 L · macadamias 150 g · almendras 250 g · sal del Himalaya · café · agua con gas ×6.
+2. **«Meal prep de la semana (2 h)»** — 16:00–18:00 (`hora_inicio`/`hora_fin`): todo el pollo cocinado, verduras cortadas, aguacates listos. «La comida no se decide cada día, se sirve».
+
+### 10.5 · Hitos de los frentes (`hoy_hitos`)
+
+| Frente | Hito | Fecha |
+|---|---|---|
+| Alberto Chan | Lanzamiento afiliados de trading | 2026-09-25 |
+| Alfredo Valenzuela | Lanzamiento afiliados de trading (meeting 23-09) | 2026-09-25 |
+| Elena / Amira Girls | Ads en vivo | 2026-09-29 |
+| Zona Gemelos | Volver a llamar a la lista de leads | — |
+| Jonathan | Revisión legal de la landing antes de tráfico | — |
+
+Un hito con `hecho = true` desaparece de Hoy. `client_id` es opcional: Alfredo aún no existe en
+`clients`, y un hito no debe esperar a que exista.
+
+### 10.6 · Pantallas
+
+| Pantalla | Qué cambia |
+|---|---|
+| **Hoy** | Arriba, fina: **«Día N / 90 · Zero Agent Challenge»** + adherencia de hoy `H/T` con barra + «racha de perfectos R». Después la tarjeta **AHORA** (decisión 7) con las tareas del bloque. Los 4 números. La lista de Hoy sin las ya pintadas en AHORA. **Hábitos por bloque**: una sección por bloque del día en orden de hora; el actual primero y desplegado, los pasados plegados con «3/4», los futuros plegados. `evitar` con estilo propio; `medir` con campo numérico inline (unidad; escribir = marcar); **Entreno** se despliega con la sesión de hoy y una nota corta. Al final, **Frentes**: los hitos con «en 3 días» / «hoy» / «pasado» / «sin fecha», rojo si ≤ 3 días. |
+| **Calendario → Día** | Timeline **04:00–24:00**. Los bloques del día como bandas de fondo (color de fase al 12 %, nombre en pequeño); el actual más encendido; la línea de «ahora» encima. El arrastre de §5.1 no cambia: soltar dentro de un bloque sólo escribe la hora. Semana: sólo tareas. |
+| **Hábitos** | Agrupados por `grupo` en orden de hora; en cada fila hora, tipo, racha, cumplimiento. El formulario edita hora, grupo (los 5 + libre), tipo, unidad y objetivo (solo `medir`), bloque, descripción y, para Entreno, el **editor del plan** (7 pestañas L–D, título + líneas). Los `medir` enseñan una mini-línea de 4 semanas en vez de la rejilla. |
+| **Stats** | Arriba, **Zero Agent Challenge**: mapa de calor de los 90 días (13 semanas × 7; nivel 0–4 por adherencia; futuro hueco; hoy con borde; toque → «25 sep · 11/14»), días perfectos, racha actual, adherencia media, mejor semana; selector de hábito → el mismo mapa por hábito; **líneas de peso y de sueño** con el objetivo punteado. Días pasados desde `hoy_dias`; hoy, en vivo. Lo demás, intacto. |
+| **Ajustes** | **Protocolo**: bloques por hora (nombre, fase, horas, días como chips, activar, editar, reordenar; «Restaurar el protocolo» = siembra idempotente). **Reto**: nombre, inicio, fin, descripción, «día N/90». **Frentes**: alta y edición de hitos. |
+| **Escritorio** | Decisión 9. Hoy = tres columnas (Día \| reto + AHORA + lista + números \| Hábitos + Frentes). Semana con 7 columnas de ancho real. Kanban con columnas lado a lado. Stats en dos columnas. |
+
+### 10.7 · Capa de datos (amplía §7)
+
+```
+bloques.js      cargarBloques · crearBloque · actualizarBloque · borrarBloque · reordenarBloques
+                puros: tocaBloque(b, fecha) · bloquesDelDia(bloques, fecha) · bloqueActual(bloques, fecha, hhmm)
+                       siguienteBloque(bloques, fecha, hhmm) · minutosRestantes(b, hhmm)
+retos.js        cargarReto · guardarReto · puros: diaDelReto(reto, hoy) → { dia, total, antes, terminado } · fechasDelReto(reto)
+hitos.js        cargarHitos · crearHito · actualizarHito · borrarHito · puro: diasHasta(hito, hoy)
+habitos.js      (+) hora · grupo · tipo · unidad · objetivo · bloqueId · plan · descripcion
+                marcar(habitoId, fecha, si, { nota, valor })
+                puros: adherencia(habitos, marcas, fecha) → { tocaban, hechos, porcentaje } · diaPerfecto · rachaPerfectos
+                       planDeHoy(h, fecha) · agruparPorBloque(habitos, bloques, fecha) · serieMedida(h, marcas, desde, hasta)
+estadisticas.js (+) mapaCalorReto(habitos, marcas, reto, dias) → 90 celdas { fecha, tocaban, hechos, nivel }
+catalogos.js    sembrar() llama también a hoy_sembrar_protocolo()
+useDatos()      (+) bloques · reto · hitos · ahora (reloj de 30 s) — las marcas se cargan desde el inicio del reto
+```
+
+### 10.8 · Verificación (amplía §8)
+
+- `tests/forma.mjs`: tablas y columnas nuevas, sin GRANT a `anon`, RLS activa.
+- `tests/protocolo.mjs` (puro): bloque actual a las 03:00 (Sueño), 04:31, 08:30, 23:59; sábado sin dailies; `diaDelReto` el 22-09 (antes), 23-09 (día 1), 21-12 (día 90), 22-12 (terminado); adherencia con `evitar` y `medir`; racha de perfectos.
+- `tests/protocolo-siembra.mjs` (login real): 22 bloques, los hábitos de §10.2, el reto, 5 hitos, 2 tareas semanales; sembrar dos veces no duplica.
+- Capturas con Chrome headless a 390 px (móvil) y 1440×900 (escritorio).
