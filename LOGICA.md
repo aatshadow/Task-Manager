@@ -406,18 +406,26 @@ Un hito con `hecho = true` desaparece de Hoy. `client_id` es opcional: Alfredo a
 ### 10.7 · Capa de datos (amplía §7)
 
 ```
-bloques.js      cargarBloques · crearBloque · actualizarBloque · borrarBloque · reordenarBloques
-                puros: tocaBloque(b, fecha) · bloquesDelDia(bloques, fecha) · bloqueActual(bloques, fecha, hhmm)
-                       siguienteBloque(bloques, fecha, hhmm) · minutosRestantes(b, hhmm)
-retos.js        cargarReto · guardarReto · puros: diaDelReto(reto, hoy) → { dia, total, antes, terminado } · fechasDelReto(reto)
-hitos.js        cargarHitos · crearHito · actualizarHito · borrarHito · puro: diasHasta(hito, hoy)
-habitos.js      (+) hora · grupo · tipo · unidad · objetivo · bloqueId · plan · descripcion
-                marcar(habitoId, fecha, si, { nota, valor })
-                puros: adherencia(habitos, marcas, fecha) → { tocaban, hechos, porcentaje } · diaPerfecto · rachaPerfectos
-                       planDeHoy(h, fecha) · agruparPorBloque(habitos, bloques, fecha) · serieMedida(h, marcas, desde, hasta)
-estadisticas.js (+) mapaCalorReto(habitos, marcas, reto, dias) → 90 celdas { fecha, tocaban, hechos, nivel }
-catalogos.js    sembrar() llama también a hoy_sembrar_protocolo()
-useDatos()      (+) bloques · reto · hitos · ahora (reloj de 30 s) — las marcas se cargan desde el inicio del reto
+bloques.js      cargarBloques · crearBloque · actualizarBloque · borrarBloque · reordenarBloques · restaurarProtocolo (p_restaurar)
+                FASES · nombreFase · puros: tocaBloque(b, fecha) · bloquesDelDia(bloques, fecha) · contiene(b, fecha, hhmm)
+                bloqueActual(bloques, fecha, hhmm) · siguienteBloque(bloques, fecha, hhmm) → { bloque, fecha }
+                minutosRestantes(b, hhmm) · duracion(b) · textoMinutos(min) («1h 12m») · cruzaMedianoche(b)
+retos.js        cargarRetos · cargarReto(fecha) · guardarReto(id|null, cambios) · retoVigente(retos, fecha)
+                puros: totalDias(reto) · diaDelReto(reto, hoy) → { dia, total, antes, terminado, faltan } · fechasDelReto(reto)
+hitos.js        cargarHitos · crearHito · actualizarHito · borrarHito
+                puros: diasHasta(hito, hoy) · textoHito («en 3 días») · urgente (≤ 3 días y no hecho) · ordenarHitos
+habitos.js      (+) hora · grupo · tipo · unidad · objetivo · bloqueId · plan · descripcion · TIPOS · GRUPOS
+                marcar(habitoId, fecha, si, { nota, valor })   // un `medir` sin valor no es marca
+                puros: estaHecho(h, marcas, fecha) · adherencia(habitos, marcas, fecha) → { tocaban, hechos, porcentaje }
+                       diaPerfecto · rachaPerfectos(habitos, marcas, hoy, desde) · nivelAdherencia({tocaban, hechos}) → 0-4
+                       planDeHoy(h, fecha) → { titulo, lineas } · agruparPorBloque(habitos, bloques, fecha) → [{ bloque, habitos }]
+                       serieMedida(h, marcas, desde, hasta) → [{ fecha, valor }]
+estadisticas.js (+) mapaCalorReto(habitos, marcas, reto, { dias, hoy, habito }) → celdas { fecha, tocaban, hechos, nivel, futuro, hoy }
+                    resumenReto(mapa) → { diasPasados, perfectos, media, mejorSemana }
+tareas.js       cargarDias devuelve también habitosTocaban · habitosHechos
+catalogos.js    sembrar() llama también a hoy_sembrar_protocolo() (sin restaurar)
+useDatos()      (+) bloques · retos · reto (el vigente hoy) · hitos · dias (hoy_dias del rango) · ahora ('HH:MM', reloj de 30 s)
+                las marcas y los días se cargan desde el inicio del reto (o 91 días atrás, lo más antiguo)
 ```
 
 ### 10.8 · Verificación (amplía §8)

@@ -13,6 +13,9 @@ import * as fechas from '../src/datos/fechas.js'
 import * as catalogos from '../src/datos/catalogos.js'
 import * as tareas from '../src/datos/tareas.js'
 import * as habitos from '../src/datos/habitos.js'
+import * as bloques from '../src/datos/bloques.js'
+import * as retos from '../src/datos/retos.js'
+import * as hitos from '../src/datos/hitos.js'
 import * as plantillas from '../src/datos/plantillas.js'
 import * as stats from '../src/datos/estadisticas.js'
 
@@ -26,11 +29,16 @@ const contrato = {
     'cargarPipelines', 'crearPipeline', 'crearEtapa', 'actualizarEtapa', 'borrarEtapa', 'reordenarEtapas', 'cargarTablerosDeCliente'],
   tareas: ['cargarTodas', 'cargarExplorar', 'crear', 'actualizar', 'mover', 'completar', 'capa', 'planificarHoy', 'seguir', 'archivar', 'borrar',
     'reiniciarDia', 'cargarDias', 'cargarComentarios', 'comentar', 'esAtrasada', 'esNevera', 'esBandeja', 'ErrorHoy'],
-  habitos: ['cargarHabitos', 'crearHabito', 'actualizarHabito', 'archivarHabito', 'cargarMarcas', 'marcar', 'tocaHoy', 'racha', 'cumplimientoSemana'],
+  habitos: ['cargarHabitos', 'crearHabito', 'actualizarHabito', 'archivarHabito', 'cargarMarcas', 'marcar', 'tocaHoy', 'racha', 'cumplimientoSemana',
+    'adherencia', 'diaPerfecto', 'rachaPerfectos', 'planDeHoy', 'agruparPorBloque', 'serieMedida', 'estaHecho', 'nivelAdherencia'],
+  bloques: ['cargarBloques', 'crearBloque', 'actualizarBloque', 'borrarBloque', 'reordenarBloques', 'restaurarProtocolo',
+    'tocaBloque', 'bloquesDelDia', 'bloqueActual', 'siguienteBloque', 'minutosRestantes', 'duracion', 'textoMinutos'],
+  retos: ['cargarRetos', 'cargarReto', 'guardarReto', 'retoVigente', 'diaDelReto', 'fechasDelReto', 'totalDias'],
+  hitos: ['cargarHitos', 'crearHito', 'actualizarHito', 'borrarHito', 'diasHasta', 'textoHito', 'urgente', 'ordenarHitos'],
   plantillas: ['cargarPlantillas', 'crearPlantilla', 'actualizarPlantilla', 'borrarPlantilla', 'guardarItems', 'instanciar'],
-  estadisticas: ['seriesCreadasHechas', 'porProyecto', 'porCategoria', 'porCuadrante', 'rachaDias', 'sobrecarga'],
+  estadisticas: ['seriesCreadasHechas', 'porProyecto', 'porCategoria', 'porCuadrante', 'rachaDias', 'sobrecarga', 'mapaCalorReto', 'resumenReto'],
 }
-const modulos = { fechas, catalogos, tareas, habitos, plantillas, estadisticas: stats }
+const modulos = { fechas, catalogos, tareas, habitos, bloques, retos, hitos, plantillas, estadisticas: stats }
 for (const [mod, nombres] of Object.entries(contrato)) {
   const faltan = nombres.filter((n) => typeof modulos[mod][n] !== 'function')
   paso(`${mod}.js exporta ${nombres.length} nombres del contrato`, !faltan.length, faltan.length && new Error(`faltan: ${faltan.join(', ')}`))

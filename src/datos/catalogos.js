@@ -89,6 +89,9 @@ export async function sembrar() {
   listo()
   const { error } = await supabase.rpc('hoy_sembrar')
   if (error) throw new ErrorHoy('no se pudo sembrar', error)
+  // El Protocolo (§10): crea lo que falte y sólo rellena lo vacío; nunca pisa lo editado.
+  const p = await supabase.rpc('hoy_sembrar_protocolo')
+  if (p.error) throw new ErrorHoy('no se pudo sembrar el protocolo', p.error)
   cachePipelines = null
   return true
 }

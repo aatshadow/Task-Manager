@@ -5,7 +5,8 @@
  * Un timestamp (`creadaEn`, `hechaEn`) se convierte a día LOCAL con `diaDe()`: en el
  * Mac de Alex (UTC+3) una tarea hecha a la 01:00 es de ese día, no del anterior.
  */
-import { diaDe, rangoDias, sumarDias, aISO } from './fechas.js'
+import { diaDe, rangoDias, sumarDias, aISO, lunesDe } from './fechas.js'
+import { adherencia, nivelAdherencia } from './habitos.js'
 
 /** Hechas dentro de `[desde, hasta]` (por el día local de `hechaEn`). */
 export function hechasEnRango(tareas, desde, hasta) {
@@ -96,4 +97,50 @@ export function resumenHoy(tareas, hoy) {
     bandeja: vivas.filter((t) => !t.hecha && !t.proyectoId && !t.clientId && !t.cuadrante).length,
     pendientes: vivas.filter((t) => !t.hecha).length,
   }
+}
+
+/* ── el reto (LOGICA §10.6 · Stats) ─────────────────────────────────────────── */
+
+/**
+ * Mapa de calor del reto: una celda por fecha, de `reto.inicio` a `reto.fin`:
+ * `{ fecha, tocaban, hechos, nivel (0-4), futuro, hoy }`. Los días cerrados salen de
+ * `hoy_dias` (`dias`, ya con adherencia) y los abiertos (hoy y los que no se cerraron)
+ * se calculan en vivo con hábitos + marcas. Con `habito` se calcula sólo para él.
+ */
+export function mapaCalorReto(habitos, marcas, reto, { dias = [], hoy, habito = null } = {}) {
+  if (!reto) return []
+  const cerrados = new Map((dias || []).map((d) => [d.fecha, d]))
+  return rangoDias(reto.inicio, reto.fin).map((fecha) => {
+    const futuro = !!hoy && fecha > hoy
+    let tocaban = 0
+    let hechos = 0
+    if (!futuro) {
+      const c = !habito && cerrados.get(fecha)
+      if (c && (c.habitosTocaban || c.habitosHechos)) {
+        tocaban = c.habitosTocaban || 0; hechos = c.habitosHechos || 0
+      } else {
+        const a = adherencia(habito ? [habito] : habitos, marcas, fecha)
+        tocaban = a.tocaban; hechos = a.hechos
+      }
+    }
+    return { fecha, tocaban, hechos, nivel: futuro ? 0 : nivelAdherencia({ tocaban, hechos }), futuro, hoy: fecha === hoy }
+  })
+}
+
+/** Resumen del reto a partir del mapa: días perfectos, adherencia media, mejor semana. */
+export function resumenReto(mapa) {
+  const pasados = (mapa || []).filter((c) => !c.futuro && c.tocaban > 0)
+  const perfectos = pasados.filter((c) => c.hechos === c.tocaban).length
+  const media = pasados.length ? Math.round((pasados.reduce((s, c) => s + c.hechos / c.tocaban, 0) / pasados.length) * 100) : 0
+  // mejor semana: la de mayor adherencia media entre las que tienen ≥ 1 día pasado
+  const semanas = new Map()
+  for (const c of pasados) {
+    const l = lunesDe(c.fecha)
+    const s = semanas.get(l) || { lunes: l, suma: 0, n: 0 }
+    s.suma += c.hechos / c.tocaban; s.n += 1
+    semanas.set(l, s)
+  }
+  const mejor = [...semanas.values()].map((s) => ({ lunes: s.lunes, porcentaje: Math.round((s.suma / s.n) * 100) }))
+    .sort((a, b) => b.porcentaje - a.porcentaje || a.lunes.localeCompare(b.lunes))[0] || null
+  return { diasPasados: pasados.length, perfectos, media, mejorSemana: mejor }
 }

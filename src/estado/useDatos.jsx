@@ -17,7 +17,10 @@ import { supabase, isConfigured } from '../lib/supabase.js'
 import * as catalogos from '../datos/catalogos.js'
 import * as datosTareas from '../datos/tareas.js'
 import * as datosHabitos from '../datos/habitos.js'
-import { hoyLocal, sumarDias, diasEntre, textoFecha, configurarReinicio } from '../datos/fechas.js'
+import * as datosBloques from '../datos/bloques.js'
+import * as datosRetos from '../datos/retos.js'
+import * as datosHitos from '../datos/hitos.js'
+import { hoyLocal, sumarDias, diasEntre, textoFecha, configurarReinicio, horaAhora } from '../datos/fechas.js'
 
 const Contexto = createContext(null)
 
@@ -36,6 +39,7 @@ const DIAS_MARCAS_ADELANTE = 7
 
 const DEBOUNCE_REALTIME = 800
 const CADA_MINUTO = 60 * 1000
+const CADA_MEDIO_MINUTO = 30 * 1000
 
 export function ProveedorDatos({ children }) {
   const [sesion, setSesion] = useState(null)
@@ -50,7 +54,12 @@ export function ProveedorDatos({ children }) {
   const [tareas, setTareas] = useState([])
   const [habitos, setHabitos] = useState([])
   const [marcas, setMarcas] = useState([])
+  const [bloques, setBloques] = useState([])
+  const [retos, setRetos] = useState([])
+  const [hitos, setHitos] = useState([])
+  const [dias, setDias] = useState([])                    // hoy_dias del reto (adherencia de los días cerrados)
   const [hoy, setHoy] = useState(() => hoyLocal())
+  const [ahora, setAhora] = useState(() => horaAhora())   // 'HH:MM', avanza cada 30 s (el bloque actual)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
   const [avisoDia, setAvisoDia] = useState(null)
@@ -107,7 +116,7 @@ export function ProveedorDatos({ children }) {
     catalogos.vaciarCaches()
     await supabase?.auth.signOut()
     setSesion(null)
-    setTareas([]); setHabitos([]); setMarcas([]); setYo(null); setAjustes(null)
+    setTareas([]); setHabitos([]); setMarcas([]); setBloques([]); setRetos([]); setHitos([]); setDias([]); setYo(null); setAjustes(null)
     setTareaAbiertaId(null); setPrefillNueva(null); setAvisoDia(null)
   }, [])
 
@@ -143,13 +152,25 @@ export function ProveedorDatos({ children }) {
     return a
   }, [])
 
+  // Las marcas se cargan desde el inicio del reto (para el mapa de calor) o 91 días
+  // atrás, lo que sea más antiguo; los días cerrados (`hoy_dias`) igual.
   const cargarDatos = useCallback(async (fecha) => {
-    const [t, h, m] = await Promise.all([
+    const [t, h, b, rs, hi] = await Promise.all([
       datosTareas.cargarTodas(),
       datosHabitos.cargarHabitos(),
-      datosHabitos.cargarMarcas(sumarDias(fecha, -DIAS_MARCAS_ATRAS), sumarDias(fecha, DIAS_MARCAS_ADELANTE)),
+      datosBloques.cargarBloques(),
+      datosRetos.cargarRetos(),
+      datosHitos.cargarHitos(),
     ])
-    setTareas(t); setHabitos(h); setMarcas(m)
+    const reto = datosRetos.retoVigente(rs, fecha)
+    let desde = sumarDias(fecha, -DIAS_MARCAS_ATRAS)
+    if (reto && reto.inicio < desde) desde = reto.inicio
+    const hasta = sumarDias(fecha, DIAS_MARCAS_ADELANTE)
+    const [m, d] = await Promise.all([
+      datosHabitos.cargarMarcas(desde, hasta),
+      datosTareas.cargarDias(desde, hasta),
+    ])
+    setTareas(t); setHabitos(h); setBloques(b); setRetos(rs); setHitos(hi); setMarcas(m); setDias(d)
   }, [])
 
   /**
@@ -231,6 +252,10 @@ export function ProveedorDatos({ children }) {
     const alVolver = () => { if (document.visibilityState === 'visible') recargar() }
     document.addEventListener('visibilitychange', alVolver)
 
+    // La hora de ahora avanza cada 30 s: es lo que decide el bloque actual y los minutos
+    // que le quedan (§10.0-7). Sólo se escribe si cambió el minuto, para no re-renderizar.
+    const relojAhora = setInterval(() => setAhora((h) => { const n = horaAhora(); return n === h ? h : n }), CADA_MEDIO_MINUTO)
+
     // El «hoy» cambia a la hora de reinicio, no a medianoche: se mira cada minuto y, si
     // ha cambiado, se cierra el día que acaba antes de recargar.
     const reloj = setInterval(async () => {
@@ -247,6 +272,7 @@ export function ProveedorDatos({ children }) {
       supabase.removeChannel(canal)
       document.removeEventListener('visibilitychange', alVolver)
       clearInterval(reloj)
+      clearInterval(relojAhora)
     }
   }, [usuarioId, recargar, cerrarDias, avisar])
 
@@ -316,6 +342,9 @@ export function ProveedorDatos({ children }) {
     return null
   }, [equipo, yo, sesion])
 
+  // El reto que manda hoy (el que contiene la fecha; si no, el próximo; si no, el último).
+  const reto = useMemo(() => datosRetos.retoVigente(retos, hoy), [retos, hoy])
+
   const tareaAbierta = useMemo(() => {
     if (!tareaAbiertaId) return null
     return tareas.find((t) => t.id === tareaAbiertaId) || (tareaExterna?.id === tareaAbiertaId ? tareaExterna : null)
@@ -328,8 +357,10 @@ export function ProveedorDatos({ children }) {
     ajustes, proyectos, proyectosTodos, clientes, equipo, categorias, categoriasTodas, pipelines,
     cuadrantes, listaCuadrantes,
     // datos
-    tareas, habitos, marcas, hoy, cargando, error, recargar,
+    tareas, habitos, marcas, hoy, ahora, cargando, error, recargar,
     actualizarLocal, quitarLocal, setAjustes, setMarcas, setHabitos,
+    // el Protocolo (§10)
+    bloques, setBloques, retos, reto, setRetos, hitos, setHitos, dias,
     // el día
     avisoDia, descartarAviso,
     // toast
@@ -341,7 +372,8 @@ export function ProveedorDatos({ children }) {
     nombreProyecto, colorProyecto, nombreCategoria, colorCategoria, nombrePersona,
   }), [
     sesion, sesionLista, entrar, salir, yo, ajustes, proyectos, proyectosTodos, clientes, equipo, categorias, categoriasTodas,
-    pipelines, cuadrantes, listaCuadrantes, tareas, habitos, marcas, hoy, cargando, error, recargar, actualizarLocal, quitarLocal,
+    pipelines, cuadrantes, listaCuadrantes, tareas, habitos, marcas, hoy, ahora, cargando, error, recargar, actualizarLocal, quitarLocal,
+    bloques, retos, reto, hitos, dias,
     avisoDia, descartarAviso, aviso, avisar, quitarAviso, tareaAbiertaId, tareaAbierta, abrirTarea, cerrarTarea, prefillNueva,
     nuevaTarea, cerrarNueva, nombreProyecto, colorProyecto, nombreCategoria, colorCategoria, nombrePersona,
   ])

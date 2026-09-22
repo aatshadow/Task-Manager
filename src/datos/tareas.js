@@ -463,6 +463,7 @@ export async function borrar(tarea) {
 
 const aDia = (d) => ({
   fecha: d.fecha, planificadas: d.planificadas || 0, hechas: d.hechas || 0, nota: d.nota || '', cerradoEn: d.cerrado_en,
+  habitosTocaban: d.habitos_tocaban || 0, habitosHechos: d.habitos_hechos || 0,
 })
 
 /** Cierra los días anteriores a `hoy` (RPC). Devuelve los días cerrados en esta pasada. */
