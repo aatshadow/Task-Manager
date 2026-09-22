@@ -26,6 +26,8 @@ export const FASES = [
   { clave: 'apagado', nombre: 'Apagado' },
 ]
 export const nombreFase = (clave) => FASES.find((f) => f.clave === clave)?.nombre || clave || ''
+/** El color de una fase como token CSS (`var(--fase-ofensiva)`); un bloque con `color` propio manda. */
+export const colorBloque = (b) => (b?.color ? b.color : `var(--fase-${FASES.some((f) => f.clave === b?.fase) ? b.fase : 'apagado'})`)
 
 const aBloque = (b) => ({
   id: b.id, nombre: b.nombre, fase: b.fase,

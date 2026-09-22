@@ -41,6 +41,15 @@
   --peligro: #d7263d;
   --aviso: #e8b13a;
 
+  /* las 7 fases del Protocolo (LOGICA §10.1): el color de un bloque sale de su fase */
+  --fase-calibracion: #9b8cff;
+  --fase-nutricion: #3ec27a;
+  --fase-cuerpo: #ff9448;
+  --fase-ofensiva: #ff6a1a;
+  --fase-reuniones: #4c8dff;
+  --fase-consolidacion: #e8b13a;
+  --fase-apagado: #8a8f98;
+
   /* radios: el relieve lo da el degradado, no la sombra */
   --radio-tarjeta: 24px;
   --radio-pildora: 999px;

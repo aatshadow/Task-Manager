@@ -9,19 +9,25 @@ import Boton from '../../componentes/Boton.jsx'
 import Vacio from '../../componentes/Vacio.jsx'
 import HojaPlanificar from './HojaPlanificar.jsx'
 import HabitosHoy from './HabitosHoy.jsx'
+import CabeceraReto from './Reto.jsx'
+import Ahora from './Ahora.jsx'
+import Frentes from './Frentes.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarGuardar, usarCompletar } from '../../estado/usarGuardar.js'
 import * as datosTareas from '../../datos/tareas.js'
 import { esAtrasada, esBandeja, esDeHoy } from '../../datos/tareas.js'
-import { diaDe } from '../../datos/fechas.js'
+import { diaDe, aISO } from '../../datos/fechas.js'
+import { bloqueActual, contiene } from '../../datos/bloques.js'
 import './Hoy.css'
 
 /**
  * 2day — la pantalla de apertura (LOGICA §5). La única lista que se ve al abrir.
  *
- * Qué se pinta, en orden: el aviso del día cerrado (si lo hay) · la primera de Hoy en la
- * tarjeta cálida · los cuatro números · la lista de Hoy (marcar, reordenar) · los hábitos
- * que tocan. La cabecera («Hola Alex» + pendientes) la pone App, no esta pantalla.
+ * Qué se pinta, en orden (LOGICA §10.6): la cabecera del reto · el aviso del día cerrado
+ * (si lo hay) · AHORA (el bloque actual del raíl con sus tareas; sin protocolo, la primera
+ * de Hoy en la tarjeta cálida) · los cuatro números · la lista de Hoy (marcar, reordenar)
+ * sin las ya pintadas en AHORA · los hábitos por bloque · los frentes. La cabecera
+ * («Hola Alex» + pendientes) la pone App, no esta pantalla.
  *
  * «En Hoy» = planificada para hoy y no hecha (`esDeHoy`: también las de días anteriores
  * que el reinicio aún no haya limpiado, para no esconder nada). Las hechas que estaban
@@ -32,7 +38,7 @@ import './Hoy.css'
  */
 export default function Hoy({ onIrA } = {}) {
   const {
-    tareas, hoy, cargando, error, avisoDia, descartarAviso,
+    tareas, hoy, ahora, bloques, cargando, error, avisoDia, descartarAviso,
     abrirTarea, actualizarLocal, recargar, avisar,
   } = useDatos()
   const [planificando, setPlanificando] = useState(false)
@@ -60,7 +66,22 @@ export default function Hoy({ onIrA } = {}) {
     bandeja: vivas.filter(esBandeja).length,
   }), [vivas, pendientes, hoy])
 
-  const destacada = pendientes[0] || null
+  // El bloque actual se mira contra la fecha REAL del reloj (a las 03:00 «hoy» de la app
+  // sigue siendo ayer, pero Sueño empezó anoche): el raíl va por calendario.
+  const fechaReloj = useMemo(() => aISO(new Date()), [ahora]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bloque = useMemo(() => bloqueActual(bloques, fechaReloj, ahora), [bloques, fechaReloj, ahora])
+
+  // Las tareas de Hoy cuya hora cae en el bloque actual van dentro de AHORA (pendientes
+  // primero, después las hechas de hoy con hora en el bloque, tachadas).
+  const enBloque = useMemo(() => {
+    if (!bloque) return []
+    const cae = (t) => t.horaInicio && contiene(bloque, fechaReloj, t.horaInicio)
+    return [...pendientes.filter(cae), ...hechas.filter(cae)]
+  }, [bloque, pendientes, hechas, fechaReloj])
+  const idsEnBloque = useMemo(() => new Set(enBloque.map((t) => t.id)), [enBloque])
+
+  // Sin raíl (día sin protocolo) la tarjeta cálida vuelve a ser la primera de Hoy.
+  const destacada = bloque ? null : (pendientes[0] || null)
 
   /* ── acciones ──────────────────────────────────────────────────────────── */
 
@@ -102,11 +123,13 @@ export default function Hoy({ onIrA } = {}) {
   // del contexto desaparece de la lista en el mismo render.
   const [ordenArrastre, setOrdenArrastre] = useState(null) // [id] | null
   const lista = useMemo(() => {
-    if (!ordenArrastre) return pendientes
+    const base = pendientes.filter((t) => !idsEnBloque.has(t.id))
+    if (!ordenArrastre) return base
     const pos = new Map(ordenArrastre.map((id, i) => [id, i]))
     const rango = (t) => (pos.has(t.id) ? pos.get(t.id) : ordenArrastre.length) // las nuevas, al final
-    return [...pendientes].sort((a, b) => rango(a) - rango(b))
-  }, [pendientes, ordenArrastre])
+    return [...base].sort((a, b) => rango(a) - rango(b))
+  }, [pendientes, ordenArrastre, idsEnBloque])
+  const hechasFuera = useMemo(() => hechas.filter((t) => !idsEnBloque.has(t.id)), [hechas, idsEnBloque])
   const listaRef = useRef(lista)
   listaRef.current = lista
 
@@ -123,12 +146,14 @@ export default function Hoy({ onIrA } = {}) {
 
   const irACalendario = onIrA ? () => onIrA('calendario') : null
   const irATareas = onIrA ? () => onIrA('tareas') : null
-  const hayLista = lista.length > 0 || hechas.length > 0
+  const hayLista = lista.length > 0 || hechasFuera.length > 0 || enBloque.length > 0
   const arrancando = cargando && !vivas.length
   const sinCargar = !!error && !vivas.length && !cargando
 
   return (
     <div className="pantalla hoy">
+      <CabeceraReto />
+
       {/* aviso del día que se acaba de cerrar */}
       <AnimatePresence initial={false}>
         {avisoDia && (
@@ -148,7 +173,20 @@ export default function Hoy({ onIrA } = {}) {
         )}
       </AnimatePresence>
 
-      {/* la primera de Hoy */}
+      {/* AHORA: el bloque actual del raíl (§10.0-7) */}
+      {bloque && (
+        <Ahora
+          bloque={bloque}
+          bloques={bloques}
+          fecha={fechaReloj}
+          ahora={ahora}
+          tareas={enBloque}
+          alAbrir={(t) => abrirTarea(t.id)}
+          alCompletar={(t, hecha) => completar(t, hecha)}
+        />
+      )}
+
+      {/* sin raíl: la primera de Hoy */}
       <AnimatePresence initial={false} mode="popLayout">
         {destacada && (
           <motion.div
@@ -219,10 +257,10 @@ export default function Hoy({ onIrA } = {}) {
               ))}
             </Reorder.Group>
 
-            {hechas.length > 0 && (
+            {hechasFuera.length > 0 && (
               <ul className="hoy-lista hoy-hechas">
                 <AnimatePresence initial={false}>
-                  {hechas.map((t) => (
+                  {hechasFuera.map((t) => (
                     <motion.li
                       key={t.id}
                       layout
@@ -244,7 +282,9 @@ export default function Hoy({ onIrA } = {}) {
         )}
       </section>
 
-      <HabitosHoy />
+      <HabitosHoy bloqueActualId={bloque?.id || null} />
+
+      <Frentes />
 
       <HojaPlanificar abierta={planificando} alCerrar={() => setPlanificando(false)} alPlanificar={planificar} />
     </div>

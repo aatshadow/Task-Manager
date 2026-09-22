@@ -433,4 +433,5 @@ useDatos()      (+) bloques · retos · reto (el vigente hoy) · hitos · dias (
 - `tests/forma.mjs`: tablas y columnas nuevas, sin GRANT a `anon`, RLS activa.
 - `tests/protocolo.mjs` (puro): bloque actual a las 03:00 (Sueño), 04:31, 08:30, 23:59; sábado sin dailies; `diaDelReto` el 22-09 (antes), 23-09 (día 1), 21-12 (día 90), 22-12 (terminado); adherencia con `evitar` y `medir`; racha de perfectos.
 - `tests/protocolo-siembra.mjs` (login real): 22 bloques, los hábitos de §10.2, el reto, 5 hitos, 2 tareas semanales; sembrar dos veces no duplica.
-- Capturas con Chrome headless a 390 px (móvil) y 1440×900 (escritorio).
+- `tests/captura.mjs`: fotos con Chrome headless y login real (`node tests/captura.mjs --ancho 390 --pagina [--pestana tareas] [--sub Activación] [--traza]`). Usa el Playwright de `~/CORE/aula-core` (2day no añade la dependencia). **Dos trampas medidas el 22-09:** la pantalla de login ya tiene texto y no dice «Cargando» (mirar sólo el texto daba la foto a medio cargar), y entre renders hay instantes sueltos sin «Cargando» — por eso se espera al armazón (`nav[aria-label="Principal"]`) y a **dos lecturas limpias seguidas**.
+- Capturas a 390 px (móvil) y 1440×900 (escritorio).

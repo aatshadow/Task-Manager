@@ -17,6 +17,7 @@ import Acceso from './pantallas/Acceso/Acceso.jsx'
 import Muestrario from './dev/Muestrario.jsx'
 import { ProveedorDatos, useDatos } from './estado/useDatos.jsx'
 import { resumenHoy } from './datos/estadisticas.js'
+import { diaDelReto } from './datos/retos.js'
 
 // Qué pinta cada pestaña y qué dice su cabecera. Ajustes no está en la nav: se llega
 // por el avatar y se vuelve con la flecha (o tocando cualquier pestaña).
@@ -69,7 +70,7 @@ function Raiz() {
 }
 
 function Armazon() {
-  const { tareas, hoy, cargando, yo, sesion, nuevaTarea } = useDatos()
+  const { tareas, hoy, cargando, yo, sesion, nuevaTarea, reto } = useDatos()
   const [pestana, setPestana] = useState('hoy')
   const [pestanaAnterior, setPestanaAnterior] = useState('hoy')
 
@@ -82,7 +83,10 @@ function Armazon() {
   const nombre = (yo?.nombre || sesion?.user?.email || '').split(/[\s@]/)[0]
   const pendientes = resumenHoy(tareas, hoy).enHoy
   const tituloHoy = nombre ? `Hola ${nombre}` : 'Hola'
-  const subtituloHoy = cargando ? 'Cargando…' : pendientes === 1 ? '1 tarea pendiente' : `${pendientes} tareas pendientes`
+  // Con reto en marcha el subtítulo lleva el día: «Día 3 / 90 · 4 tareas pendientes».
+  const estadoReto = diaDelReto(reto, hoy)
+  const prefijoReto = reto && !estadoReto.antes && !estadoReto.terminado ? `Día ${estadoReto.dia} / ${estadoReto.total} · ` : ''
+  const subtituloHoy = cargando ? 'Cargando…' : `${prefijoReto}${pendientes === 1 ? '1 tarea pendiente' : `${pendientes} tareas pendientes`}`
   const inicial = (nombre || 'A').slice(0, 1).toUpperCase()
 
   // Cambiar de pestaña vuelve arriba: el navegador conserva el scroll entre renders y una
