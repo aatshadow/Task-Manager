@@ -16,6 +16,7 @@ import * as habitos from '../src/datos/habitos.js'
 import * as bloques from '../src/datos/bloques.js'
 import * as retos from '../src/datos/retos.js'
 import * as hitos from '../src/datos/hitos.js'
+import * as fitness from '../src/datos/fitness.js'
 import * as plantillas from '../src/datos/plantillas.js'
 import * as stats from '../src/datos/estadisticas.js'
 
@@ -35,10 +36,11 @@ const contrato = {
     'tocaBloque', 'bloquesDelDia', 'bloqueActual', 'siguienteBloque', 'minutosRestantes', 'duracion', 'textoMinutos'],
   retos: ['cargarRetos', 'cargarReto', 'guardarReto', 'retoVigente', 'diaDelReto', 'fechasDelReto', 'totalDias'],
   hitos: ['cargarHitos', 'crearHito', 'actualizarHito', 'borrarHito', 'diasHasta', 'textoHito', 'urgente', 'ordenarHitos'],
+  fitness: ['cargarSesiones', 'cargarMedidas', 'medir', 'anotarSesion', 'sesionDe', 'medidasDe', 'progreso', 'aSegundos', 'deSegundos', 'valorDeTexto', 'textoDeValor'],
   plantillas: ['cargarPlantillas', 'crearPlantilla', 'actualizarPlantilla', 'borrarPlantilla', 'guardarItems', 'instanciar'],
   estadisticas: ['seriesCreadasHechas', 'porProyecto', 'porCategoria', 'porCuadrante', 'rachaDias', 'sobrecarga', 'mapaCalorReto', 'resumenReto'],
 }
-const modulos = { fechas, catalogos, tareas, habitos, bloques, retos, hitos, plantillas, estadisticas: stats }
+const modulos = { fechas, catalogos, tareas, habitos, bloques, retos, hitos, fitness, plantillas, estadisticas: stats }
 for (const [mod, nombres] of Object.entries(contrato)) {
   const faltan = nombres.filter((n) => typeof modulos[mod][n] !== 'function')
   paso(`${mod}.js exporta ${nombres.length} nombres del contrato`, !faltan.length, faltan.length && new Error(`faltan: ${faltan.join(', ')}`))
@@ -154,6 +156,14 @@ try {
   paso('hoy_sembrar_protocolo() existe y no falla', !sem.error, sem.error)
 } catch (e) { ko('el Protocolo', e) }
 
+/* ── 5c · Fitness (LOGICA §11): las dos tablas ─────────────────────────────────── */
+try {
+  const ses = await sb.from('hoy_fit_sesiones').select('id, fecha, titulo, lineas, pruebas, nota').limit(1)
+  paso('hoy_fit_sesiones responde con login', !ses.error, ses.error)
+  const med = await sb.from('hoy_fit_marcas').select('fecha, clave, valor, marcado_en').limit(1)
+  paso('hoy_fit_marcas responde con login', !med.error, med.error)
+} catch (e) { ko('Fitness', e) }
+
 /* ── 6 · el muro: anon fuera ────────────────────────────────────────────────── */
 try {
   const anon = clienteAnon()
@@ -163,7 +173,7 @@ try {
   paso('anon no puede leer hoy_todas', !!v.error, !v.error && new Error('anon leyó la vista'))
   const f = await anon.rpc('hoy_sembrar')
   paso('anon no puede ejecutar hoy_sembrar()', !!f.error, !f.error && new Error('anon sembró'))
-  for (const tabla of ['hoy_bloques', 'hoy_retos', 'hoy_hitos']) {
+  for (const tabla of ['hoy_bloques', 'hoy_retos', 'hoy_hitos', 'hoy_fit_sesiones', 'hoy_fit_marcas']) {
     const b = await anon.from(tabla).select('id').limit(1)
     paso(`anon no puede leer ${tabla} (revoke)`, !!b.error, !b.error && new Error(`anon leyó ${tabla}`))
   }

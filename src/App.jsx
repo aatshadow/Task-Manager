@@ -13,6 +13,7 @@ import Hoy from './pantallas/Hoy/Hoy.jsx'
 import Tareas from './pantallas/Tareas/Tareas.jsx'
 import Calendario from './pantallas/Calendario/Calendario.jsx'
 import Habitos from './pantallas/Habitos/Habitos.jsx'
+import Fitness from './pantallas/Fitness/Fitness.jsx'
 import Estadisticas from './pantallas/Estadisticas/Estadisticas.jsx'
 import Ajustes from './pantallas/Ajustes/Ajustes.jsx'
 import Acceso from './pantallas/Acceso/Acceso.jsx'
@@ -29,6 +30,7 @@ const PANTALLAS = {
   tareas: { Pantalla: Tareas, titulo: 'Tareas' },
   calendario: { Pantalla: Calendario, titulo: 'Calendario' },
   habitos: { Pantalla: Habitos, titulo: 'Hábitos' },
+  fitness: { Pantalla: Fitness, titulo: 'Fitness' },
   estadisticas: { Pantalla: Estadisticas, titulo: 'Stats' },
   ajustes: { Pantalla: Ajustes, titulo: 'Ajustes' },
 }
@@ -102,7 +104,7 @@ function Armazon() {
   const capturar = () => nuevaTarea(pestana === 'hoy' ? { hoyPara: hoy } : {})
 
   /* ── atajos de teclado, sólo en escritorio (§10.0-9) ───────────────────── */
-  // `1`–`5` pestañas · `t` Hoy · `n` nueva tarea. Escape lo gestiona cada hoja (cierra el
+  // `1`–`6` pestañas · `t` Hoy · `n` nueva tarea. Escape lo gestiona cada hoja (cierra el
   // panel), así que aquí no se toca. Nada de esto se dispara escribiendo en un campo.
   useEffect(() => {
     if (!escritorio) return undefined
@@ -110,7 +112,7 @@ function Armazon() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const en = e.target
       if (en && (en.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(en.tagName))) return
-      if (e.key >= '1' && e.key <= '5') { irA(PESTANAS[Number(e.key) - 1].clave); return }
+      if (e.key >= '1' && e.key <= String(PESTANAS.length)) { irA(PESTANAS[Number(e.key) - 1].clave); return }
       if (e.key === 't' || e.key === 'T') { irA('hoy'); return }
       if (e.key === 'n' || e.key === 'N') { e.preventDefault(); capturar() }
     }

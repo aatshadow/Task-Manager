@@ -20,6 +20,7 @@ import * as datosHabitos from '../datos/habitos.js'
 import * as datosBloques from '../datos/bloques.js'
 import * as datosRetos from '../datos/retos.js'
 import * as datosHitos from '../datos/hitos.js'
+import * as datosFitness from '../datos/fitness.js'
 import { hoyLocal, sumarDias, diasEntre, textoFecha, configurarReinicio, horaAhora } from '../datos/fechas.js'
 
 const Contexto = createContext(null)
@@ -58,6 +59,8 @@ export function ProveedorDatos({ children }) {
   const [retos, setRetos] = useState([])
   const [hitos, setHitos] = useState([])
   const [dias, setDias] = useState([])                    // hoy_dias del reto (adherencia de los días cerrados)
+  const [fitSesiones, setFitSesiones] = useState([])      // Fitness (§11): una sesión por fecha
+  const [fitMedidas, setFitMedidas] = useState([])        // y sus medidas (fecha, clave) → valor
   const [hoy, setHoy] = useState(() => hoyLocal())
   const [ahora, setAhora] = useState(() => horaAhora())   // 'HH:MM', avanza cada 30 s (el bloque actual)
   const [cargando, setCargando] = useState(true)
@@ -116,7 +119,7 @@ export function ProveedorDatos({ children }) {
     catalogos.vaciarCaches()
     await supabase?.auth.signOut()
     setSesion(null)
-    setTareas([]); setHabitos([]); setMarcas([]); setBloques([]); setRetos([]); setHitos([]); setDias([]); setYo(null); setAjustes(null)
+    setTareas([]); setHabitos([]); setMarcas([]); setBloques([]); setRetos([]); setHitos([]); setDias([]); setFitSesiones([]); setFitMedidas([]); setYo(null); setAjustes(null)
     setTareaAbiertaId(null); setPrefillNueva(null); setAvisoDia(null)
   }, [])
 
@@ -155,12 +158,14 @@ export function ProveedorDatos({ children }) {
   // Las marcas se cargan desde el inicio del reto (para el mapa de calor) o 91 días
   // atrás, lo que sea más antiguo; los días cerrados (`hoy_dias`) igual.
   const cargarDatos = useCallback(async (fecha) => {
-    const [t, h, b, rs, hi] = await Promise.all([
+    const [t, h, b, rs, hi, fs, fm] = await Promise.all([
       datosTareas.cargarTodas(),
       datosHabitos.cargarHabitos(),
       datosBloques.cargarBloques(),
       datosRetos.cargarRetos(),
       datosHitos.cargarHitos(),
+      datosFitness.cargarSesiones(),
+      datosFitness.cargarMedidas(),
     ])
     const reto = datosRetos.retoVigente(rs, fecha)
     let desde = sumarDias(fecha, -DIAS_MARCAS_ATRAS)
@@ -170,7 +175,7 @@ export function ProveedorDatos({ children }) {
       datosHabitos.cargarMarcas(desde, hasta),
       datosTareas.cargarDias(desde, hasta),
     ])
-    setTareas(t); setHabitos(h); setBloques(b); setRetos(rs); setHitos(hi); setMarcas(m); setDias(d)
+    setTareas(t); setHabitos(h); setBloques(b); setRetos(rs); setHitos(hi); setMarcas(m); setDias(d); setFitSesiones(fs); setFitMedidas(fm)
   }, [])
 
   /**
@@ -361,6 +366,8 @@ export function ProveedorDatos({ children }) {
     actualizarLocal, quitarLocal, setAjustes, setMarcas, setHabitos,
     // el Protocolo (§10)
     bloques, setBloques, retos, reto, setRetos, hitos, setHitos, dias,
+    // Fitness (§11)
+    fitSesiones, setFitSesiones, fitMedidas, setFitMedidas,
     // el día
     avisoDia, descartarAviso,
     // toast
@@ -373,7 +380,7 @@ export function ProveedorDatos({ children }) {
   }), [
     sesion, sesionLista, entrar, salir, yo, ajustes, proyectos, proyectosTodos, clientes, equipo, categorias, categoriasTodas,
     pipelines, cuadrantes, listaCuadrantes, tareas, habitos, marcas, hoy, ahora, cargando, error, recargar, actualizarLocal, quitarLocal,
-    bloques, retos, reto, hitos, dias,
+    bloques, retos, reto, hitos, dias, fitSesiones, fitMedidas,
     avisoDia, descartarAviso, aviso, avisar, quitarAviso, tareaAbiertaId, tareaAbierta, abrirTarea, cerrarTarea, prefillNueva,
     nuevaTarea, cerrarNueva, nombreProyecto, colorProyecto, nombreCategoria, colorCategoria, nombrePersona,
   ])

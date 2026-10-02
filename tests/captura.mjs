@@ -1,6 +1,6 @@
 /**
  * captura.mjs — fotos de la app con Chrome headless (Playwright), con login real.
- *   node tests/captura.mjs [--ancho 390|1440] [--alto 844] [--pestana hoy|tareas|calendario|habitos|estadisticas|ajustes]
+ *   node tests/captura.mjs [--ancho 390|1440] [--alto 844] [--pestana hoy|tareas|calendario|habitos|fitness|estadisticas|ajustes]
  *                          [--base http://localhost:5400] [--salida capturas] [--pagina] [--hash '#...']
  * Usa el Playwright instalado en aula-core (no se añade dependencia a 2day). La
  * sesión es la cuenta del vault (`~/.core-secrets/hoy-test.env`), nunca en el repo.
@@ -49,7 +49,7 @@ if (await pag.$('input[type="email"]')) {
 //   · la pantalla de login ya tiene texto y no dice «Cargando», así que mirar sólo el
 //     texto daba por buena la foto nada más pulsar Entrar;
 //   · entre renders hay instantes sueltos sin «Cargando» aunque siga cargando.
-// Por eso: armazón montado (la nav de 5) + DOS lecturas limpias seguidas.
+// Por eso: armazón montado (la nav) + DOS lecturas limpias seguidas.
 let limpias = 0
 for (let i = 0; i < 100; i += 1) {
   const listo = await pag.evaluate(() => !!document.querySelector('nav[aria-label="Principal"]') && !(document.body.innerText || '').includes('Cargando')).catch(() => false)
@@ -60,7 +60,7 @@ for (let i = 0; i < 100; i += 1) {
 }
 await espera(Number(arg('espera', 1200)))
 if (PESTANA !== 'hoy') {
-  const etiquetas = { tareas: 'Tareas', calendario: 'Calendario', habitos: 'Hábitos', estadisticas: 'Stats' }
+  const etiquetas = { tareas: 'Tareas', calendario: 'Calendario', habitos: 'Hábitos', fitness: 'Fitness', estadisticas: 'Stats' }
   if (PESTANA === 'ajustes') await pag.click('[aria-label="Ajustes"]')
   else await pag.click(`nav[aria-label="Principal"] >> text=${etiquetas[PESTANA]}`)
   await espera(1500)

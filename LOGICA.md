@@ -437,3 +437,68 @@ useDatos()      (+) bloques · retos · reto (el vigente hoy) · hitos · dias (
 - `tests/protocolo-siembra.mjs` (login real): 22 bloques, los hábitos de §10.2, el reto, 5 hitos, 2 tareas semanales; sembrar dos veces no duplica.
 - `tests/captura.mjs`: fotos con Chrome headless y login real (`node tests/captura.mjs --ancho 390 --pagina [--pestana tareas] [--sub Activación] [--traza]`). Usa el Playwright de `~/CORE/aula-core` (2day no añade la dependencia). **Dos trampas medidas el 22-09:** la pantalla de login ya tiene texto y no dice «Cargando» (mirar sólo el texto daba la foto a medio cargar), y entre renders hay instantes sueltos sin «Cargando» — por eso se espera al armazón (`nav[aria-label="Principal"]`) y a **dos lecturas limpias seguidas**.
 - Capturas a 390 px (móvil) y 1440×900 (escritorio).
+
+## 11 · Fitness — sesiones por día y medidas (Alex, 02-10-2026)
+
+> El 02-10 Alex fija el objetivo físico: pelear (boxeo y MMA) en 2027, 2028 y 2029 y llegar a su
+> pico entonces. Antes de diseñar el plan quiere **medir el estado actual en tiempos y pesos**.
+> Mandato literal: «una parte de fitness en 2day, por ahora muy simple, simplemente por días,
+> empezando hoy viernes, con los ejercicios del día y la medición correspondiente para ir
+> poniéndotela». Lo que Alex apunta aquí lo lee CORE de la base para construir el plan.
+
+### 11.0 · Decisiones cerradas
+
+| # | Decisión |
+|---|---|
+| 1 | **Sexta pestaña «Fitness»** en la nav, entre Hábitos y Stats. La nav pasa a 6 y los atajos de escritorio a `1`–`6` (corrige §5 y §10.0-9). |
+| 2 | **Una sesión por fecha**, no por día de la semana (`hoy_fit_sesiones`): título, `lineas` (los ejercicios y el protocolo del día) y `pruebas` (lo que se mide ese día). El plan de §10.3 va por día ISO y no sirve para una semana concreta. |
+| 3 | **Las sesiones las escribe CORE** (SQL, `sql/*-fitness-*.sql`); la app las enseña y recoge las medidas y una nota. No hay editor de sesiones en esta versión. |
+| 4 | **Una medida = (fecha, clave, valor)** en `hoy_fit_marcas`. El valor va en la unidad de la prueba (kg, cm, m, rep, lpm); **los tiempos se guardan en segundos** y se escriben y se leen como `mm:ss`. Borrar el campo borra la medida. |
+| 5 | La **clave** de una prueba es estable (`sentadilla_5rm`, `carrera_2400m`): es lo que permite comparar un re-test con el anterior. Cada prueba lleva su `ref` (texto: «normal · bueno · alto») para verla junto al campo. |
+| 6 | **Si hay sesión de Fitness para hoy, el hábito Entreno enseña esa** en Hoy (título y líneas), no el plan semanal de §10.3. Sin sesión, todo sigue como estaba. |
+| 7 | Las medidas **no entran en la adherencia** del reto: el hábito Entreno sigue siendo lo que cuenta. El peso sigue en el hábito «Peso» (un dato, un dueño). |
+
+### 11.1 · Modelo (`sql/2026-10-02-fitness.sql`)
+
+- **`hoy_fit_sesiones`**: `id`, `owner_id`, `fecha` (única por dueño), `titulo`, `lineas jsonb` (`[texto…]`), `pruebas jsonb` (`[{ clave, nombre, unidad, formato: 'numero'|'tiempo', ref, opcional }]`), `nota`.
+- **`hoy_fit_marcas`**: `owner_id`, `fecha`, `clave`, `valor numeric`, `marcado_en`; clave primaria `(owner_id, fecha, clave)`.
+- RLS `owner_id = auth.uid()` en los cuatro verbos y `revoke` a `anon`, como todas las `hoy_*`.
+
+### 11.2 · Pantalla
+
+**Fitness**: arriba la sesión de **hoy**, abierta: título, los ejercicios en lista y un campo por
+prueba (nombre, campo, unidad y debajo la referencia), más una nota libre. Debajo, **Próximos días**
+(en orden) y **Anteriores** (el más reciente primero), plegados, con su «3/5» de medidas puestas;
+se abren y se rellenan igual (un día pasado se puede completar después). Escribir y salir del campo
+guarda; es optimista y, si la base dice que no, vuelve atrás y avisa.
+
+### 11.3 · Capa de datos (amplía §7)
+
+```
+fitness.js      cargarSesiones · cargarMedidas · medir(fecha, clave, valor|null) · anotarSesion(id, nota)
+                puros: sesionDe(sesiones, fecha) · medidasDe(medidas, fecha) → { clave: valor }
+                       progreso(sesion, medidas) → { hechas, total }
+                       aSegundos('12:30') → 750 · deSegundos(750) → '12:30'
+                       valorDeTexto(prueba, texto) → número | null | NaN · textoDeValor(prueba, valor)
+useDatos()      (+) fitSesiones · fitMedidas · setFitMedidas · setFitSesiones
+```
+
+### 11.4 · Semana de medición (02-10 → 08-10-2026, `sql/2026-10-02-fitness-semana-medicion.sql`)
+
+| Fecha | Sesión | Qué se mide |
+|---|---|---|
+| V 02-10 | Test de combate | golpes en 30'' ×3 · pulso al acabar los asaltos 1 y 5 y tras 1' de descanso |
+| S 03-10 | Marcha con carga | 5 km con 15 kg (tiempo) |
+| D 04-10 | Descanso | — |
+| L 05-10 | Potencia + pierna | salto vertical · salto horizontal · balón 4 kg por lado · sentadilla 5RM |
+| M 06-10 | Test militar | flexiones en 2' · 2,4 km · pulso al acabar y al minuto · plancha |
+| X 07-10 | Medidas del cuerpo | cintura · cuello (+ fotos) |
+| J 08-10 | Tirón + empuje | dominadas · peso muerto 5RM · press landmine 5RM por lado · press militar 5RM (opcional) · suspensión |
+
+Todos los días, además, el pulso en reposo al despertar. **Sin press de banca**: a Alex le castiga
+los hombros (condición genética); el empuje se mide con flexiones y press landmine.
+
+### 11.5 · Verificación (amplía §8)
+
+- `tests/forma.mjs`: las dos tablas responden con login y el anon no las lee.
+- `tests/fitness.mjs`: puros (`aSegundos`, `deSegundos`, `valorDeTexto`, `progreso`) y, con login real, una medida de ida y vuelta en una fecha de 1970 (se escribe, se relee, se borra): no toca ninguna medida de Alex.

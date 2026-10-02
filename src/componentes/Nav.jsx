@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion'
-import { Home, ListChecks, CalendarDays, Repeat, BarChart3 } from 'lucide-react'
+import { Home, ListChecks, CalendarDays, Repeat, Dumbbell, BarChart3 } from 'lucide-react'
 
-// Las cinco pestañas de LOGICA.md §5. Las claves son las que usa App para elegir pantalla.
+// Las seis pestañas (LOGICA.md §5 + Fitness, §11). Las claves son las que usa App para elegir pantalla.
 export const PESTANAS = [
   { clave: 'hoy', etiqueta: 'Hoy', Icono: Home },
   { clave: 'tareas', etiqueta: 'Tareas', Icono: ListChecks },
   { clave: 'calendario', etiqueta: 'Calendario', Icono: CalendarDays },
   { clave: 'habitos', etiqueta: 'Hábitos', Icono: Repeat },
+  { clave: 'fitness', etiqueta: 'Fitness', Icono: Dumbbell },
   { clave: 'estadisticas', etiqueta: 'Stats', Icono: BarChart3 },
 ]
 

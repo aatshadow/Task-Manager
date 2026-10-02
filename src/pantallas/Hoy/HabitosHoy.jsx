@@ -5,6 +5,7 @@ import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Marca from '../../componentes/Marca.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { agruparPorBloque, estaHecho, marcar, planDeHoy } from '../../datos/habitos.js'
+import { sesionDe } from '../../datos/fitness.js'
 import { colorBloque, nombreFase } from '../../datos/bloques.js'
 import { aMinutos } from '../../datos/fechas.js'
 
@@ -13,13 +14,15 @@ import { aMinutos } from '../../datos/fechas.js'
  * primero y desplegado; los pasados plegados con «3/4»; los futuros plegados. Cada
  * hábito: icono, nombre, hora, marca. `evitar` con su estilo; `medir` con un campo
  * numérico (escribir el valor = marcar); un hábito con plan (Entreno) se despliega con
- * la sesión de hoy y admite una nota corta que va a `hoy_marcas.nota`.
+ * la sesión de hoy y admite una nota corta que va a `hoy_marcas.nota`. Si Fitness tiene
+ * sesión para hoy, Entreno enseña esa y no el plan semanal (§11.0-6).
  *
  * La marca se pinta al instante y se escribe después; si falla, se deshace y se avisa
  * (mismo patrón de siempre: la marca real sustituye a la optimista al volver).
  */
 export default function HabitosHoy({ bloqueActualId = null }) {
-  const { habitos, bloques, marcas, hoy, setMarcas, avisar, ahora } = useDatos()
+  const { habitos, bloques, marcas, hoy, setMarcas, avisar, ahora, fitSesiones } = useDatos()
+  const sesionFit = useMemo(() => sesionDe(fitSesiones, hoy), [fitSesiones, hoy])
 
   const grupos = useMemo(() => agruparPorBloque(habitos, bloques, hoy), [habitos, bloques, hoy])
   const marcasHoy = useMemo(() => (marcas || []).filter((m) => m.fecha === hoy), [marcas, hoy])
@@ -91,7 +94,7 @@ export default function HabitosHoy({ bloqueActualId = null }) {
                 >
                   <div className="hb-lista">
                     {hs.map((h) => (
-                      <FilaHabito key={h.id} habito={h} marca={marcasHoy.find((m) => m.habitoId === h.id) || null} hoy={hoy} alCambiar={(si, extra) => cambiar(h, si, extra)} />
+                      <FilaHabito key={h.id} habito={h} marca={marcasHoy.find((m) => m.habitoId === h.id) || null} hoy={hoy} sesionFit={sesionFit} alCambiar={(si, extra) => cambiar(h, si, extra)} />
                     ))}
                   </div>
                 </motion.div>
@@ -110,9 +113,12 @@ export default function HabitosHoy({ bloqueActualId = null }) {
  * de hoy (Entreno): se despliega con la sesión y una nota que se guarda con la marca
  * (anotar pesos ya es haber entrenado: la nota marca hecho).
  */
-function FilaHabito({ habito: h, marca, hoy, alCambiar }) {
+function FilaHabito({ habito: h, marca, hoy, sesionFit = null, alCambiar }) {
   const hecho = estaHecho(h, marca ? [marca] : [], hoy)
-  const plan = useMemo(() => planDeHoy(h, hoy), [h, hoy])
+  const plan = useMemo(() => {
+    const semanal = planDeHoy(h, hoy)
+    return semanal && sesionFit ? { titulo: sesionFit.titulo, lineas: sesionFit.lineas } : semanal
+  }, [h, hoy, sesionFit])
   const [abierto, setAbierto] = useState(false)
   const [valor, setValor] = useState(marca?.valor ?? '')
   const [nota, setNota] = useState(marca?.nota ?? '')

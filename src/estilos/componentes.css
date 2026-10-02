@@ -207,7 +207,7 @@
   height: calc(var(--alto-nav) + var(--safe-abajo));
   padding: 0 8px var(--safe-abajo);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   background: var(--nav);
   border-top: 1px solid var(--linea);
   backdrop-filter: blur(14px);

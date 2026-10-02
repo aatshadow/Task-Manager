@@ -200,6 +200,9 @@
   .app--escritorio .habitos-hoy { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
   .app--escritorio .habito-fila { border-radius: var(--radio-campo); }
 
+  /* ── Fitness: una columna legible, no a todo lo ancho ──────────────────── */
+  .app--escritorio .fitness { max-width: 720px; }
+
   /* la pantalla ya no deja hueco para una nav que no existe */
   .app--escritorio .pantalla { padding-bottom: 24px; }
 }
