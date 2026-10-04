@@ -508,3 +508,48 @@ los hombros (condición genética); el empuje se mide con flexiones y press land
 
 - `tests/forma.mjs`: las dos tablas responden con login y el anon no las lee.
 - `tests/fitness.mjs`: puros (`aSegundos`, `deSegundos`, `valorDeTexto`, `progreso`) y, con login real, una medida de ida y vuelta en una fecha de 1970 (se escribe, se relee, se borra): no toca ninguna medida de Alex.
+
+## 12 · Ficha de combate — el físico como el personaje de un juego (Alex, 04-10-2026)
+
+> Mandato literal: «la parte de training mucho más completa… una ficha física de la persona
+> completa, con stats… como si mi físico fuera mi avatar del juego… súper high tech, detalles
+> HUD. Solo en training». Lo que se ve es la ficha que CORE monta analizando los entrenos (vídeos,
+> medidas, sesiones) y se va versionando: la primera, v1 del 04-10, es el punto de partida y la
+> última semana del reto se compara contra ella.
+
+### 12.0 · Decisiones cerradas
+
+| # | Decisión |
+|---|---|
+| 1 | Vive **dentro de Fitness**, arriba: un selector **Ficha · Sesiones** (Ficha por defecto). Nada sale de Fitness. |
+| 2 | **Las fichas las escribe CORE** (SQL, `sql/*-ficha-*.sql`), igual que las sesiones: la app no tiene editor. Cada análisis nuevo es una **versión nueva** (fila nueva), nunca se pisa la anterior. |
+| 3 | Se enseña la **última versión**; la **primera** se dibuja de fantasma en el radar y como «v1 → ahora» en cada atributo, para ver el cambio. |
+| 4 | **Datos vivos**: el peso sale de la última marca del hábito «Peso» y el pulso en reposo de la última medida `pulso_reposo` de Fitness. Si existen, mandan sobre lo escrito en la ficha. |
+| 5 | **Bloqueados**: las pruebas que faltan llevan su `clave` de Fitness; en cuanto hay una medida con esa clave, la casilla se «desbloquea» sola y enseña el valor. |
+| 6 | Un atributo con `valor` null se pinta como **sin medir** (no cuenta en el radar). |
+| 7 | Estética HUD sobre los tokens de siempre (fondo oscuro, acento naranja): esquinas de mira, rejilla tenue, cifras tabulares, monoespaciada para las etiquetas. Móvil primero; en escritorio, dos columnas. |
+
+### 12.1 · Modelo (`sql/2026-10-04-ficha.sql`)
+
+- **`hoy_fit_fichas`**: `id`, `owner_id`, `fecha`, `version` (texto, «v1»), `datos jsonb`, `created_at`; única `(owner_id, version)`. RLS y muro como todas las `hoy_*`.
+- `datos`: `alias` · `clase` · `nivel` · `nivel_max` · `escala` · `cuerpo[{clave,nombre,valor,unidad,detalle,vivo?}]` · `atributos[{clave,nombre,valor|null,nota}]` · `motor[{nombre,valor,detalle}]` · `sparring{fuente,filas[{nombre,tu,rival}]}` · `fuertes[texto]` · `debiles[texto]` · `estilo{saco,sparring,hueco,referencias[]}` · `misiones[{texto,prioridad?}]` · `bloqueado[{clave,nombre,fecha,unidad,formato}]` · `alerta{titulo,texto}`.
+
+### 12.2 · Capa de datos (amplía §11.3)
+
+```
+fitness.js      cargarFichas → [{ id, fecha, version, datos }] (por fecha)
+                puros: fichaActual(fichas) · fichaInicial(fichas)
+                       vivoDe(clave, { marcas, habitos, medidas }) → { valor, fecha } | null
+useDatos()      (+) fitFichas
+```
+
+### 12.3 · Dominios (v1.1, Alex 04-10: «esto así de detallado tiene que ir en todos los ámbitos»)
+
+La ficha no es sólo boxeo: es **todo lo que hace falta para el objetivo**. `datos.dominios[]`:
+`{ clave, nombre, nivel|null, estado, resumen, atributos?, motor?, lecturas?[{nombre,valor,detalle,vivo?}], sparring?, fuertes?, debiles?, estilo?, misiones?, bloqueado? }`.
+Los 11 de la v1: boxeo · MMA y lucha · fuerza · potencia · resistencia · capacidad militar · cuerpo ·
+movilidad y articulaciones · recuperación · nutrición · mente y constancia. **Sólo lleva nivel lo
+medido** (en la v1, boxeo); el resto va «en niebla» con lo que se sabe y sus pruebas por
+desbloquear. El núcleo enseña el **mapa de dominios** (cada uno con nivel o estado y «x/y
+pruebas»); al tocar uno, debajo sale su detalle. `vivo` admite `peso`, `habito:<nombre>`, `reto`
+y cualquier clave de Fitness. `exploracion(dominio, medidas)` → `{ abiertas, total }`.

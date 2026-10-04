@@ -201,7 +201,7 @@
   .app--escritorio .habito-fila { border-radius: var(--radio-campo); }
 
   /* ── Fitness: una columna legible, no a todo lo ancho ──────────────────── */
-  .app--escritorio .fitness { max-width: 720px; }
+  .app--escritorio .fitness { max-width: 1040px; }
 
   /* la pantalla ya no deja hueco para una nav que no existe */
   .app--escritorio .pantalla { padding-bottom: 24px; }

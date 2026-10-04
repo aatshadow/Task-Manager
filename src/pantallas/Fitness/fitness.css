@@ -114,3 +114,4 @@
 }
 .fit-nota:focus { outline: none; border-color: var(--acento); }
 .fit-nota::placeholder { color: var(--texto-3); font-size: var(--t-secundario); }
+.fitness-sesiones { display: flex; flex-direction: column; gap: 24px; }

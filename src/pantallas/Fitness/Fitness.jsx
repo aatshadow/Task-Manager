@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, Dumbbell } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Vacio from '../../componentes/Vacio.jsx'
+import Segmentos from '../../componentes/Segmentos.jsx'
+import Ficha from './Ficha.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { anotarSesion, medidasDe, medir, progreso, sesionDe, textoDeValor, valorDeTexto } from '../../datos/fitness.js'
 import { nombreDia, textoFecha } from '../../datos/fechas.js'
@@ -18,6 +20,26 @@ import './fitness.css'
  * no, vuelve lo de antes y se avisa (el patrón de las marcas de los hábitos).
  */
 export default function Fitness() {
+  const [vista, setVista] = useState('ficha')
+  const selector = (
+    <Segmentos
+      className="fitness-vista"
+      naranja
+      valor={vista}
+      alCambiar={setVista}
+      opciones={[{ valor: 'ficha', etiqueta: 'Ficha' }, { valor: 'sesiones', etiqueta: 'Sesiones' }]}
+    />
+  )
+  return (
+    <div className="pantalla fitness">
+      {selector}
+      {vista === 'ficha' ? <Ficha /> : <Sesiones />}
+    </div>
+  )
+}
+
+/** Las sesiones por fecha (LOGICA §11.2), tal como estaban. */
+function Sesiones() {
   const { fitSesiones, fitMedidas, setFitMedidas, setFitSesiones, hoy, avisar, cargando } = useDatos()
 
   const deHoy = useMemo(() => sesionDe(fitSesiones, hoy), [fitSesiones, hoy])
@@ -53,7 +75,7 @@ export default function Fitness() {
 
   if (!fitSesiones.length) {
     return (
-      <div className="pantalla fitness">
+      <div className="fitness-sesiones">
         {cargando
           ? <p className="t-secundario">Cargando…</p>
           : <Vacio icono={Dumbbell} titulo="Sin sesiones" texto="Todavía no hay ninguna sesión cargada." />}
@@ -75,7 +97,7 @@ export default function Fitness() {
   )
 
   return (
-    <div className="pantalla fitness">
+    <div className="fitness-sesiones">
       <section className="fit-grupo">
         <div className="seccion-titulo">Hoy · {textoFecha(hoy, true)}</div>
         {deHoy

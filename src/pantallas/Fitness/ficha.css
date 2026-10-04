@@ -1,0 +1,265 @@
+/* 2day · Ficha de combate (LOGICA §12). Sobre los tokens de siempre; un único tono nuevo,
+   el acero, que sólo significa «punto de partida» (la v1 y lo que aún está bloqueado). */
+
+.ficha {
+  --acero: #8fb3d9;
+  --acero-apagado: rgba(143, 179, 217, 0.16);
+  --hud-linea: color-mix(in srgb, var(--acento) 28%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ficha-vacia { padding: 24px 4px; }
+
+/* ── núcleo: el personaje, dentro de una mira ─────────────────────────────── */
+.ficha-nucleo {
+  position: relative;
+  padding: 20px 18px 16px;
+  border-radius: var(--radio-tarjeta);
+  background:
+    radial-gradient(70% 55% at 50% 58%, rgba(255, 106, 26, 0.10) 0%, rgba(255, 106, 26, 0) 70%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 22px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 22px),
+    var(--tarjeta);
+  box-shadow: var(--tarjeta-luz), var(--tarjeta-sombra);
+  overflow: hidden;
+}
+.ficha-mira { position: absolute; width: 18px; height: 18px; border: 0 solid var(--acento); opacity: 0.85; pointer-events: none; }
+.ficha-mira--ai { top: 10px; left: 10px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 6px; }
+.ficha-mira--ad { top: 10px; right: 10px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 6px; }
+.ficha-mira--bi { bottom: 10px; left: 10px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 6px; }
+.ficha-mira--bd { bottom: 10px; right: 10px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 6px; }
+
+.ficha-cabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 4px 6px 0; }
+.ficha-identidad { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ficha-alias {
+  margin: 0;
+  font-size: 40px;
+  line-height: 0.95;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  font-stretch: 85%;
+}
+.ficha-clase { margin: 2px 0 0; font-size: var(--t-cuerpo); line-height: 1.3; color: var(--acento-claro); }
+.ficha-meta { margin: 0; font-size: var(--t-micro); color: var(--texto-3); font-variant-numeric: tabular-nums; }
+
+.ficha-nivel { position: relative; flex: none; width: 84px; height: 84px; }
+.ficha-nivel svg { width: 100%; height: 100%; }
+.ficha-nivel-pista { fill: none; stroke: var(--linea-fuerte); stroke-width: 6; }
+.ficha-nivel-lleno { fill: none; stroke: var(--acento); stroke-width: 6; filter: drop-shadow(0 0 4px rgba(255, 106, 26, 0.55)); }
+.ficha-nivel-cifra {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ficha-nivel-cifra small { font-size: var(--t-micro); color: var(--texto-3); font-weight: 400; margin-left: 1px; }
+
+.ficha-radar { margin: 6px 0 0; }
+.ficha-radar svg { display: block; width: 100%; max-width: 360px; margin: 0 auto; overflow: visible; }
+.ficha-radar-anillo { fill: none; stroke: var(--linea); stroke-width: 1; }
+.ficha-radar-anillo--borde { stroke: var(--hud-linea); }
+.ficha-radar-eje { stroke: var(--linea); stroke-width: 1; }
+.ficha-radar-v1 { fill: var(--acero-apagado); stroke: var(--acero); stroke-width: 1.25; stroke-dasharray: 4 3; }
+.ficha-radar-ahora { fill: rgba(255, 106, 26, 0.22); stroke: var(--acento); stroke-width: 1.75; stroke-linejoin: round; filter: drop-shadow(0 0 8px rgba(255, 106, 26, 0.45)); }
+.ficha-radar-punto { fill: var(--sobre-acento); stroke: var(--acento); stroke-width: 1.5; }
+.ficha-radar-etiqueta { fill: var(--texto-2); font-size: 11px; font-family: var(--fuente); }
+.ficha-radar-cifra { fill: var(--texto); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ficha-radar figcaption { display: flex; justify-content: center; align-items: center; gap: 6px; font-size: var(--t-micro); color: var(--texto-3); }
+.ficha-leyenda { width: 10px; height: 2px; border-radius: 1px; }
+.ficha-leyenda--ahora { background: var(--acento); }
+.ficha-leyenda--v1 { background: var(--acero); margin-left: 10px; }
+.ficha-objetivo { margin: 6px 0 0; text-align: center; font-size: var(--t-secundario); color: var(--texto-2); }
+
+/* ── bloques ──────────────────────────────────────────────────────────────── */
+.ficha-columnas, .ficha-columna { display: flex; flex-direction: column; gap: 14px; }
+.ficha-par { display: grid; grid-template-columns: 1fr; gap: 14px; }
+
+.ficha-bloque {
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--tarjeta);
+  box-shadow: var(--tarjeta-luz);
+  border-left: 2px solid var(--hud-linea);
+}
+.ficha-bloque--fuerte { border-left-color: color-mix(in srgb, var(--ok) 60%, transparent); }
+.ficha-bloque--debil { border-left-color: color-mix(in srgb, var(--peligro) 65%, transparent); }
+.ficha-bloque-titulo { margin: 0 0 12px; font-size: var(--t-cuerpo); font-weight: 600; letter-spacing: -0.01em; }
+.ficha-bloque-pie { margin: 12px 0 0; font-size: var(--t-micro); color: var(--texto-3); line-height: 1.4; }
+
+/* cuerpo: lecturas en rejilla, la cifra manda */
+.ficha-cuerpo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+.ficha-lectura { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ficha-lectura-nombre { display: flex; align-items: center; gap: 5px; font-size: var(--t-micro); color: var(--texto-3); }
+.ficha-lectura-valor { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ficha-lectura-valor small { font-size: var(--t-micro); color: var(--texto-3); margin-left: 3px; font-weight: 400; }
+.ficha-lectura-detalle { font-size: 10.5px; line-height: 1.3; color: var(--texto-3); }
+.ficha-vivo { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+
+/* atributos: 10 celdas, media para el ,5 */
+.ficha-atributos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.ficha-atributo-linea { display: grid; grid-template-columns: minmax(0, 1fr) auto 48px; align-items: center; gap: 10px; }
+.ficha-atributo-nombre { font-size: var(--t-secundario); overflow-wrap: anywhere; }
+.ficha-celdas { display: flex; gap: 3px; }
+.ficha-celda { position: relative; width: 9px; height: 14px; border-radius: 2px; background: var(--tarjeta-alta); overflow: hidden; }
+.ficha-celda--v1 { box-shadow: inset 0 0 0 1px var(--acero); }
+.ficha-celda--llena { background: var(--acento); box-shadow: 0 0 6px rgba(255, 106, 26, 0.4); }
+.ficha-celda--media::after { content: ''; position: absolute; inset: 0 50% 0 0; background: var(--acento); }
+.ficha-atributo-cifra { text-align: right; font-size: var(--t-cuerpo); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ficha-atributo-cifra small { display: block; font-size: 10px; font-weight: 400; color: var(--acero); }
+.ficha-atributo-nota { margin: 4px 0 0; font-size: var(--t-micro); line-height: 1.4; color: var(--texto-3); }
+.ficha-atributo--sin .ficha-celda { background: repeating-linear-gradient(135deg, var(--tarjeta-alta) 0 3px, transparent 3px 5px); }
+.ficha-atributo--sin .ficha-atributo-cifra { color: var(--acero); }
+
+/* filas: nombre con su detalle, valor a la derecha */
+.ficha-filas { list-style: none; margin: 0; padding: 0; }
+.ficha-filas li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--linea); }
+.ficha-filas li:first-child { padding-top: 0; }
+.ficha-filas li:last-child { border-bottom: 0; padding-bottom: 0; }
+.ficha-fila-nombre { display: flex; flex-direction: column; gap: 2px; font-size: var(--t-secundario); min-width: 0; }
+.ficha-fila-nombre small { font-size: var(--t-micro); color: var(--texto-3); }
+.ficha-fila-valor { flex: none; text-align: right; font-size: var(--t-cuerpo); font-weight: 600; color: var(--acento-claro); font-variant-numeric: tabular-nums; }
+
+/* sparring: tú contra el rival */
+.ficha-tabla { width: 100%; border-collapse: collapse; font-size: var(--t-secundario); font-variant-numeric: tabular-nums; }
+.ficha-tabla th, .ficha-tabla td { padding: 8px 0; border-bottom: 1px solid var(--linea); text-align: right; }
+.ficha-tabla tr:last-child th, .ficha-tabla tr:last-child td { border-bottom: 0; }
+.ficha-tabla thead th { padding-top: 0; font-size: var(--t-micro); font-weight: 500; color: var(--texto-3); }
+.ficha-tabla tbody th { text-align: left; font-weight: 400; color: var(--texto-2); padding-right: 8px; }
+.ficha-tabla td { width: 22%; color: var(--texto); }
+.ficha-tabla td:nth-child(2) { color: var(--acento-claro); font-weight: 600; }
+
+/* fuertes y débiles */
+.ficha-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ficha-lista li { position: relative; padding-left: 18px; font-size: var(--t-secundario); line-height: 1.4; }
+.ficha-lista li::before { position: absolute; left: 0; top: 0; font-size: 10px; line-height: 1.9; }
+.ficha-lista--fuerte li::before { content: '▲'; color: var(--ok); }
+.ficha-lista--debil li::before { content: '▼'; color: var(--peligro); }
+
+/* estilo */
+.ficha-estilo { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.ficha-estilo div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; }
+.ficha-estilo dt { font-size: var(--t-micro); color: var(--texto-3); padding-top: 2px; }
+.ficha-estilo dd { margin: 0; font-size: var(--t-secundario); line-height: 1.4; }
+.ficha-estilo-hueco dd { color: var(--acento-claro); }
+.ficha-referencias { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.ficha-referencias span { padding: 5px 10px; border-radius: var(--radio-pildora); background: var(--tarjeta-alta); font-size: var(--t-micro); color: var(--texto-2); }
+
+/* misiones: las de prioridad, marcadas */
+.ficha-misiones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ficha-misiones li { position: relative; padding-left: 20px; font-size: var(--t-secundario); line-height: 1.4; color: var(--texto-2); }
+.ficha-misiones li::before { content: ''; position: absolute; left: 2px; top: 5px; width: 8px; height: 8px; border: 1.5px solid var(--texto-3); border-radius: 2px; transform: rotate(45deg); }
+.ficha-mision--prioridad { color: var(--texto) !important; }
+.ficha-mision--prioridad::before { border-color: var(--acento) !important; background: var(--acento-apagado); }
+
+/* casillas por desbloquear */
+.ficha-casillas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ficha-casilla {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  row-gap: 2px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--acero) 35%, transparent);
+  color: var(--acero);
+}
+.ficha-casilla svg { grid-row: 1; margin-top: 1px; }
+.ficha-casilla-nombre { font-size: var(--t-micro); color: var(--texto-2); line-height: 1.3; }
+.ficha-casilla-valor { grid-column: 2; font-size: var(--t-micro); color: var(--texto-3); font-variant-numeric: tabular-nums; }
+.ficha-casilla--abierta { border-style: solid; border-color: color-mix(in srgb, var(--acento) 50%, transparent); background: var(--acento-apagado); color: var(--acento); }
+.ficha-casilla--abierta .ficha-casilla-nombre { color: var(--texto); }
+.ficha-casilla--abierta .ficha-casilla-valor { font-size: 17px; font-weight: 600; color: var(--texto); }
+.ficha-casilla--abierta .ficha-casilla-valor small { font-size: var(--t-micro); color: var(--texto-3); font-weight: 400; margin-left: 2px; }
+
+/* alerta de combustible */
+.ficha-alerta {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--aviso) 10%, var(--tarjeta));
+  border: 1px solid color-mix(in srgb, var(--aviso) 35%, transparent);
+  color: var(--aviso);
+}
+.ficha-alerta svg { flex: none; margin-top: 1px; }
+.ficha-alerta strong { display: block; font-size: var(--t-secundario); color: var(--texto); margin-bottom: 3px; }
+.ficha-alerta p { margin: 0; font-size: var(--t-secundario); line-height: 1.45; color: var(--texto-2); }
+
+/* el selector Ficha · Sesiones */
+.fitness-vista { margin-bottom: 14px; }
+
+/* ── escritorio: el personaje a lo ancho, debajo dos columnas ─────────────── */
+@media (min-width: 1024px) {
+  .ficha-columnas { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 14px; }
+  .ficha-par { grid-template-columns: 1fr 1fr; }
+  .ficha-nucleo { display: grid; grid-template-columns: minmax(0, 1fr) 380px; align-items: center; column-gap: 24px; padding: 26px 30px 20px; }
+  .ficha-nucleo .ficha-objetivo { grid-column: 2; }
+  .ficha-alias { font-size: 56px; }
+}
+@media (max-width: 360px) {
+  .ficha-cuerpo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ficha-celda { width: 7px; }
+}
+
+/* ── v1.1: dominios (el personaje entero, no sólo boxeo) ──────────────────── */
+.ficha-nivel { margin-bottom: 16px; }
+.ficha-nivel-nombre { position: absolute; left: -10px; right: -10px; bottom: -16px; text-align: center; font-size: 10px; color: var(--texto-3); white-space: nowrap; }
+
+.ficha-hud { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 18px 6px 0; padding: 12px 0; border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea); }
+
+/* el mapa de dominios: la pieza que se recuerda. Lo medido arde; lo que no, va en niebla */
+.ficha-mapa { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 0; }
+.ficha-dominio {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 11px 12px 10px;
+  border-radius: 14px;
+  text-align: left;
+  background: color-mix(in srgb, var(--tarjeta-alta) 70%, transparent);
+  border: 1px solid var(--linea);
+  color: var(--texto);
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ficha-dominio:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.ficha-dominio--niebla { border-style: dashed; border-color: color-mix(in srgb, var(--acero) 28%, transparent); }
+.ficha-dominio--niebla .ficha-dominio-nombre { color: var(--texto-2); }
+.ficha-dominio--alerta { border-color: color-mix(in srgb, var(--aviso) 45%, transparent); }
+.ficha-dominio--alerta .ficha-dominio-estado { color: var(--aviso); }
+.ficha-dominio--activo { border-style: solid; border-color: var(--acento); background: var(--acento-apagado); box-shadow: 0 0 18px rgba(255, 106, 26, 0.18); }
+.ficha-dominio-nombre { font-size: var(--t-secundario); font-weight: 500; line-height: 1.25; }
+.ficha-dominio-nivel { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acento-claro); }
+.ficha-dominio-nivel small { font-size: 10px; color: var(--texto-3); font-weight: 400; }
+.ficha-dominio-estado { font-size: 10.5px; color: var(--acero); text-align: right; }
+.ficha-dominio-barra { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--linea-fuerte); overflow: hidden; }
+.ficha-dominio-barra span { display: block; height: 100%; background: var(--acento); box-shadow: 0 0 6px var(--acento); }
+.ficha-dominio-ex { grid-column: 1 / -1; font-size: 10px; color: var(--texto-3); font-variant-numeric: tabular-nums; }
+
+/* el detalle del dominio elegido */
+.ficha-detalle { display: flex; flex-direction: column; gap: 14px; }
+.ficha-bloque--cabeza { border-left-color: var(--acento); }
+.ficha-detalle-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ficha-detalle-cabeza h3 { margin: 0; font-size: var(--t-titulo); font-weight: 600; letter-spacing: -0.02em; }
+.ficha-detalle-estado { font-size: var(--t-secundario); color: var(--acero); }
+.ficha-detalle-estado--nivel { color: var(--acento-claro); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ficha-detalle-resumen { margin: 8px 0 0; font-size: var(--t-secundario); line-height: 1.5; color: var(--texto-2); max-width: 70ch; }
+.ficha-fila-nombre > span { display: flex; align-items: center; gap: 6px; }
+
+@media (min-width: 1024px) {
+  .ficha-nucleo { display: block; }
+  .ficha-mapa { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ficha-hud { grid-template-columns: repeat(3, 180px); }
+}
+/* el estado en su propia línea: «se mide esta semana» no cabe junto al nombre */
+.ficha-dominio-estado { grid-column: 1 / -1; grid-row: 2; text-align: left; }
+.ficha-dominio--niebla .ficha-dominio-barra { grid-row: 3; }

@@ -112,3 +112,47 @@ export function textoDeValor(prueba, valor) {
   if (valor == null) return ''
   return prueba?.formato === 'tiempo' ? deSegundos(valor) : String(valor).replace('.', ',')
 }
+
+/* ── ficha de combate (LOGICA §12) ─────────────────────────────────────────── */
+
+const aFicha = (f) => ({ id: f.id, fecha: f.fecha, version: f.version || '', datos: f.datos && typeof f.datos === 'object' ? f.datos : {} })
+
+/** Las versiones de la ficha, de la más antigua a la más nueva. */
+export async function cargarFichas() {
+  listo()
+  return filas(await supabase.from('hoy_fit_fichas').select('*').order('fecha').order('created_at'), 'no se pudo leer la ficha').map(aFicha)
+}
+
+/** La última versión (la que se enseña) y la primera (el fantasma del punto de partida). */
+export const fichaActual = (fichas) => (fichas?.length ? fichas[fichas.length - 1] : null)
+export const fichaInicial = (fichas) => (fichas?.length > 1 ? fichas[0] : null)
+
+/**
+ * El dato vivo de un campo de la ficha: `peso` → la última marca del hábito «Peso»;
+ * `habito:<nombre>` → la última marca con valor de ese hábito; cualquier otra clave → la
+ * última medida de Fitness con esa clave. `{ valor, fecha }` o null.
+ */
+export function vivoDe(clave, { marcas = [], habitos = [], medidas = [] } = {}) {
+  if (!clave) return null
+  const nombreHabito = clave === 'peso' ? 'peso' : clave.startsWith('habito:') ? clave.slice(7) : null
+  let filasVivas
+  if (nombreHabito) {
+    const h = habitos.find((x) => x.nombre.trim().toLowerCase() === nombreHabito.trim().toLowerCase())
+    if (!h) return null
+    filasVivas = marcas.filter((m) => m.habitoId === h.id && m.valor != null)
+  } else {
+    filasVivas = medidas.filter((m) => m.clave === clave)
+  }
+  const ultima = filasVivas.reduce((a, m) => (!a || m.fecha > a.fecha ? m : a), null)
+  return ultima ? { valor: ultima.valor, fecha: ultima.fecha } : null
+}
+
+/** La última medida de una clave (para desbloquear una casilla de la ficha), o null. */
+export const ultimaMedida = (medidas, clave) => vivoDe(clave, { medidas })
+
+/** Cuántas casillas de un dominio están ya desbloqueadas (hay medida con su clave). */
+export function exploracion(dominio, medidas) {
+  const casillas = dominio?.bloqueado || []
+  const abiertas = casillas.filter((b) => (medidas || []).some((m) => m.clave === b.clave)).length
+  return { abiertas, total: casillas.length }
+}
