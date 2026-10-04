@@ -69,7 +69,7 @@ export default function Ficha() {
                 type="button"
                 role="tab"
                 aria-selected={activo}
-                className={`ficha-dominio${activo ? ' ficha-dominio--activo' : ''}${x.nivel == null ? ' ficha-dominio--niebla' : ''}${x.estado === 'alerta' ? ' ficha-dominio--alerta' : ''}`}
+                className={`ficha-dominio${activo ? ' ficha-dominio--activo' : ''}${x.nivel == null ? ' ficha-dominio--niebla' : ''}${['alerta', 'riesgo'].includes(x.estado) ? ' ficha-dominio--alerta' : ''}`}
                 onClick={() => setElegido(x.clave)}
               >
                 <span className="ficha-dominio-nombre">{x.nombre}</span>

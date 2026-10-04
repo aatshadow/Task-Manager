@@ -547,8 +547,8 @@ useDatos()      (+) fitFichas
 
 La ficha no es sólo boxeo: es **todo lo que hace falta para el objetivo**. `datos.dominios[]`:
 `{ clave, nombre, nivel|null, estado, resumen, atributos?, motor?, lecturas?[{nombre,valor,detalle,vivo?}], sparring?, fuertes?, debiles?, estilo?, misiones?, bloqueado? }`.
-Los 11 de la v1: boxeo · MMA y lucha · fuerza · potencia · resistencia · capacidad militar · cuerpo ·
-movilidad y articulaciones · recuperación · nutrición · mente y constancia. **Sólo lleva nivel lo
+Los 10 de la v1 (MMA se quitó el 04-10: Alex sólo va a boxeo y nunca ha peleado): boxeo · fuerza · potencia · resistencia · capacidad militar · cuerpo ·
+hombros y movilidad · recuperación · nutrición · mente y constancia. **Sólo lleva nivel lo
 medido** (en la v1, boxeo); el resto va «en niebla» con lo que se sabe y sus pruebas por
 desbloquear. El núcleo enseña el **mapa de dominios** (cada uno con nivel o estado y «x/y
 pruebas»); al tocar uno, debajo sale su detalle. `vivo` admite `peso`, `habito:<nombre>`, `reto`

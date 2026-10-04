@@ -34,14 +34,14 @@ select yo.id, '2026-10-04', 'v1', $j${
   "nivel_max": 10,
   "nivel_nombre": "Nivel de boxeo",
   "escala": "3 principiante de gimnasio · 5 amateur con peleas · 7 nacional · 8 pro",
-  "objetivo": "Pelear boxeo y MMA en 2027 · 2028 · 2029",
+  "objetivo": "Pelear en boxeo en 2027 · 2028 · 2029",
   "dominios": [
     {
       "clave": "boxeo",
       "nombre": "Boxeo",
       "nivel": 4.5,
       "estado": "medido",
-      "resumen": "Presionador de volumen y ritmo, híbrido. Te pegan muy poco y tienes buenas combinaciones cuando atacas; te falta atacar más y contestar cuando te atacan.",
+      "resumen": "Presionador de volumen y ritmo, híbrido. Te pegan muy poco y tienes buenas combinaciones cuando atacas; te falta atacar más y contestar cuando te atacan. Nunca has peleado: la primera pelea es parte del objetivo.",
       "atributos": [
         {
           "clave": "ritmo",
@@ -175,7 +175,7 @@ select yo.id, '2026-10-04', 'v1', $j${
         "Los guantes le tapan los ojos",
         "Se agacha doblando la cintura, ojos al suelo",
         "Ataca con zancada, peso encima del pie delantero",
-        "Se cuadra y las piernas van rectas (hábito de MMA)",
+        "Se cuadra, abre mucho los pies y las piernas van rectas",
         "Cede la iniciativa: el rival inicia el doble",
         "Siempre al mismo ritmo · poca pegada"
       ],
@@ -232,73 +232,6 @@ select yo.id, '2026-10-04', 'v1', $j${
         }
       ],
       "bloqueado": []
-    },
-    {
-      "clave": "mma",
-      "nombre": "MMA y lucha",
-      "nivel": null,
-      "estado": "sin datos",
-      "resumen": "Has peleado MMA, pero no hay vídeo ni prueba de lucha. Lo único visto: la postura ancha y cuadrada (sirve contra el derribo, estorba en boxeo).",
-      "atributos": [
-        {
-          "clave": "derribo_def",
-          "nombre": "Defensa de derribo",
-          "valor": null,
-          "nota": ""
-        },
-        {
-          "clave": "derribos",
-          "nombre": "Derribos",
-          "valor": null,
-          "nota": ""
-        },
-        {
-          "clave": "suelo",
-          "nombre": "Control en el suelo",
-          "valor": null,
-          "nota": ""
-        },
-        {
-          "clave": "sumisiones",
-          "nombre": "Sumisiones",
-          "valor": null,
-          "nota": ""
-        },
-        {
-          "clave": "piernas",
-          "nombre": "Patadas y rodillas",
-          "valor": null,
-          "nota": ""
-        },
-        {
-          "clave": "transiciones",
-          "nombre": "Transiciones pie-suelo",
-          "valor": null,
-          "nota": ""
-        }
-      ],
-      "debiles": [
-        "Se agacha por la cintura con la cabeza baja: en MMA es rodillazo o guillotina",
-        "En el clinch se queda pasivo (sparring de boxeo)"
-      ],
-      "misiones": [
-        {
-          "texto": "Grabar un sparring de MMA o de lucha (4K, trípode, de lado)",
-          "prioridad": true
-        },
-        {
-          "texto": "Contar tu historial de MMA: peleas, resultado, en qué ganabas"
-        }
-      ],
-      "bloqueado": [
-        {
-          "clave": "mma_sparring",
-          "nombre": "Sparring de MMA grabado",
-          "fecha": "2026-10-11",
-          "unidad": "vídeo",
-          "formato": "numero"
-        }
-      ]
     },
     {
       "clave": "fuerza",
@@ -586,13 +519,17 @@ select yo.id, '2026-10-04', 'v1', $j${
     },
     {
       "clave": "movilidad",
-      "nombre": "Movilidad y articulaciones",
+      "nombre": "Hombros y movilidad",
       "nivel": null,
-      "estado": "sin datos",
-      "resumen": "Sin lesiones. Los hombros tienen una condición genética (sin especificar) que veta el press de banca. En la sesión 1, dolor de cansancio en los dos hombros, no de lesión.",
+      "estado": "riesgo",
+      "resumen": "Sin lesiones. En los hombros, la cabeza de la articulación (o la zona que conecta con la clavícula) es algo más grande de lo normal: el hombro «baila» y se descoloca. Por eso fuera el press de banca. En la sesión 1, dolor de cansancio en los dos hombros, no de lesión. En boxeo es el punto a blindar: el golpe largo y el bloqueo cargan justo esa articulación.",
       "misiones": [
         {
-          "texto": "Contar qué condición tienes en el hombro",
+          "texto": "Ver a un traumatólogo o fisio deportivo: nombre exacto de la condición y qué evitar",
+          "prioridad": true
+        },
+        {
+          "texto": "Manguito rotador y escápula 2-3 veces por semana (rotaciones con goma, face pulls, Y-T-W)",
           "prioridad": true
         },
         {
@@ -607,6 +544,22 @@ select yo.id, '2026-10-04', 'v1', $j${
           "unidad": "",
           "formato": "numero"
         }
+      ],
+      "lecturas": [
+        {
+          "nombre": "Condición",
+          "valor": "inestable",
+          "detalle": "se descoloca · sin diagnóstico por imagen apuntado"
+        },
+        {
+          "nombre": "Vetado",
+          "valor": "press de banca",
+          "detalle": "y fondos o empujes en rango extremo"
+        }
+      ],
+      "debiles": [
+        "El hombro se descoloca: riesgo en golpes largos al aire y al bloquear",
+        "Sin trabajo específico de manguito rotador ni escápula"
       ]
     },
     {
@@ -664,7 +617,7 @@ select yo.id, '2026-10-04', 'v1', $j${
       "nombre": "Mente y constancia",
       "nivel": null,
       "estado": "parcial",
-      "resumen": "Zero Agent Challenge en marcha. Objetivo a largo plazo: pelear en 2027, 2028 y 2029 y llegar al pico entonces.",
+      "resumen": "Zero Agent Challenge en marcha. Objetivo: tu primera pelea de boxeo y llegar al pico en 2027-29.",
       "lecturas": [
         {
           "nombre": "Día del reto",
@@ -674,7 +627,7 @@ select yo.id, '2026-10-04', 'v1', $j${
         {
           "nombre": "Objetivo",
           "valor": "2027-29",
-          "detalle": "boxeo y MMA"
+          "detalle": "boxeo · nunca has peleado"
         }
       ]
     }
