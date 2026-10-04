@@ -483,17 +483,23 @@ fitness.js      cargarSesiones · cargarMedidas · medir(fecha, clave, valor|nul
 useDatos()      (+) fitSesiones · fitMedidas · setFitMedidas · setFitSesiones
 ```
 
-### 11.4 · Semana de medición (02-10 → 08-10-2026, `sql/2026-10-02-fitness-semana-medicion.sql`)
+### 11.4 · Semana de medición (04-10 → 10-10-2026)
+
+Cargada el 02-10 para V 02 → J 08 (`sql/2026-10-02-fitness-semana-medicion.sql`); Alex no
+entrenó ni el viernes ni el sábado y empezó el domingo 04 con el test de combate, así que el
+04-10 se movió (`sql/2026-10-04-fitness-semana-movida.sql`). El descanso pasa al final y el día
+de medidas (sin gimnasio) hace de recuperación antes de la pierna. V 02 y S 03 quedan como
+«Sin entreno», sólo con el pulso en reposo.
 
 | Fecha | Sesión | Qué se mide |
 |---|---|---|
-| V 02-10 | Test de combate | golpes en 30'' ×3 · pulso al acabar los asaltos 1 y 5 y tras 1' de descanso |
-| S 03-10 | Marcha con carga | 5 km con 15 kg (tiempo) |
-| D 04-10 | Descanso | — |
-| L 05-10 | Potencia + pierna | salto vertical · salto horizontal · balón 4 kg por lado · sentadilla 5RM |
-| M 06-10 | Test militar | flexiones en 2' · 2,4 km · pulso al acabar y al minuto · plancha |
-| X 07-10 | Medidas del cuerpo | cintura · cuello (+ fotos) |
-| J 08-10 | Tirón + empuje | dominadas · peso muerto 5RM · press landmine 5RM por lado · press militar 5RM (opcional) · suspensión |
+| D 04-10 | Test de combate | golpes en 30'' ×3 · pulso al acabar los asaltos 1 y 5 y tras 1' de descanso |
+| L 05-10 | Marcha con carga | 5 km con 15 kg (tiempo) |
+| M 06-10 | Medidas del cuerpo | cintura · cuello (+ fotos) |
+| X 07-10 | Potencia + pierna | salto vertical · salto horizontal · balón 4 kg por lado · sentadilla 5RM |
+| J 08-10 | Test militar | flexiones en 2' · 2,4 km · pulso al acabar y al minuto · plancha |
+| V 09-10 | Tirón + empuje | dominadas · peso muerto 5RM · press landmine 5RM por lado · press militar 5RM (opcional) · suspensión |
+| S 10-10 | Descanso | — |
 
 Todos los días, además, el pulso en reposo al despertar. **Sin press de banca**: a Alex le castiga
 los hombros (condición genética); el empuje se mide con flexiones y press landmine.
