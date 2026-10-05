@@ -87,7 +87,7 @@ export default function Ficha() {
         {d.objetivo && <p className="ficha-objetivo">{d.objetivo}</p>}
       </section>
 
-      {dom && <Dominio key={dom.clave} dom={dom} v1={domV1} leerVivo={leerVivo} medidas={fitMedidas} escala={d.escala} />}
+      {dom && <Dominio key={dom.clave} dom={dom} v1={domV1} leerVivo={leerVivo} medidas={fitMedidas} escala={dom.escala || d.escala} />}
 
       {d.alerta && (
         <aside className="ficha-alerta">

@@ -532,7 +532,7 @@ los hombros (condición genética); el empuje se mide con flexiones y press land
 ### 12.1 · Modelo (`sql/2026-10-04-ficha.sql`)
 
 - **`hoy_fit_fichas`**: `id`, `owner_id`, `fecha`, `version` (texto, «v1»), `datos jsonb`, `created_at`; única `(owner_id, version)`. RLS y muro como todas las `hoy_*`.
-- `datos`: `alias` · `clase` · `nivel` · `nivel_max` · `escala` · `cuerpo[{clave,nombre,valor,unidad,detalle,vivo?}]` · `atributos[{clave,nombre,valor|null,nota}]` · `motor[{nombre,valor,detalle}]` · `sparring{fuente,filas[{nombre,tu,rival}]}` · `fuertes[texto]` · `debiles[texto]` · `estilo{saco,sparring,hueco,referencias[]}` · `misiones[{texto,prioridad?}]` · `bloqueado[{clave,nombre,fecha,unidad,formato}]` · `alerta{titulo,texto}`.
+- `datos`: `alias` · `clase` · `nivel` · `nivel_max` · `escala` · `cuerpo[{clave,nombre,valor,unidad,detalle,vivo?}]` · `atributos[{clave,nombre,valor|null,nota}]` · `motor[{nombre,valor,detalle}]` · `sparring{fuente,filas[{nombre,tu,rival}]}` · `fuertes[texto]` · `debiles[texto]` · `estilo{saco,sparring,hueco,referencias[]}` · `misiones[{texto,prioridad?}]` · `bloqueado[{clave,nombre,fecha,unidad,formato}]` · `alerta{titulo,texto}`. Cada dominio puede traer su propia `escala` (texto); si no, el pie de Atributos usa la general (la del boxeo).
 
 ### 12.2 · Capa de datos (amplía §11.3)
 
