@@ -190,6 +190,14 @@ El Calendario gana dos vistas: **Día · Semana · Mes · Año · Gantt**.
   días con scroll horizontal. Toque en una fila → su hoja. Lógica pura en `calendario.js`
   (`filasGantt`, `tramoGantt`, `hitosPorDia`, `carrilesHitos`).
 
+### 5.3 · Stats a cero sin borrar nada (Alex, 22-10-2026)
+
+«No lo he usado mucho, lo quiero a 0 a partir de ahora.» `hoy_ajustes.stats_desde` (date, null = desde
+siempre) es la fecha desde la que cuentan Stats y el Overview: los rangos no bajan de ahí, la racha ignora
+lo hecho antes y las marcas anteriores no entran en el cumplimiento. **No se borra ninguna tarea ni marca.**
+Se cambia en Ajustes → Día → «Stats desde». El mismo día el Zero Agent Challenge se reinició a
+**22-10-2026 → 19-01-2027** (antes 23-09 → 21-12). Para deshacer: `sql/2026-10-22-reinicio.sql`.
+
 ## 6 · Diseño — el mockup, en tokens
 
 - Fondo página `#151515`; tarjeta `#1f1f1f`; tarjeta elevada `#262626`; nav `#191919`.
@@ -567,3 +575,27 @@ medido** (en la v1, boxeo); el resto va «en niebla» con lo que se sabe y sus p
 desbloquear. El núcleo enseña el **mapa de dominios** (cada uno con nivel o estado y «x/y
 pruebas»); al tocar uno, debajo sale su detalle. `vivo` admite `peso`, `habito:<nombre>`, `reto`
 y cualquier clave de Fitness. `exploracion(dominio, medidas)` → `{ abiertas, total }`.
+
+
+## 13 · Overview — la ficha IA de todo 2day (Alex, 22-10-2026)
+
+Pedido: «una sección de overview que analice todo, generada con IA y que pueda recargar; una ficha como la
+de fitness pero de todo: dónde se va el tiempo, mi perfil, los días seguidos que se ha movido algo… con
+gráficas, que la pueda ver evolucionar».
+
+- **Dónde:** Stats tiene dos caras, **Overview · Números** (se recuerda la última). Overview por defecto.
+- **Dos capas.** Las **métricas** son puras (`src/datos/overview.js · calcularMetricas`) y se ven siempre,
+  sin IA: días con movimiento (crear, completar o marcar), racha actual y mejor, hechas/creadas, vivas,
+  atrasadas, mediana de días hasta cerrar, mapa de actividad, creadas vs hechas, horas planificadas por
+  proyecto, vivas por proyecto y cuadrante, hora y día de la semana en que se completa, hábitos más flojos
+  y frentes. Todo desde `stats_desde` (§5.3) o, sin él, los últimos 90 días.
+- **La ficha** la escribe Claude (`api/overview.js`, función de Vercel, `claude-opus-5-5` con salida
+  estructurada zod): titular, arquetipo, nota global 0-100, confianza, perfil (fortalezas y puntos ciegos),
+  **8 dimensiones 0-10** para el radar (consistencia · ejecución · foco · planificación · carga · hábitos ·
+  cuerpo · frentes), dónde se va el tiempo con fugas, patrones, riesgos, qué hacer y foco de la semana.
+- **Versiones:** `hoy_overview` (RLS por dueño, `sql/2026-10-22-overview.sql`). «Regenerar» = INSERT,
+  nunca se pisa. El radar lleva la versión anterior de fantasma (acero) y «Evolución» dibuja la nota global
+  de todas. Se puede mirar cualquier versión vieja.
+- **Seguridad:** la clave `ANTHROPIC_API_KEY` sólo vive en el servidor; la función exige una sesión válida
+  de Supabase (`/auth/v1/user`) antes de llamar. La fila la guarda el navegador bajo su RLS.
+- **En local:** `vite.config.js` sirve `/api/*` con la misma función (clave del entorno al arrancar Vite).

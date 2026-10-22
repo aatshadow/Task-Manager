@@ -16,7 +16,9 @@ export default function SeccionDia() {
   const [hora, setHora] = useState(ajustes?.horaReinicio || '04:00')
   const [nevera, setNevera] = useState(String(ajustes?.diasNevera ?? 30))
   const [bandeja, setBandeja] = useState(String(ajustes?.diasBandeja ?? 7))
+  const [statsDesde, setStatsDesde] = useState(ajustes?.statsDesde || '')
   useEffect(() => {
+    setStatsDesde(ajustes?.statsDesde || '')
     setHora(ajustes?.horaReinicio || '04:00')
     setNevera(String(ajustes?.diasNevera ?? 30))
     setBandeja(String(ajustes?.diasBandeja ?? 7))
@@ -27,6 +29,7 @@ export default function SeccionDia() {
     setHora(ajustes?.horaReinicio || '04:00')
     setNevera(String(ajustes?.diasNevera ?? 30))
     setBandeja(String(ajustes?.diasBandeja ?? 7))
+    setStatsDesde(ajustes?.statsDesde || '')
   }
   const escribir = (cambios) => guardar(async () => { setAjustes(await catalogos.guardarAjustes(cambios)) }, { catalogos: false, alFallar: reponer })
 
@@ -75,6 +78,14 @@ export default function SeccionDia() {
             alCambiar={setBandeja}
             onBlur={() => soltarDias(bandeja, 'diasBandeja', ajustes?.diasBandeja ?? 7, setBandeja)}
             ayuda="Más de tantos días sin triar, la tarea se enciende."
+          />
+          <Campo
+            etiqueta="Stats desde"
+            type="date"
+            valor={statsDesde}
+            alCambiar={setStatsDesde}
+            onBlur={() => { if ((statsDesde || null) !== (ajustes?.statsDesde || null)) escribir({ statsDesde: statsDesde || null }) }}
+            ayuda="Lo de antes no cuenta en Stats ni en el Overview. No borra nada; vacío = desde siempre."
           />
         </div>
       </Tarjeta>

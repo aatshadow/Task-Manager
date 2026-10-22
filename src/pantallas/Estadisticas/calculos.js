@@ -20,9 +20,13 @@ export const RANGOS = [
  * semana de 4 días comparada con una de 7 engaña, así que los días se piden desde el lunes
  * para que todas las semanas cerradas vengan completas. A 7 y 30 coincide con `desde`.
  */
-export function rangoDe(hoy, n) {
-  const desde = sumarDias(hoy, -(n - 1))
-  return { desde, hasta: hoy, n, desdeCarga: n > 30 ? lunesDe(desde) : desde }
+export function rangoDe(hoy, n, statsDesde = null) {
+  let desde = sumarDias(hoy, -(n - 1))
+  let desdeCarga = n > 30 ? lunesDe(desde) : desde
+  // «Stats a 0» (LOGICA §5.3): nada de antes de esa fecha entra en ningún rango
+  if (statsDesde && statsDesde > desde) desde = statsDesde > hoy ? hoy : statsDesde
+  if (statsDesde && statsDesde > desdeCarga) desdeCarga = desde
+  return { desde, hasta: hoy, n, desdeCarga }
 }
 
 /**

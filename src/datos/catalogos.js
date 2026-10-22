@@ -50,6 +50,8 @@ const aAjustes = (a) => ({
   diasNevera: a.dias_nevera ?? 30,
   diasBandeja: a.dias_bandeja ?? 7,
   cuadrantes: a.cuadrantes || {},
+  // Stats cuentan desde aquí (null = desde siempre): el «ponerlas a 0» sin borrar nada (LOGICA §5.3)
+  statsDesde: a.stats_desde || null,
   actualizadoEn: a.updated_at,
 })
 const aColumnasAjustes = (c) => {
@@ -58,6 +60,7 @@ const aColumnasAjustes = (c) => {
   if ('diasNevera' in c) m.dias_nevera = c.diasNevera
   if ('diasBandeja' in c) m.dias_bandeja = c.diasBandeja
   if ('cuadrantes' in c) m.cuadrantes = c.cuadrantes
+  if ('statsDesde' in c) m.stats_desde = c.statsDesde || null
   return m
 }
 

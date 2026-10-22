@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, CloudOff, RefreshCw } from 'lucide-react'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { cargarDias, cargarTodas } from '../../datos/tareas.js'
+import { diaDe } from '../../datos/fechas.js'
 import {
   hechasEnRango, seriesCreadasHechas, porProyecto, porCategoria, porCuadrante, rachaDias,
 } from '../../datos/estadisticas.js'
@@ -25,6 +26,8 @@ import Vacio from '../../componentes/Vacio.jsx'
 import Boton from '../../componentes/Boton.jsx'
 import { GraficoLineas, BarrasHorizontales, BarrasDobles, ColumnasSemanas } from './graficos.jsx'
 import BloqueReto from './Reto.jsx'
+import Overview from './Overview.jsx'
+import './overview.css'
 import { usarEscritorio } from '../../estado/usarEscritorio.js'
 import {
   RANGOS, rangoDe, diaEnCurso, totalSobrecarga, sobrecargaSinHuecos, sobrecargaPorSemana, cumplimientoPorSemana, plegarOtros, num,
@@ -34,9 +37,29 @@ import './estadisticas.css'
 // la misma referencia mientras no hay base: así los useMemo no recalculan en cada render
 const SIN_TAREAS = []
 
+const CLAVE_VISTA = 'hoy:stats:vista'
+const VISTAS = [{ valor: 'overview', etiqueta: 'Overview' }, { valor: 'numeros', etiqueta: 'Números' }]
+
+/**
+ * Stats con dos caras (LOGICA §13): el Overview (la ficha de todo, con IA) y los Números
+ * de siempre. Se recuerda la última elegida.
+ */
 export default function Estadisticas() {
+  const [vista, setVista] = useState(() => {
+    try { return localStorage.getItem(CLAVE_VISTA) === 'numeros' ? 'numeros' : 'overview' } catch { return 'overview' }
+  })
+  const elegir = (v) => { setVista(v); try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin memoria, no pasa nada */ } }
+  return (
+    <>
+      <div className="stats-vista"><Segmentos naranja opciones={VISTAS} valor={vista} alCambiar={elegir} /></div>
+      {vista === 'overview' ? <div className="pantalla"><Overview /></div> : <Numeros />}
+    </>
+  )
+}
+
+function Numeros() {
   const {
-    tareas, habitos, marcas, hoy, proyectosTodos, clientes, categoriasTodas, cuadrantes,
+    tareas, habitos, marcas: marcasTodas, hoy, ajustes, proyectosTodos, clientes, categoriasTodas, cuadrantes,
     colorCategoria, avisar, cargando, error, recargar,
     // los días cerrados que ya trae el contexto: van desde el inicio del reto, que es
     // más atrás de lo que pide el selector de esta pantalla (§10.7)
@@ -55,7 +78,10 @@ export default function Estadisticas() {
   const [errorDias, setErrorDias] = useState(null)
   const [intentoDias, setIntentoDias] = useState(0)
 
-  const { desde, hasta, desdeCarga } = useMemo(() => rangoDe(hoy, n), [hoy, n])
+  const statsDesde = ajustes?.statsDesde || null
+  const { desde, hasta, desdeCarga } = useMemo(() => rangoDe(hoy, n, statsDesde), [hoy, n, statsDesde])
+  // las marcas de antes del reinicio no cuentan en el cumplimiento por semana
+  const marcas = useMemo(() => (statsDesde ? marcasTodas.filter((m) => m.fecha >= statsDesde) : marcasTodas), [marcasTodas, statsDesde])
 
   // La base se relee cada vez que el contexto trae tareas nuevas (cada `recargar()`):
   // una tarea completada o archivada hace un momento tiene que contar ya. Mientras el
@@ -92,7 +118,10 @@ export default function Estadisticas() {
   /* ── derivados del rango ───────────────────────────────────────────────── */
   const series = useMemo(() => seriesCreadasHechas(tareasBase, desde, hasta), [tareasBase, desde, hasta])
   const hechas = useMemo(() => hechasEnRango(tareasBase, desde, hasta), [tareasBase, desde, hasta])
-  const racha = useMemo(() => rachaDias(tareasBase, hoy), [tareasBase, hoy])
+  const racha = useMemo(
+    () => rachaDias(statsDesde ? tareasBase.filter((t) => !t.hechaEn || diaDe(t.hechaEn) >= statsDesde) : tareasBase, hoy),
+    [tareasBase, hoy, statsDesde],
+  )
   // el número de arriba es solo de días cerrados dentro del rango visible (a 90 se piden
   // unos días más, desde el lunes, para que las semanas salgan completas)
   const carga = useMemo(() => totalSobrecarga((dias || []).filter((d) => d.fecha >= desde)), [dias, desde])

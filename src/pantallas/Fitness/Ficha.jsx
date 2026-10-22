@@ -235,7 +235,7 @@ function Dominio({ dom, v1, leerVivo, medidas, escala }) {
   )
 }
 
-function Bloque({ titulo, pie, tono, children }) {
+export function Bloque({ titulo, pie, tono, children }) {
   return (
     <section className={`ficha-bloque${tono ? ` ficha-bloque--${tono}` : ''}`}>
       <h3 className="ficha-bloque-titulo">{titulo}</h3>
@@ -270,7 +270,7 @@ function Nivel({ valor, max, nombre }) {
 }
 
 /** Radar de los atributos medidos (los null no entran). La v1 va debajo, en acero. */
-function Radar({ atributos, fantasma }) {
+export function Radar({ atributos, fantasma }) {
   const reducir = useReducedMotion()
   const medidos = atributos.filter((a) => a.valor != null)
   const n = medidos.length
