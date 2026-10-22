@@ -5,7 +5,7 @@
  * se pinta, aunque esté planificada para Hoy (eso es cosa de la pantalla Hoy). Si además
  * tiene `inicio`, es un período y se pinta como barra fina en todos sus días.
  */
-import { aMinutos, rangoDias, sumarDias } from '../../datos/fechas.js'
+import { aMinutos, diasEntre, rangoDias, sumarDias } from '../../datos/fechas.js'
 import { bloquesDelDia, cruzaMedianoche, colorBloque } from '../../datos/bloques.js'
 
 /**
@@ -186,6 +186,74 @@ export function bandasDeBloques(bloques, fecha) {
     if (!cruzaMedianoche(b)) continue
     const fin = aMinutos(b.fin)
     if (fin > HORA_MIN * 60) out.push(banda(b, HORA_MIN * 60, fin, '-cola'))
+  }
+  return out
+}
+
+/* ── Año y Gantt (LOGICA §5.2) ───────────────────────────────────────────── */
+
+/** El primer día que ocupa una tarea en el calendario: su `inicio` si es período, si no su `vence`. */
+export const inicioDe = (t) => (esPeriodo(t) ? t.inicio : t.vence)
+
+const SIN_PROYECTO = 'Sin proyecto'
+
+/**
+ * Las filas del Gantt para `desde..hasta`: `[{ nombre, tareas }]`, una por proyecto (por
+ * nombre, «Sin proyecto» al final) y dentro por fecha de inicio. Entra toda tarea con
+ * `vence` que pise la ventana, hechas incluidas (se pintan apagadas): un Gantt sin lo ya
+ * hecho no enseña dónde va uno.
+ */
+export function filasGantt(tareas, desde, hasta, nombreGrupo) {
+  const grupos = new Map()
+  for (const t of tareas) {
+    if (!t.vence || t.archivadoEn) continue
+    if (inicioDe(t) > hasta || t.vence < desde) continue
+    const g = nombreGrupo(t) || SIN_PROYECTO
+    if (!grupos.has(g)) grupos.set(g, [])
+    grupos.get(g).push(t)
+  }
+  const porFecha = (a, b) => inicioDe(a).localeCompare(inicioDe(b)) || a.vence.localeCompare(b.vence)
+  return [...grupos]
+    .map(([nombre, ts]) => ({ nombre, tareas: ts.sort(porFecha) }))
+    .sort((a, b) => (a.nombre === SIN_PROYECTO) - (b.nombre === SIN_PROYECTO) || a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+/** Dónde cae la barra de una tarea en la ventana: columna, días y si se sale por algún lado. */
+export function tramoGantt(t, desde, hasta) {
+  const ini = inicioDe(t)
+  const a = ini < desde ? desde : ini
+  const b = t.vence > hasta ? hasta : t.vence
+  return { columna: diasEntre(desde, a), dias: diasEntre(a, b) + 1, cortaIzquierda: ini < desde, cortaDerecha: t.vence > hasta }
+}
+
+/** Hitos con fecha dentro de `desde..hasta`, por día: `Map(iso → [hito…])`. */
+export function hitosPorDia(hitos, desde, hasta) {
+  const m = new Map()
+  for (const h of hitos || []) {
+    if (!h.fecha || h.fecha < desde || h.fecha > hasta) continue
+    if (!m.has(h.fecha)) m.set(h.fecha, [])
+    m.get(h.fecha).push(h)
+  }
+  return m
+}
+
+/**
+ * Las etiquetas de los hitos encima del Gantt, repartidas en carriles para que no se
+ * pisen: `[{ hito, columna, carril }]`. El ancho de cada etiqueta se estima por letras
+ * (en columnas de día); basta para que dos hitos de la misma semana no se monten.
+ */
+export function carrilesHitos(porDia, desde, letrasPorDia = 4) {
+  const finCarril = []
+  const out = []
+  for (const [dia, hs] of [...porDia].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const h of hs) {
+      const columna = diasEntre(desde, dia)
+      const ancho = Math.ceil(Math.min(22, (h.frente || h.nombre).length + 2) / letrasPorDia)
+      let carril = finCarril.findIndex((fin) => fin <= columna)
+      if (carril === -1) { carril = finCarril.length; finCarril.push(0) }
+      finCarril[carril] = columna + ancho
+      out.push({ hito: h, columna, carril })
+    }
   }
   return out
 }

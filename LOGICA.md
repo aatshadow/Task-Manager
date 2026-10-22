@@ -176,6 +176,20 @@ En la vista **Día** la hora de una tarea se pone **con el dedo**, no desde la h
 Es una escritura optimista por el `usarGuardar` de la casa: la tarjeta aterriza al instante y, si
 la base dice que no, vuelve donde estaba y avisa.
 
+### 5.2 · Año y Gantt, con los hitos (Alex, 22-10-2026)
+
+El Calendario gana dos vistas: **Día · Semana · Mes · Año · Gantt**.
+
+- **Año**: los 12 meses en miniatura. Hoy en naranja, punto bajo los días con tareas, **días con hito en
+  aro ámbar**. Debajo, «Hitos de AAAA» en orden con «en 3 días» / «hecho». Toque en un día o en un hito →
+  ese día en la vista Mes. Flechas = año anterior/siguiente.
+- **Gantt**: 9 semanas (desde el lunes anterior al de la fecha), las flechas saltan 4. Una fila por tarea
+  con `vence`, agrupadas por proyecto; barra de `inicio` a `vence`, **rombo** si es de un solo día; las
+  hechas, tachadas y apagadas. **Los hitos son rayas verticales ámbar de arriba abajo en su día**, con la
+  etiqueta (frente) arriba en carriles que no se pisan; la raya de hoy, naranja. Columna de nombres fija y
+  días con scroll horizontal. Toque en una fila → su hoja. Lógica pura en `calendario.js`
+  (`filasGantt`, `tramoGantt`, `hitosPorDia`, `carrilesHitos`).
+
 ## 6 · Diseño — el mockup, en tokens
 
 - Fondo página `#151515`; tarjeta `#1f1f1f`; tarjeta elevada `#262626`; nav `#191919`.

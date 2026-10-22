@@ -6,14 +6,22 @@ import CabeceraPeriodo from './CabeceraPeriodo.jsx'
 import VistaDia from './VistaDia.jsx'
 import VistaSemana from './VistaSemana.jsx'
 import VistaMes from './VistaMes.jsx'
+import VistaAnio from './VistaAnio.jsx'
+import VistaGantt from './VistaGantt.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
-import { deISO, mesDe, nombreDia, nombreMes, semanaDe, sumarDias, sumarMeses, textoFecha } from '../../datos/fechas.js'
+import { deISO, lunesDe, mesDe, nombreDia, nombreMes, semanaDe, sumarDias, sumarMeses, textoFecha } from '../../datos/fechas.js'
 
 const VISTAS = [
   { valor: 'dia', etiqueta: 'Día' },
   { valor: 'semana', etiqueta: 'Semana' },
   { valor: 'mes', etiqueta: 'Mes' },
+  { valor: 'anio', etiqueta: 'Año' },
+  { valor: 'gantt', etiqueta: 'Gantt' },
 ]
+/** El Gantt enseña 9 semanas desde el lunes ANTERIOR al de la fecha y salta de 4 en 4. */
+const GANTT_DIAS = 63
+const GANTT_SALTO = 28
+const desdeGantt = (fecha) => sumarDias(lunesDe(fecha), -7)
 const CLAVE_VISTA = 'hoy:calendario:vista'
 const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1)
 const mesCorto = (iso) => capital(nombreMes(iso).slice(0, 3))
@@ -22,6 +30,19 @@ const mesCorto = (iso) => capital(nombreMes(iso).slice(0, 3))
 function etiquetas(vista, fecha, hoy) {
   const anioActual = deISO(hoy).getFullYear()
   const conAnio = (iso, texto) => (deISO(iso).getFullYear() === anioActual ? texto : `${texto} ${deISO(iso).getFullYear()}`)
+  if (vista === 'anio') {
+    const a = deISO(fecha).getFullYear()
+    return { anterior: String(a - 1), titulo: String(a), siguiente: String(a + 1) }
+  }
+  if (vista === 'gantt') {
+    const d = desdeGantt(fecha)
+    const corto = (iso) => `${deISO(iso).getDate()} ${nombreMes(iso).slice(0, 3)}`
+    return {
+      anterior: '4 sem',
+      titulo: conAnio(fecha, `${corto(d)} – ${corto(sumarDias(d, GANTT_DIAS - 1))}`),
+      siguiente: '4 sem',
+    }
+  }
   if (vista === 'mes') {
     return {
       anterior: mesCorto(sumarMeses(fecha, -1)),
@@ -55,12 +76,12 @@ function etiquetas(vista, fecha, hoy) {
 }
 
 /**
- * Calendario (LOGICA §5): sólo tareas, por `vence`. Tres vistas con el mismo esqueleto:
+ * Calendario (LOGICA §5): tareas por `vence`, y los hitos en Año y Gantt (§5.2). Cinco vistas, mismo esqueleto:
  * segmentos arriba, cabecera de período con flechas, y la vista. La fecha elegida es una
- * sola para las tres: cambiar de vista no te pierde el día que estabas mirando.
+ * sola para todas: cambiar de vista no te pierde el día que estabas mirando.
  */
 export default function Calendario() {
-  const { tareas, hoy, nuevaTarea, cargando, error } = useDatos()
+  const { tareas, hitos, hoy, nuevaTarea, cargando, error } = useDatos()
   const [vista, setVista] = useState(() => {
     try { return VISTAS.some((v) => v.valor === localStorage.getItem(CLAVE_VISTA)) ? localStorage.getItem(CLAVE_VISTA) : 'mes' }
     catch { return 'mes' }
@@ -85,19 +106,26 @@ export default function Calendario() {
   // Al mover el período, el día elegido se va con él (mes: mismo número de día si existe).
   const saltar = (n) => {
     setDireccion(n > 0 ? 1 : -1)
-    if (vista === 'mes') {
-      const destino = mesDe(sumarMeses(fecha, n))
+    if (vista === 'mes' || vista === 'anio') {
+      const destino = mesDe(sumarMeses(fecha, vista === 'anio' ? 12 * n : n))
       setFecha(sumarDias(destino.primero, Math.min(deISO(fecha).getDate(), destino.dias.length) - 1))
     } else if (vista === 'semana') setFecha(sumarDias(fecha, 7 * n))
+    else if (vista === 'gantt') setFecha(sumarDias(fecha, GANTT_SALTO * n))
     else setFecha(sumarDias(fecha, n))
   }
   const irAHoy = () => { setDireccion(fecha < hoy ? 1 : -1); setFecha(hoy) }
   // Tocar un día apagado del mes vecino remonta la vista: que entre por el lado correcto
   const alElegir = (iso) => { setDireccion(iso >= fecha ? 1 : -1); setFecha(iso) }
   const alNueva = (iso) => nuevaTarea({ vence: iso })
+  // En el Año, tocar un día (o un hito) baja a ese día en la vista Mes
+  const alElegirEnAnio = (iso) => { setDireccion(iso >= fecha ? 1 : -1); setFecha(iso); setVista('mes') }
 
   const cabecera = useMemo(() => etiquetas(vista, fecha, hoy), [vista, fecha, hoy])
-  const claveVista = vista === 'mes' ? sumarMeses(fecha, 0) : vista === 'semana' ? semanaDe(fecha)[0] : fecha
+  const claveVista = vista === 'mes' ? sumarMeses(fecha, 0)
+    : vista === 'semana' ? semanaDe(fecha)[0]
+    : vista === 'anio' ? String(deISO(fecha).getFullYear())
+    : vista === 'gantt' ? desdeGantt(fecha)
+    : fecha
 
   return (
     <div className="pantalla calendario">
@@ -122,6 +150,8 @@ export default function Calendario() {
         >
           {vista === 'mes' && <VistaMes tareas={tareas} mes={claveVista} fecha={fecha} hoy={hoy} estado={estado} alElegir={alElegir} alNueva={alNueva} />}
           {vista === 'semana' && <VistaSemana tareas={tareas} fecha={fecha} hoy={hoy} estado={estado} alElegir={alElegir} alNueva={alNueva} />}
+          {vista === 'anio' && <VistaAnio tareas={tareas} hitos={hitos} anio={Number(claveVista)} hoy={hoy} fecha={fecha} alElegir={alElegirEnAnio} />}
+          {vista === 'gantt' && <VistaGantt tareas={tareas} hitos={hitos} desde={claveVista} nDias={GANTT_DIAS} hoy={hoy} fecha={fecha} estado={estado} />}
           {vista === 'dia' && <VistaDia tareas={tareas} fecha={fecha} hoy={hoy} estado={estado} alNueva={alNueva} />}
         </motion.div>
       </AnimatePresence>

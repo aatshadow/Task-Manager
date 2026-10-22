@@ -206,3 +206,11 @@
   /* la pantalla ya no deja hueco para una nav que no existe */
   .app--escritorio .pantalla { padding-bottom: 24px; }
 }
+
+/* Calendario · Año y Gantt a lo ancho (LOGICA §5.2) */
+@media (min-width: 1024px) {
+  .app--escritorio .anio-rejilla { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 32px; }
+  .app--escritorio .anio-dia { font-size: 12px; }
+  .app--escritorio .gantt { --gantt-dia: 34px; --gantt-nombre: 240px; --gantt-alto: 38px; margin: 0; padding-right: 0; }
+  .app--escritorio .gantt-nombre { padding-left: 4px; }
+}
