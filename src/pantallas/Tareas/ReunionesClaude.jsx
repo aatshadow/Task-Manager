@@ -40,7 +40,7 @@ export default function ReunionesClaude({ alIrAProximos }) {
               <div className="claude-sesion-meta">
                 <span>{cuando(r.inicio)}</span>
                 <span>{r.minutos} min</span>
-                {pr && <span style={{ color: pr.color }}>{pr.nombre}</span>}
+                {pr && <span className="cproy"><i style={{ background: pr.color }} />{pr.nombre}</span>}
               </div>
             </header>
             <div className={`creu-resumen ${abiertaEsta ? '' : 'creu-resumen--corto'}`}>

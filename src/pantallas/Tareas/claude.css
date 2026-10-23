@@ -145,3 +145,7 @@
 .creu-decisiones { border-top: 1px solid var(--linea); padding-top: 10px; }
 .creu-etiqueta { font-size: var(--t-micro); font-weight: 700; color: var(--texto-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
 .app--escritorio .creu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+
+/* proyecto = punto de su color + nombre legible (un color oscuro como el de GrowthInfo no se lee sobre negro) */
+.cproy { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-2); }
+.cproy i { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px var(--linea-fuerte); flex: none; }

@@ -94,7 +94,7 @@ export default function ProximosClaude({ alCambiarCuenta }) {
                 <div className="ctab-titulo">{p.titulo}</div>
                 {p.descripcion && <div className="cprox-desc">{p.descripcion}</div>}
                 <div className="cprox-chips">
-                  {pr && <span style={{ color: pr.color }}>{pr.nombre}</span>}
+                  {pr && <span className="cproy"><i style={{ background: pr.color }} />{pr.nombre}</span>}
                   {q && <span style={{ color: q.color }}>{q.nombre}</span>}
                   {duracion(p.minutos) && <span>{duracion(p.minutos)}</span>}
                 </div>

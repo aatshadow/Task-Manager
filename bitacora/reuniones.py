@@ -31,7 +31,7 @@ Escribe, todo en español y sin humo:
 - titulo: corto y claro, con quién y de qué («Daily con Pere: lanzamiento Gemelos»). Nunca «Hablante N»: deduce el nombre por lo que se dice (cómo se llaman entre ellos, de qué cliente hablan); si no se puede, titula sólo por el tema. En el resumen igual: nombres reales cuando se deduzcan, si no «el otro participante».
 - resumen: 3-6 viñetas en markdown («- …») con lo importante: qué se habló, números, fechas, cifras.
 - decisiones: lo que quedó decidido (quién decide y qué). Lista vacía si no hubo.
-- proyecto: el de la reunión, con la CHULETA (alias → proyecto) y PROYECTOS; si no encaja ninguno, proyecto_nuevo.
+- proyecto: el de la reunión, con la CHULETA (alias → proyecto) y PROYECTOS; proyecto_nuevo SÓLO si es un cliente o negocio nuevo de verdad (un curso, lanzamiento o tema de un cliente va a su proyecto).
 - tareas: SOLO lo que tiene que hacer ALEX (o su equipo de Claude/CORE por él), concreto y accionable, verbo + objeto. Lo que hacen otros no es tarea suya salvo que Alex tenga que perseguirlo («Pedir a Pere…»). Máximo 8, lo más importante primero. Ninguna que ya esté en TAREAS_DE_ALEX.
   · dia: desde HOY, repartiendo según CARGA (tareas ya planificadas por día): lo urgente (q1) hoy o mañana, lo que tiene fecha dicha en la reunión para esa fecha, sin pasar de ~5 por día.
 Responde sólo con el JSON."""
