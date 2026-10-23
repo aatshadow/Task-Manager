@@ -719,9 +719,11 @@ Pedido: «un widget en el Mac cuando tengo terminales activas, visibilidad compl
 se oculte, sencillo y vivo; que 2day esté siempre actualizado aunque no entre en la app».
 
 - **SwiftBar** (app de la barra de menús) con el plugin `bitacora/widget/2day.10s.py`, que se refresca cada
-  10 s leyendo la base. En la barra: `● N` terminales trabajando · `◐ N` en revisión · `✦ N` próximos (o
+  10 s leyendo la base. En la barra: `□ N` pendientes de hoy · `● N` terminales trabajando · `◐ N` en revisión · `✦ N` próximos (o
   «2day» si no hay nada).
-- **Al desplegar:** Trabajando ahora (cada terminal con lo que se pidió y desde cuándo; **clic = salta a esa
+- **Al desplegar:** **Pendientes de hoy** primero (Alex, 23-10: «me tienen que aparecer las tareas pendientes
+  de hoy»): las tareas personales con `hoy_para` = el día lógico y sin hacer, lo en curso arriba y luego por hora,
+  cuadrante y orden; por tarea Empezar (a En curso) · Completar · Pasar a mañana · Trabajando ahora (cada terminal con lo que se pidió y desde cuándo; **clic = salta a esa
   ventana de Terminal**, por el `tty` que apunta el hook) · Clasificando · En revisión (Completar · Devolver) ·
   Próximos (Aceptar · Descartar), agrupados por sesión o reunión · Reuniones de hoy · Hoy (hechas / en Hoy) ·
   Abrir 2day · Empezar.

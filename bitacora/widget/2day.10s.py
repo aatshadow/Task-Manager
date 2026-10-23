@@ -7,7 +7,7 @@
 # <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
 """
 El widget de 2day en la barra de menús (LOGICA §14.8). SwiftBar lo ejecuta cada 10 s.
-Arriba: ● terminales trabajando · ◐ en revisión · ✦ próximos por validar. Al desplegar, todo,
+Arriba: □ pendientes de hoy · ● terminales trabajando · ◐ en revisión · ✦ próximos por validar. Al desplegar, todo,
 con acciones que van por el comando `2day` (una sola puerta).
 """
 import datetime as dt
@@ -76,6 +76,14 @@ def main():
                    where t.owner_id = %s and t.hecha and t.archivado_at is null and t.hecha_en >= %s
                    order by t.hecha_en desc""", (OWNER, dt.datetime.combine(hoy, dt.time(4)).astimezone()))
     completadas = cur.fetchall()
+    # «Pendientes de hoy»: lo que está en Hoy (hoy_para = el día lógico) y no está hecho; lo en curso, arriba.
+    cur.execute("""select t.id, t.titulo, coalesce(p.nombre, cl.name, ''), t.estado, k.cuadrante, k.hora_inicio from hoy_tareas t
+                   join hoy_capa k on k.tarea_id = t.id
+                   left join hoy_proyectos p on p.id = t.proyecto_id left join clients cl on cl.id = t.client_id
+                   where t.owner_id = %s and k.hoy_para = %s and not t.hecha and t.archivado_at is null
+                   order by t.estado <> 'in_progress', k.hora_inicio nulls last, k.cuadrante nulls last, k.orden nulls last, t.created_at""",
+                (OWNER, hoy))
+    pendientes = cur.fetchall()
     cur.execute("""select titulo, inicio, minutos from hoy_reuniones where owner_id = %s and inicio > now() - interval '24 hours'
                    order by inicio desc""", (OWNER,))
     reuniones = cur.fetchall()
@@ -87,6 +95,8 @@ def main():
 
     # ── la barra ──
     partes = []
+    if pendientes:
+        partes.append(f'□ {len(pendientes)}')
     if activas:
         partes.append(f'● {len(activas)}')
     if revision:
@@ -99,6 +109,25 @@ def main():
     print('  '.join(partes) + f' |{color}' if partes else '2day | sfimage=checklist')
     print('---')
     print(f'▣ Panel visual (abrir / cerrar) | bash={BITACORA}/panel.sh terminal=false')
+    print('---')
+
+    # ── pendientes de hoy ──
+    print(f'Pendientes de hoy ({len(pendientes)}) | size=11 color={GRIS}')
+    if not pendientes:
+        print(f'Nada pendiente en Hoy | color={GRIS}')
+    marca = {'in_progress': '▶', 'review': '◐', 'blocked': '⏸'}
+    for tid, titulo, proyecto, estado, cuad, hora in pendientes[:20]:
+        cuando = f'  ·  {hora.strftime("%H:%M")}' if hora else ''
+        color = {'in_progress': '#e8b13a', 'review': AZUL}.get(estado, '')
+        print(f'{marca.get(estado, "□")} {limpio(titulo)}{cuando}' + (f' | color={color}' if color else ''))
+        if proyecto:
+            print(f'-- {limpio(proyecto, 40)}{"  ·  " + cuad.upper() if cuad else ""} | color={GRIS}')
+        if estado != 'in_progress':
+            print(f'-- ▶ Empezar (a En curso) | {accion("mover", str(tid)[:8], "in_progress")}')
+        print(f'-- ✓ Completar | {accion("completar", str(tid)[:8])}')
+        print(f'-- → Pasar a mañana | {accion("editar", str(tid)[:8], "--dia", "mañana")}')
+    if len(pendientes) > 20:
+        print(f'… y {len(pendientes) - 20} más en 2day | href=http://localhost:5400 color={GRIS}')
     print('---')
 
     # ── trabajando ahora ──
