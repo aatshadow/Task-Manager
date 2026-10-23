@@ -599,3 +599,40 @@ gráficas, que la pueda ver evolucionar».
 - **Seguridad:** la clave `ANTHROPIC_API_KEY` sólo vive en el servidor; la función exige una sesión válida
   de Supabase (`/auth/v1/user`) antes de llamar. La fila la guarda el navegador bajo su RLS.
 - **En local:** `vite.config.js` sirve `/api/*` con la misma función (clave del entorno al arrancar Vite).
+
+## 14 · Bitácora de Claude — las sesiones de Claude Code se apuntan solas (Alex, 23-10-2026)
+
+Pedido: «abro cinco terminales de Claude Code y me pongo a programar; al acabar sé que hice muchas cosas
+pero no qué. Que Claude Code apunte en 2day cada cosa que hace, y que después una IA lo divida en tareas,
+las clasifique y marque hechas. Así automatizo y sigo teniendo el control de qué pasó».
+
+### 14.0 · Decisiones cerradas (a solas, 23-10)
+
+| # | Decisión |
+|---|---|
+| 1 | **Paso = un turno humano.** Lo que Alex pide (más lo que escribe a mitad de turno) y todo lo que Claude hace hasta el siguiente pedido: herramientas usadas, archivos tocados, comandos (su `description`), la respuesta final. Una herramienta suelta es ruido; un turno es la unidad que Alex reconoce. |
+| 2 | **Lo apunta un hook de Claude Code, no Claude.** `Stop` y `SessionEnd` en `~/.claude/settings.json` llaman a `bitacora/bitacora.py hook`, que vuelve al instante y deja a un proceso suelto leer el transcript y subir los pasos. Nada depende de que el modelo se acuerde de registrar. |
+| 3 | **El transcript es la fuente.** Se relee entero y se suben sólo los pasos nuevos o cambiados (estado local en `~/.claude/2day-bitacora/`). Idempotente: si falla la red, el siguiente `Stop` o el barrido lo arregla. |
+| 4 | **Clasifica `claude -p` con la suscripción**, no la API (la clave de `~/.tokens` no tiene saldo): se lanza sin `ANTHROPIC_API_KEY`, sin herramientas, sin guardar sesión y con `HOY_BITACORA_OFF=1` para no apuntarse a sí mismo. Modelo `sonnet`, salida con `--json-schema`. |
+| 5 | **Cuándo se procesa una sesión:** al cerrarla (`SessionEnd`), cuando lleva **20 min quieta**, cuando acumula **25 pasos** sin procesar, o al tocar «Procesar» en la app. Un LaunchAgent (`net.core.2day-bitacora`, cada 5 min) barre los transcripts de las últimas 6 h y procesa lo que toque. |
+| 6 | **Las tareas que salen son tareas normales de 2day** (`hoy_tareas` + `hoy_capa` con `hoy_para` = el día lógico del paso), así cuentan en Hoy, Stats y Overview. Hecha → `hecha=true`, `estado='done'`, `hecha_en` = fin de su último paso. A medias → `in_progress`. La IA **reusa una tarea abierta** de Alex si el trabajo es esa tarea (la marca hecha si acabó) en vez de duplicarla, y **reusa las tareas ya sacadas de la misma sesión** en las tandas siguientes. |
+| 7 | **Pendientes que quedan** (lo que Alex dijo «luego» o lo que quedó por hacer explícitamente): como mucho 3 por tanda, a Bandeja, sin paso. |
+| 8 | **Dónde se ve:** Tareas → pestaña **Claude**: día con flechas, totales (sesiones · pasos · tareas hechas · horas), y cada sesión con título, carpeta, horario, resumen, las tareas que salieron y los pasos en crudo. Proyecto por carpeta sólo como pista para la IA. |
+
+### 14.1 · Modelo (`sql/2026-10-23-bitacora.sql`)
+
+- **`hoy_cc_sesiones`** — `id` = session_id de Claude Code · `cwd`, `carpeta`, `titulo` (el `ai-title` del transcript), `resumen` (lo escribe la IA), `inicio`, `ultimo`, `pasos`, `terminada`, `procesar_pedido` (lo enciende la app), `procesada_en`.
+- **`hoy_cc_pasos`** — `id` = uuid del mensaje humano · `sesion_id` · `inicio`, `fin` · `pedido`, `respuesta` (recortadas) · `herramientas` jsonb (`{Bash: 4, Edit: 2}`) · `archivos[]` · `comandos[]` · `tarea_id` (la `hoy_tareas` a la que la IA lo asignó; null = ruido) · `procesado`.
+- RLS por dueño en las dos; `anon` revocado. El hook y el clasificador escriben con `SUPABASE_DB_URL` del vault (sólo en el Mac) poniendo `owner_id` de Alex a mano.
+
+### 14.2 · Capa de datos (amplía §7)
+
+```
+bitacora.js   cargarSesiones(desde, hasta) → [Sesion con pasos]   · pedirProceso(sesionId)
+              puro: resumenDia(sesiones, tareas) → { sesiones, pasos, hechas, abiertas, minutos }
+```
+
+### 14.3 · Verificación
+
+- `python3 bitacora/bitacora.py barrer --horas 48` sube las sesiones de ayer y hoy; `procesar --ya` las clasifica; se comprueba en la base que hay tareas con pasos enlazados.
+- La pestaña Claude pinta el día con capturas a 390 y 1440.

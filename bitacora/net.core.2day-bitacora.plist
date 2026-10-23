@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>net.core.2day-bitacora</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string><string>-c</string>
+    <string>/usr/bin/python3 /Users/alex/CORE/2day/bitacora/bitacora.py barrer --horas 6; /usr/bin/python3 /Users/alex/CORE/2day/bitacora/bitacora.py procesar</string>
+  </array>
+  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>/Users/alex/.claude/2day-bitacora/launchd.log</string>
+  <key>StandardErrorPath</key><string>/Users/alex/.claude/2day-bitacora/launchd.log</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/Users/alex/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string><key>HOME</key><string>/Users/alex</string></dict>
+</dict>
+</plist>

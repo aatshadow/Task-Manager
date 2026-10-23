@@ -1,0 +1,75 @@
+/* 2day · Tareas → Claude (LOGICA §14). Todo sale de tokens.css. */
+.claude { display: flex; flex-direction: column; gap: 14px; }
+
+.claude-dia { display: flex; align-items: center; justify-content: space-between; }
+.claude-dia-nombre { font-size: var(--t-titulo); font-weight: 600; text-transform: capitalize; }
+.claude-flecha {
+  width: 36px; height: 36px; border-radius: var(--radio-pildora); display: grid; place-items: center;
+  background: var(--tarjeta); color: var(--texto); border: 1px solid var(--tarjeta-borde);
+}
+.claude-flecha:disabled { opacity: 0.3; }
+
+.claude-numeros {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  background: var(--degradado-calido); border-radius: var(--radio-tarjeta); padding: 16px 12px;
+  box-shadow: var(--sombra-minima);
+}
+.claude-numeros div { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.claude-numeros b { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.claude-numeros span { font-size: var(--t-micro); color: var(--texto-2); text-align: center; }
+.claude-ok { color: var(--ok); }
+.claude-curso { color: var(--aviso); }
+
+.claude-error { color: var(--peligro); font-size: var(--t-secundario); }
+.claude-cargando { color: var(--texto-3); font-size: var(--t-secundario); padding: 24px 0; text-align: center; }
+
+.claude-sesion {
+  background: var(--tarjeta); border-radius: var(--radio-tarjeta); padding: 16px;
+  box-shadow: var(--sombra-minima); display: flex; flex-direction: column; gap: 12px;
+}
+.claude-sesion-titulo { font-size: 17px; font-weight: 600; line-height: 1.25; }
+.claude-sesion-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: var(--t-secundario); color: var(--texto-2); }
+.claude-sesion-meta span + span::before { content: '·'; margin-right: 10px; color: var(--texto-3); }
+.claude-resumen { margin: 0; font-size: var(--t-secundario); line-height: 1.5; color: var(--texto-2); }
+
+.claude-tareas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.claude-tareas li + li { border-top: 1px solid var(--linea); }
+.claude-tareas button {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 2px;
+  background: none; border: 0; color: var(--texto); text-align: left; font: inherit; font-size: var(--t-cuerpo);
+}
+.claude-tarea-titulo { flex: 1; min-width: 0; }
+.claude-tarea-pasos {
+  font-size: var(--t-micro); color: var(--texto-3); background: var(--tarjeta-alta);
+  border-radius: var(--radio-pildora); padding: 2px 8px; font-variant-numeric: tabular-nums;
+}
+
+.claude-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.claude-cola { font-size: var(--t-secundario); color: var(--aviso); }
+.claude-ver {
+  margin-left: auto; display: flex; align-items: center; gap: 4px; background: none; border: 0;
+  color: var(--texto-2); font: inherit; font-size: var(--t-secundario);
+}
+.claude-girado { transform: rotate(180deg); }
+
+.claude-pasos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.claude-pasos li { display: grid; grid-template-columns: 44px 1fr; gap: 8px; }
+.claude-paso--suelto { opacity: 0.55; }
+.claude-paso-hora { font-size: var(--t-micro); color: var(--texto-3); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.claude-paso-pedido {
+  font-size: var(--t-secundario); line-height: 1.4; white-space: pre-wrap; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.claude-paso-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.claude-paso-chips span {
+  display: inline-flex; align-items: center; gap: 3px; font-size: var(--t-micro); color: var(--texto-2);
+  background: var(--tarjeta-alta); border-radius: var(--radio-pildora); padding: 2px 7px;
+}
+
+/* escritorio: la lista de sesiones en dos columnas */
+.app--escritorio .claude { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+.app--escritorio .claude-dia,
+.app--escritorio .claude-numeros,
+.app--escritorio .claude-error,
+.app--escritorio .claude-cargando,
+.app--escritorio .claude .vacio { grid-column: 1 / -1; }

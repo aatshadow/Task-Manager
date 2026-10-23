@@ -7,6 +7,8 @@ import Siguiente from './Siguiente.jsx'
 import Tableros from './Tableros.jsx'
 import Explorar from './Explorar.jsx'
 import Nevera from './Nevera.jsx'
+import Claude from './Claude.jsx'
+import './claude.css'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { esBandeja, esNevera, esViva } from '../../datos/tareas.js'
 
@@ -15,7 +17,7 @@ import { esBandeja, esNevera, esViva } from '../../datos/tareas.js'
 let ultimaPestana = 'bandeja'
 
 /**
- * TAREAS (LOGICA §5): cinco pestañas sobre la misma lista del contexto. Cada pestaña es
+ * TAREAS (LOGICA §5): seis pestañas (Claude es la bitácora de §14) sobre la misma lista del contexto. Cada pestaña es
  * una pregunta derivada (bandeja, nevera, viva…), nunca un estado guardado; por eso
  * una tarea cambia de pestaña sola cuando se le da cuadrante, fecha o proyecto.
  *
@@ -44,6 +46,7 @@ export default function Tareas() {
     { valor: 'tableros', etiqueta: 'Tableros' },
     { valor: 'growthinfo', etiqueta: 'GrowthInfo' },
     { valor: 'nevera', etiqueta: 'Nevera', cuenta: nevera.length },
+    { valor: 'claude', etiqueta: 'Claude' },
   ]
 
   return (
@@ -67,6 +70,7 @@ export default function Tareas() {
         {pestana === 'tableros' && <Tableros tareas={tareas} />}
         {pestana === 'growthinfo' && <Explorar />}
         {pestana === 'nevera' && <Nevera tareas={nevera} />}
+        {pestana === 'claude' && <Claude />}
       </motion.div>
     </div>
   )
