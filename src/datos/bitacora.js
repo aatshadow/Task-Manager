@@ -5,6 +5,7 @@
  */
 import { supabase, isConfigured, ErrorHoy, filas, ok } from '../lib/supabase.js'
 import { aMinutos, sumarDias } from './fechas.js'
+import { crear as crearTarea } from './tareas.js'
 
 const VIVA_HORAS = 3 // §14.4: una marca de «trabajando» más vieja es una terminal cerrada a lo bruto
 
@@ -135,4 +136,55 @@ export function resumenDia(sesiones) {
     sesiones: sesiones.length, pasos, sinProcesar, minutos: Math.round(minutos),
     hechas: lista.filter((t) => t.hecha).length, abiertas: lista.filter((t) => !t.hecha).length,
   }
+}
+
+/* ── Próximos pasos (§14.6) ─────────────────────────────────────────────────── */
+
+const aProximo = (f) => ({
+  id: f.id, sesionId: f.sesion_id, titulo: f.titulo, descripcion: f.descripcion, proyectoId: f.proyecto_id,
+  categoria: f.categoria, cuadrante: f.cuadrante, dia: f.dia, minutos: f.minutos, orden: f.orden,
+  estado: f.estado, origen: f.origen, creadoEn: f.created_at,
+})
+
+/** Los propuestos, agrupados por sesión (la más reciente primero), con el título de la sesión. */
+export async function cargarProximos() {
+  listo()
+  const lista = filas(await supabase.from('hoy_proximos').select('*').eq('estado', 'propuesto').order('created_at', { ascending: false }), 'no se pudieron leer los próximos pasos').map(aProximo)
+  const ids = [...new Set(lista.map((p) => p.sesionId).filter(Boolean))]
+  const sesiones = ids.length
+    ? Object.fromEntries(filas(await supabase.from('hoy_cc_sesiones').select('id, titulo, carpeta, ultimo').in('id', ids), 'no se pudieron leer las sesiones').map((s) => [s.id, s]))
+    : {}
+  const grupos = new Map()
+  for (const p of lista) {
+    const clave = p.sesionId || 'sin-sesion'
+    if (!grupos.has(clave)) {
+      const s = sesiones[p.sesionId]
+      grupos.set(clave, { id: clave, titulo: s ? (s.titulo || s.carpeta) : 'Propuestos por Claude', ultimo: s?.ultimo || p.creadoEn, pasos: [] })
+    }
+    grupos.get(clave).pasos.push(p)
+  }
+  for (const g of grupos.values()) g.pasos.sort((a, b) => a.orden - b.orden)
+  return [...grupos.values()].sort((a, b) => (a.ultimo < b.ultimo ? 1 : -1))
+}
+
+/** Aceptar = crear la tarea para ese día (con proyecto, categoría y cuadrante) y dejar el paso apuntando a ella. */
+export async function aceptarProximo(p, dia = p.dia) {
+  listo()
+  const tarea = await crearTarea({
+    titulo: p.titulo, descripcion: p.descripcion, origen: 'hoy', proyectoId: p.proyectoId,
+    categoria: p.categoria, cuadrante: p.cuadrante, hoyPara: dia || null,
+    notas: 'Próximo paso validado desde la bitácora de Claude',
+  })
+  ok(await supabase.from('hoy_proximos').update({ estado: 'aceptado', tarea_id: tarea.id, dia: dia || null, decidido_en: new Date().toISOString() }).eq('id', p.id), 'no se pudo marcar el paso')
+  return tarea
+}
+
+export async function descartarProximo(id) {
+  listo()
+  ok(await supabase.from('hoy_proximos').update({ estado: 'descartado', decidido_en: new Date().toISOString() }).eq('id', id), 'no se pudo descartar')
+}
+
+export async function cambiarDiaProximo(id, dia) {
+  listo()
+  ok(await supabase.from('hoy_proximos').update({ dia: dia || null }).eq('id', id), 'no se pudo cambiar el día')
 }

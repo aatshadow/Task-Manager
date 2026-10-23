@@ -2,7 +2,7 @@
 .claude { display: flex; flex-direction: column; gap: 16px; }
 .claude-sesiones { display: flex; flex-direction: column; gap: 14px; }
 .claude-caras { width: 100%; }
-.app--escritorio .claude-caras { width: 320px; }
+.app--escritorio .claude-caras { width: 440px; }
 .claude-revision { color: #4c8dff; }
 
 .claude-dia { display: flex; align-items: center; justify-content: space-between; }
@@ -118,3 +118,21 @@
 /* escritorio: las tres columnas en fila, como un kanban */
 .app--escritorio .ctab { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 16px; }
 .app--escritorio .ctab-vacio { grid-column: 1 / -1; }
+
+/* ── próximos pasos (§14.6) ───────────────────────────────────────────────── */
+.cprox { display: flex; flex-direction: column; gap: 20px; }
+.cprox-grupo { display: flex; flex-direction: column; gap: 8px; }
+.cprox-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; }
+.cprox-sesion { font-size: var(--t-secundario); font-weight: 600; color: var(--texto-2); }
+.cprox-desc { font-size: var(--t-secundario); color: var(--texto-2); line-height: 1.45; }
+.cprox-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cprox-chips span { font-size: var(--t-micro); font-weight: 600; background: var(--tarjeta-alta); border-radius: var(--radio-pildora); padding: 3px 9px; color: var(--texto-2); }
+.cprox-pie { display: flex; align-items: center; gap: 8px; }
+.cprox-dia {
+  position: relative; margin-right: auto; display: inline-flex; align-items: center; padding: 7px 12px;
+  border-radius: var(--radio-pildora); background: var(--acento-apagado); color: var(--acento-claro);
+  font-size: var(--t-secundario); font-weight: 600; text-transform: capitalize; cursor: pointer;
+}
+/* el input de fecha va invisible encima de la píldora: el toque abre el selector nativo */
+.cprox-dia input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.app--escritorio .cprox { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }

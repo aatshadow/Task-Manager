@@ -616,7 +616,7 @@ las clasifique y marque hechas. Así automatizo y sigo teniendo el control de qu
 | 4 | **Clasifica `claude -p` con la suscripción**, no la API (la clave de `~/.tokens` no tiene saldo): se lanza sin `ANTHROPIC_API_KEY`, sin herramientas, sin guardar sesión y con `HOY_BITACORA_OFF=1` para no apuntarse a sí mismo. Modelo `sonnet`, salida con `--json-schema`. |
 | 5 | **Cuándo se procesa una sesión:** ~~a los 20 min quieta~~ → **al acabar cada turno** (`Stop`), desde el 23-10 (§14.4): el tablero tiene que moverse mientras se trabaja. Un LaunchAgent (`net.core.2day-bitacora`, cada 5 min) barre los transcripts de las últimas 6 h y procesa lo que se haya quedado atrás. El candado es **por sesión**: cuatro terminales se clasifican a la vez. |
 | 6 | **Las tareas que salen son tareas normales de 2day** (`hoy_tareas` + `hoy_capa` con `hoy_para` = el día lógico del paso), así cuentan en Hoy, Stats y Overview. ~~Hecha → `done`~~ → desde el 23-10 **la IA nunca completa** (§14.4): terminada por Claude → `review`; a medias → `in_progress`. **Completar es de Alex.** La IA **reusa una tarea abierta** de Alex si el trabajo es esa tarea (la marca hecha si acabó) en vez de duplicarla, y **reusa las tareas ya sacadas de la misma sesión** en las tandas siguientes. |
-| 7 | **Pendientes que quedan** (lo que Alex dijo «luego» o lo que quedó por hacer explícitamente): como mucho 3 por tanda, a Bandeja, sin paso. |
+| 7 | ~~Pendientes a Bandeja~~ → **Próximos pasos** que Alex valida (§14.6). Antes: **Pendientes que quedan** (lo que Alex dijo «luego» o lo que quedó por hacer explícitamente): como mucho 3 por tanda, a Bandeja, sin paso. |
 | 8 | **Dónde se ve:** Tareas → pestaña **Claude**: día con flechas, totales (sesiones · pasos · tareas hechas · horas), y cada sesión con título, carpeta, horario, resumen, las tareas que salieron y los pasos en crudo. Proyecto por carpeta sólo como pista para la IA. |
 
 ### 14.4 · El tablero de Claude (Alex, 23-10-2026)
@@ -655,10 +655,40 @@ sesión van a la par».
   base dice otra cosa (una tarea nueva, o el Mac la pasó a revisión), se relee. Sesiones enseña cada tarea con
   el nombre de su columna, «Trabajando ahora» y **Completar** en las que están en revisión.
 
+### 14.6 · Próximos pasos y Claude con manos en 2day (Alex, 23-10-2026)
+
+Pedido: «un próximos pasos que se cree después de cada sesión; lo dejas ahí, validamos cada uno y se
+distribuye en tareas y días» y «si desde Claude hay que crear frentes, mover tareas, crear categorías o
+proyectos, o lo que sea, que lo muevas, para que la app esté siempre actualizada».
+
+**Próximos pasos (`hoy_proximos`)**
+- Los escribe el clasificador en cada tanda de una sesión: como mucho **5 por sesión**, cada uno con título,
+  descripción, proyecto, categoría, cuadrante, **día propuesto** y minutos. Sustituyen a los «pendientes» de
+  §14.0-7 (ya no entra nada a Bandeja sin que Alex lo valide).
+- **Se mantienen vivos:** en cada tanda la IA ve los próximos de la sesión (propuestos, aceptados y
+  descartados) y devuelve la lista nueva de propuestos: actualiza, añade o quita. Nunca vuelve a proponer lo
+  aceptado o descartado.
+- **El día lo reparte la IA** mirando la CARGA de los 10 días siguientes (tareas planificadas por día) y el
+  cuadrante: lo urgente pronto, sin pasar de ~5 tareas en un día.
+- **Validar** (Tareas → Claude → **Próximos**): cada paso con su día editable, **Aceptar** (crea la tarea con
+  `hoy_para` = ese día, proyecto, categoría y cuadrante; el paso queda `aceptado` con su `tarea_id`) o
+  **Descartar**. «Aceptar todos» por sesión.
+- Claude puede proponer uno a mano en mitad de una sesión con `2day proximo …`.
+
+**El comando `2day`** (`bitacora/dosday.py`, enlazado en `~/.local/bin/2day`) — las manos de Claude:
+`ver · crear · mover · editar · completar · archivar · proyecto · proyectos · categoria · categorias ·
+frente · frentes · proximo`. Escribe con `SUPABASE_DB_URL` del vault como dueño Alex. Una tarea se nombra por
+el principio de su id o por un trozo único del título. Sólo tareas personales (`hoy_tareas`); las del portal
+siguen por el portal.
+- **Instrucción global** en `~/.claude/CLAUDE.md`: en cualquier sesión, cuando se decide, empieza, bloquea o
+  termina trabajo, Claude lo refleja con `2day` sin que se lo pidan. **`completar` sólo si Alex lo dice**
+  (§14.4: Completado es de Alex); lo terminado por Claude va a `review`.
+
 ### 14.1 · Modelo (`sql/2026-10-23-bitacora.sql`)
 
 - **`hoy_cc_sesiones`** — `id` = session_id de Claude Code · `cwd`, `carpeta`, `titulo` (el `ai-title` del transcript), `resumen` (lo escribe la IA), `inicio`, `ultimo`, `pasos`, `terminada`, `procesar_pedido` (lo enciende la app), `procesada_en`.
 - **`hoy_cc_sesiones.activo_desde` · `activo_pedido`** (§14.4, `sql/2026-10-23-bitacora-tablero.sql`): la terminal está trabajando ahora mismo.
+- **`hoy_proximos`** (§14.6, `sql/2026-10-23-proximos.sql`) — `sesion_id` · `titulo`, `descripcion`, `proyecto_id`, `categoria`, `cuadrante`, `dia`, `minutos`, `orden` · `estado` (`propuesto`/`aceptado`/`descartado`) · `tarea_id` · `origen` (`ia`/`claude`) · `decidido_en`.
 - **`hoy_cc_pasos`** — `id` = uuid del mensaje humano · `sesion_id` · `inicio`, `fin` · `pedido`, `respuesta` (recortadas) · `herramientas` jsonb (`{Bash: 4, Edit: 2}`) · `archivos[]` · `comandos[]` · `tarea_id` (la `hoy_tareas` a la que la IA lo asignó; null = ruido) · `procesado`.
 - RLS por dueño en las dos; `anon` revocado. El hook y el clasificador escriben con `SUPABASE_DB_URL` del vault (sólo en el Mac) poniendo `owner_id` de Alex a mano.
 

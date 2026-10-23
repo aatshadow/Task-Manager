@@ -3,6 +3,8 @@ import { Check, ChevronLeft, ChevronRight, Bot, CheckCircle2, CircleDashed, Refr
 import Boton from '../../componentes/Boton.jsx'
 import Segmentos from '../../componentes/Segmentos.jsx'
 import TableroClaude from './TableroClaude.jsx'
+import ProximosClaude from './ProximosClaude.jsx'
+import { cargarProximos } from '../../datos/bitacora.js'
 import Vacio from '../../componentes/Vacio.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarGuardar } from '../../estado/usarGuardar.js'
@@ -23,16 +25,30 @@ function nombreDia(fecha, hoy) {
 // La pestaña recuerda la cara y el día al volver de una tarea abierta.
 let ultimoDia = null
 let ultimaCara = 'tablero'
-const CARAS = [{ valor: 'tablero', etiqueta: 'Tablero' }, { valor: 'sesiones', etiqueta: 'Sesiones' }]
-
-/** CLAUDE (LOGICA §14): dos caras, el tablero de tareas (§14.4) y las sesiones del día (§14.0-8). */
+/** CLAUDE (LOGICA §14): tres caras, el tablero (§14.4), los próximos pasos por validar (§14.6) y las sesiones del día. */
 export default function Claude() {
   const [cara, setCaraEstado] = useState(ultimaCara)
   const setCara = (c) => { ultimaCara = c; setCaraEstado(c) }
+  // La cuenta de próximos va en la etiqueta: se ve desde cualquier cara que hay algo por validar.
+  const [porValidar, setPorValidar] = useState(0)
+  useEffect(() => {
+    let vivo = true
+    const contar = () => cargarProximos().then((g) => { if (vivo) setPorValidar(g.reduce((n, x) => n + x.pasos.length, 0)) }).catch(() => {})
+    contar()
+    const t = setInterval(() => { if (document.visibilityState === 'visible') contar() }, 15000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [])
+  const caras = [
+    { valor: 'tablero', etiqueta: 'Tablero' },
+    { valor: 'proximos', etiqueta: porValidar ? `Próximos · ${porValidar}` : 'Próximos' },
+    { valor: 'sesiones', etiqueta: 'Sesiones' },
+  ]
   return (
     <div className="claude">
-      <Segmentos opciones={CARAS} valor={cara} alCambiar={setCara} className="claude-caras" />
-      {cara === 'tablero' ? <TableroClaude /> : <Sesiones />}
+      <Segmentos opciones={caras} valor={cara} alCambiar={setCara} className="claude-caras" />
+      {cara === 'tablero' && <TableroClaude />}
+      {cara === 'proximos' && <ProximosClaude alCambiarCuenta={setPorValidar} />}
+      {cara === 'sesiones' && <Sesiones />}
     </div>
   )
 }

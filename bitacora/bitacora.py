@@ -226,10 +226,9 @@ def esquema(categorias):
     t['properties'].pop('categoria')
     t['properties'].update(clasif)
     t['required'] = ['id', 'titulo', 'descripcion', 'proyecto_id', 'proyecto_nuevo', 'categoria', 'cuadrante', 'estado', 'pasos']
-    pe = e['properties']['pendientes']['items']
-    pe['properties'].pop('proyecto_id')
-    pe['properties'].update(clasif)
-    pe['required'] = ['titulo', 'descripcion', 'proyecto_id', 'proyecto_nuevo', 'categoria', 'cuadrante']
+    pr = e['properties']['proximos']['items']
+    pr['properties'].update(clasif)
+    pr['required'] = ['id', 'titulo', 'descripcion', 'proyecto_id', 'proyecto_nuevo', 'categoria', 'cuadrante', 'dia', 'minutos']
     return e
 
 
@@ -250,13 +249,18 @@ ESQUEMA_BASE = {
             },
             'required': ['id', 'titulo', 'descripcion', 'proyecto_id', 'categoria', 'estado', 'pasos'],
         }},
-        'pendientes': {'type': 'array', 'maxItems': 3, 'items': {
+        'proximos': {'type': 'array', 'maxItems': 5, 'description': 'La lista COMPLETA y actualizada de próximos pasos propuestos de la sesión (§14.6).', 'items': {
             'type': 'object',
-            'properties': {'titulo': {'type': 'string'}, 'descripcion': {'type': 'string'}, 'proyecto_id': {'type': ['string', 'null']}},
-            'required': ['titulo', 'descripcion', 'proyecto_id'],
+            'properties': {
+                'id': {'type': 'string', 'description': 'id de un próximo PROPUESTO de PROXIMOS_DE_ESTA_SESION si es ese (actualizado); "nuevo" si no.'},
+                'titulo': {'type': 'string', 'description': 'Acción concreta, verbo + objeto, ≤ 70 caracteres.'},
+                'descripcion': {'type': 'string', 'description': 'Por qué y qué hay que hacer exactamente, 1-2 frases.'},
+                'dia': {'type': 'string', 'description': 'AAAA-MM-DD, desde HOY, repartido según CARGA.'},
+                'minutos': {'type': 'integer', 'description': 'Estimación: 15, 30, 60, 90, 120…'},
+            },
         }},
     },
-    'required': ['resumen', 'tareas', 'pendientes'],
+    'required': ['resumen', 'tareas', 'proximos'],
 }
 
 INSTRUCCIONES = """Eres el registrador de trabajo de Alex dentro de 2day, su app de tareas. Alex abre varias sesiones de Claude Code a la vez y al terminar no sabe qué hizo. Te llega una sesión: sus PASOS (cada paso = lo que Alex pidió y lo que Claude hizo hasta el siguiente pedido: herramientas, archivos tocados, comandos y la respuesta final).
@@ -270,7 +274,8 @@ Convierte los pasos en TAREAS como las que Alex apuntaría en su lista:
   · Proyecto: usa la CHULETA (alias → proyecto) y PROYECTOS. Si el proyecto de la chuleta existe en PROYECTOS, su id. Si la chuleta nombra un proyecto que aún no existe, o el trabajo no encaja en ninguno, proyecto_id null y proyecto_nuevo con un nombre corto (2-3 palabras, como los de PROYECTOS). No inventes proyectos por tarea: agrupa por cliente o frente.
   · Categoría: la que mejor describa el tipo de trabajo, de CATEGORIAS (clave → nombre).
   · Cuadrante: lo urgente es lo que tiene fecha o bloquea a alguien hoy; lo importante, lo que mueve dinero, clientes o el sistema.
-- pendientes: sólo lo que Alex dijo explícitamente que haría luego o lo que quedó bloqueado y hay que retomar. Máximo 3. Nunca uno que ya esté en TAREAS_DE_ALEX o TAREAS_DE_ESTA_SESION. Si no hay, lista vacía.
+- proximos: los PRÓXIMOS PASOS de esta sesión, que Alex validará uno a uno: lo que queda por hacer para cerrar lo que se trabajó (pruebas, despliegues, revisiones, decisiones pendientes, lo que Alex dijo que haría luego, lo bloqueado). Concretos y accionables, máximo 5, los más importantes primero. Devuelve la lista completa y actualizada: mantén (con su id) los PROPUESTOS que siguen valiendo, quita los que ya no, y NUNCA repitas uno aceptado o descartado ni una tarea que ya exista en TAREAS_DE_ALEX o TAREAS_DE_ESTA_SESION. Si no queda nada, lista vacía.
+  · dia: reparte entre HOY y los próximos días mirando CARGA (tareas ya planificadas por día): lo urgente (q1) hoy o mañana; no pases de ~5 tareas en un día.
 - Todo en español, sin humo. Responde sólo con el JSON."""
 
 
@@ -394,6 +399,13 @@ def _procesar_sesion(c, s):
                    order by t.updated_at desc limit 200""", (OWNER,))
     abiertas = [{'id': str(i), 'titulo': t, 'proyecto': p, 'hecha': h} for i, t, p, h in cur.fetchall()]
     proyectos, categorias = _catalogos(cur)
+    cur.execute("""select id, titulo, estado, dia from hoy_proximos where sesion_id = %s order by orden""", (s['id'],))
+    proximos = [{'id': str(i), 'titulo': t, 'estado': e, 'dia': str(d) if d else None} for i, t, e, d in cur.fetchall()]
+    hoy = _dia_logico(dt.datetime.now().astimezone())
+    cur.execute("""select k.hoy_para, count(*) from hoy_capa k join hoy_tareas t on t.id = k.tarea_id
+                   where k.owner_id = %s and not t.hecha and t.archivado_at is null and k.hoy_para between %s and %s
+                   group by 1""", (OWNER, hoy, hoy + dt.timedelta(days=10)))
+    carga = {str(d): n for d, n in cur.fetchall()}
 
     entrada = {
         'SESION': {'carpeta': s['cwd'], 'titulo': s['titulo'], 'resumen_anterior': s['resumen']},
@@ -407,6 +419,9 @@ def _procesar_sesion(c, s):
         'PROYECTOS': proyectos,
         'CATEGORIAS': categorias,
         'CHULETA': open(CHULETA).read() if os.path.exists(CHULETA) else '',
+        'PROXIMOS_DE_ESTA_SESION': proximos,
+        'HOY': str(hoy),
+        'CARGA': {str(hoy + dt.timedelta(days=i)): carga.get(str(hoy + dt.timedelta(days=i)), 0) for i in range(11)},
     }
     salida = _llamar_claude(entrada, esquema(list(categorias)))
 
@@ -457,21 +472,33 @@ def _procesar_sesion(c, s):
             creadas += 1
         cur.execute("update hoy_cc_pasos set tarea_id = %s where id = any(%s)", (tarea_id, [p['id'] for p in mis_pasos]))
 
-    for pe in salida.get('pendientes', [])[:3]:
-        cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, categoria, pipeline_id, etapa_id, estado)
-                       values (%s, %s, %s, %s, %s, %s, %s, 'todo') returning id""",
-                    (OWNER, pe['titulo'][:200], pe.get('descripcion', ''), proyecto_de(pe),
-                     pe.get('categoria') if pe.get('categoria') in categorias else None, pipeline, etapas.get('todo')))
-        cur.execute("insert into hoy_capa (tarea_id, owner_id, origen, cuadrante, notas) values (%s, %s, 'hoy', %s, %s)",
-                    (cur.fetchone()[0], OWNER, pe.get('cuadrante') if pe.get('cuadrante') in ('q1', 'q2', 'q3', 'q4') else None,
-                     f"Pendiente que dejó la sesión de Claude «{s['titulo'] or s['carpeta']}»"))
-        creadas += 1
+    # §14.6: la lista de próximos PROPUESTOS de la sesión queda como la devuelve la IA (los decididos no se tocan).
+    propuestos = {p['id'] for p in proximos if p['estado'] == 'propuesto'}
+    seguidos = set()
+    for orden, pr in enumerate(salida.get('proximos', [])[:5]):
+        try:
+            dia = max(dt.date.fromisoformat(pr.get('dia') or ''), hoy)
+        except ValueError:
+            dia = hoy
+        valores = (pr['titulo'][:200], pr.get('descripcion', ''), proyecto_de(pr),
+                   pr.get('categoria') if pr.get('categoria') in categorias else None,
+                   pr.get('cuadrante') if pr.get('cuadrante') in ('q1', 'q2', 'q3', 'q4') else None,
+                   dia, pr.get('minutos'), orden)
+        if pr.get('id') in propuestos:
+            seguidos.add(pr['id'])
+            cur.execute("""update hoy_proximos set titulo = %s, descripcion = %s, proyecto_id = %s, categoria = %s, cuadrante = %s,
+                             dia = %s, minutos = %s, orden = %s, updated_at = now() where id = %s""", (*valores, pr['id']))
+        else:
+            cur.execute("""insert into hoy_proximos (owner_id, sesion_id, titulo, descripcion, proyecto_id, categoria, cuadrante, dia, minutos, orden)
+                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (OWNER, s['id'], *valores))
+    for quitado in propuestos - seguidos:
+        cur.execute("delete from hoy_proximos where id = %s and estado = 'propuesto'", (quitado,))
 
     cur.execute("update hoy_cc_pasos set procesado = true, updated_at = now() where id = any(%s)", ([p['id'] for p in pasos],))
     cur.execute("""update hoy_cc_sesiones set resumen = %s, procesada_en = now(), procesar_pedido = false, updated_at = now()
                    where id = %s""", (salida.get('resumen') or s['resumen'], s['id']))
     c.commit()
-    log('procesar', s['id'][:8], f'{len(pasos)} pasos → {len(salida.get("tareas", []))} tareas, {creadas} nuevas')
+    log('procesar', s['id'][:8], f'{len(pasos)} pasos → {len(salida.get("tareas", []))} tareas, {creadas} nuevas, {len(salida.get("proximos", []))} próximos')
     # Si quedan pasos (más de una llamada, u otro Stop llegó mientras se clasificaba), otra tanda.
     cur.execute("select count(*) from hoy_cc_pasos where sesion_id = %s and not procesado", (s['id'],))
     if cur.fetchone()[0]:
