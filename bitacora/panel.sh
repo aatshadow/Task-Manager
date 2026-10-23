@@ -3,6 +3,11 @@
 # Va en un Chrome aislado (perfil propio en ~/.claude/2day-bitacora/panel-chrome) para poder
 # saber si está abierto y cerrarlo sin tocar el Chrome de Alex: abrir/cerrar = arrancar/parar ese proceso.
 PERFIL="$HOME/.claude/2day-bitacora/panel-chrome"
+# Un solo panel: un segundo clic en menos de 3 s (doble clic, Chrome aún arrancando) no hace nada.
+MARCA="$HOME/.claude/2day-bitacora/panel.ultimo"
+ahora=$(date +%s)
+[ -f "$MARCA" ] && [ $(( ahora - $(cat "$MARCA") )) -lt 3 ] && exit 0
+echo "$ahora" > "$MARCA"
 if pgrep -f "user-data-dir=$PERFIL" >/dev/null; then
   pkill -f "user-data-dir=$PERFIL"
   exit 0
