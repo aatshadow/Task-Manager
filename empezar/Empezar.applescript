@@ -21,9 +21,9 @@ tell application "Terminal"
 	repeat with i from 1 to 4
 		if i is 1 and not yaAbierto then
 			delay 0.6
-			do script "cd ~ && claude" in window 1
+			do script "cd ~ && claude --dangerously-skip-permissions" in window 1
 		else
-			do script "cd ~ && claude"
+			do script "cd ~ && claude --dangerously-skip-permissions"
 		end if
 		delay 0.3
 		set {px, py} to item i of huecos
