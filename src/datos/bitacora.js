@@ -6,6 +6,8 @@
 import { supabase, isConfigured, ErrorHoy, filas, ok } from '../lib/supabase.js'
 import { aMinutos, sumarDias } from './fechas.js'
 
+const VIVA_HORAS = 3 // §14.4: una marca de «trabajando» más vieja es una terminal cerrada a lo bruto
+
 const listo = () => {
   if (!isConfigured || !supabase) throw new ErrorHoy('Supabase no está configurado')
 }
@@ -36,10 +38,10 @@ export async function cargarDia(fecha, horaReinicio) {
   const sesiones = filas(await supabase.from('hoy_cc_sesiones').select('*').in('id', ids), 'no se pudieron leer las sesiones')
   const idsTareas = [...new Set(pasos.map((p) => p.tareaId).filter(Boolean))]
   const tareas = idsTareas.length
-    ? filas(await supabase.from('hoy_tareas').select('id, titulo, hecha, estado, proyecto_id, hecha_en').in('id', idsTareas), 'no se pudieron leer las tareas')
+    ? filas(await supabase.from('hoy_tareas').select('id, titulo, hecha, estado, proyecto_id, hecha_en, archivado_at').in('id', idsTareas), 'no se pudieron leer las tareas')
     : []
   const porId = Object.fromEntries(tareas.map((t) => [t.id, { id: t.id, titulo: t.titulo, hecha: t.hecha, estado: t.estado, proyectoId: t.proyecto_id }]))
-  return sesiones.map((s) => {
+  const resultado = sesiones.map((s) => {
     const suyos = pasos.filter((p) => p.sesionId === s.id)
     const deTareas = [...new Set(suyos.map((p) => p.tareaId).filter(Boolean))].map((id) => ({
       ...(porId[id] || { id, titulo: '(tarea borrada)' }),
@@ -49,12 +51,14 @@ export async function cargarDia(fecha, horaReinicio) {
       id: s.id, carpeta: s.carpeta, cwd: s.cwd, titulo: s.titulo || s.carpeta, resumen: s.resumen,
       inicio: suyos[0].inicio, fin: suyos[suyos.length - 1].fin, terminada: s.terminada,
       procesarPedido: s.procesar_pedido, procesadaEn: s.procesada_en,
+      activoDesde: s.activo_desde && Date.now() - new Date(s.activo_desde) < VIVA_HORAS * 3600000 ? s.activo_desde : null,
+      activoPedido: s.activo_pedido,
       pasos: suyos, tareas: deTareas, sinProcesar: suyos.filter((p) => !p.procesado).length,
     }
   }).sort((a, b) => (a.inicio < b.inicio ? 1 : -1))
+  resultado.estados = Object.fromEntries(tareas.map((t) => [t.id, t]))
+  return resultado
 }
-
-const VIVA_HORAS = 3 // §14.4: una marca de «trabajando» más vieja es una terminal cerrada a lo bruto
 
 /**
  * El tablero (§14.4): qué tareas tocó Claude (últimos 30 días) y qué terminales están trabajando
@@ -82,6 +86,10 @@ export async function cargarTablero() {
     if (p.fin > t.ultimo) t.ultimo = p.fin
     deClaude.set(p.tarea_id, t)
   }
+  const ids_t = [...deClaude.keys()]
+  const estados = ids_t.length
+    ? Object.fromEntries(filas(await supabase.from('hoy_tareas').select('id, estado, hecha, archivado_at').in('id', ids_t), 'no se pudieron leer las tareas').map((t) => [t.id, t]))
+    : {}
   for (const t of deClaude.values()) {
     t.sesion = [...t.sesiones].map((id) => porSesion[id]).filter(Boolean).map((s) => s.titulo || s.carpeta).join(' · ')
   }
@@ -90,7 +98,20 @@ export async function cargarTablero() {
   const clasificando = [...sinClasificar.entries()]
     .filter(([id]) => !activas.some((a) => a.id === id) && porSesion[id])
     .map(([id, n]) => ({ id, titulo: porSesion[id].titulo || porSesion[id].carpeta, pasos: n }))
-  return { deClaude, activas, clasificando }
+  return { deClaude, activas, clasificando, estados }
+}
+
+/**
+ * ¿La memoria de la app va por detrás de la base? (§14.4: tablero y sesiones a la par). `estados` =
+ * { id: { estado, hecha } } leído ahora; si alguna tarea falta o tiene otro estado en `tareas`, toca recargar.
+ */
+export function desfasadas(estados, tareas) {
+  const porId = new Map(tareas.map((t) => [t.id, t]))
+  return Object.values(estados).some((b) => {
+    if (b.archivado_at) return false // la app no carga las archivadas: no es desfase
+    const m = porId.get(b.id)
+    return !m || m.hecha !== !!b.hecha || (!b.hecha && m.estado !== b.estado)
+  })
 }
 
 /** Enciende `procesar_pedido`: el clasificador la procesa en su próxima vuelta aunque no esté quieta. */

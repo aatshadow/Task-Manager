@@ -66,8 +66,9 @@ if (PESTANA !== 'hoy') {
   await espera(1500)
 }
 const sub = arg('sub', '')
-if (sub) { await pag.click(`text=${sub}`); await espera(1200) }
-const ruta = `${SALIDA}/${PESTANA}${sub ? '-' + sub.toLowerCase() : ''}-${ANCHO}.png`
+// `--sub` admite varios pasos: «Claude>Sesiones» toca uno detrás de otro.
+for (const paso of sub ? sub.split('>') : []) { await pag.click(`text=${paso}`); await espera(1200) }
+const ruta = `${SALIDA}/${PESTANA}${sub ? '-' + sub.toLowerCase().replace(/>/g, '-') : ''}-${ANCHO}.png`
 await pag.screenshot({ path: ruta, fullPage: flag('pagina') })
 console.log(`  ✓ ${ruta}`)
 await browser.close()

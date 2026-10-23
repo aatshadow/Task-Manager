@@ -3,7 +3,7 @@ import { Check, Undo2, Loader2, Bot } from 'lucide-react'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarGuardar } from '../../estado/usarGuardar.js'
 import * as datosTareas from '../../datos/tareas.js'
-import { cargarTablero } from '../../datos/bitacora.js'
+import { cargarTablero, desfasadas } from '../../datos/bitacora.js'
 import { diaDe } from '../../datos/fechas.js'
 
 const REFRESCO_MS = 15000
@@ -42,9 +42,10 @@ export default function TableroClaude() {
     return () => clearInterval(t)
   }, [cargar])
 
-  // Las tareas las crea el Mac: si el tablero conoce alguna que la memoria no, se relee una vez.
-  const faltan = datos ? [...datos.deClaude.keys()].some((id) => !tareas.some((t) => t.id === id)) : false
-  useEffect(() => { if (faltan) recargar() }, [faltan, recargar])
+  // Las tareas las crea y las mueve el Mac: si la base dice otra cosa que la memoria (una
+  // nueva, o pasó a revisión), se relee. Así el tablero, Sesiones y el resto de 2day van a la par.
+  const desfase = datos ? desfasadas(datos.estados, tareas) : false
+  useEffect(() => { if (desfase) recargar() }, [desfase, datos, recargar])
 
   const columnas = useMemo(() => {
     const enCurso = [], revision = [], completado = []

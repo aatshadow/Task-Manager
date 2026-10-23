@@ -19,7 +19,7 @@
   box-shadow: var(--sombra-minima);
 }
 .claude-numeros div { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
-.claude-numeros b { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.claude-numeros b { white-space: nowrap; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .claude-numeros span { font-size: var(--t-micro); color: var(--texto-2); text-align: center; }
 .claude-ok { color: var(--ok); }
 .claude-curso { color: var(--aviso); }
@@ -43,6 +43,10 @@
   background: none; border: 0; color: var(--texto); text-align: left; font: inherit; font-size: var(--t-cuerpo);
 }
 .claude-tarea-titulo { flex: 1; min-width: 0; }
+.claude-tareas li { display: flex; align-items: center; gap: 8px; }
+.claude-tarea-estado { font-size: var(--t-micro); font-weight: 600; white-space: nowrap; }
+.claude-completar { flex: none; padding: 5px 10px; font-size: var(--t-micro); }
+.claude-viva { margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .claude-tarea-pasos {
   font-size: var(--t-micro); color: var(--texto-3); background: var(--tarjeta-alta);
   border-radius: var(--radio-pildora); padding: 2px 8px; font-variant-numeric: tabular-nums;

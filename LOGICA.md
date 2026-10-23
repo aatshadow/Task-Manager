@@ -640,6 +640,21 @@ revisión; y cuando yo la dé por completada, completado».
 - La pestaña Claude tiene dos caras, **Tablero · Sesiones** (la de §14.0-8). El tablero se refresca cada
   15 s mientras está a la vista.
 
+### 14.5 · Clasificación completa y las dos caras a la par (Alex, 23-10-2026)
+
+Pedido: «que las clasifique por proyectos y todo lo demás automáticamente» y «asegúrate de que el kanban y la
+sesión van a la par».
+
+- **Siempre proyecto, categoría y cuadrante.** Categorías = las de Alex (`hoy_categorias`, también las suyas
+  como `ceo` o `paid_media`), no sólo las 7 del portal. Proyecto: de la **chuleta** `bitacora/proyectos.md`
+  (alias → proyecto, la edita Alex) o de `hoy_proyectos`; si no encaja ninguno, la IA propone `proyecto_nuevo`
+  y se **crea** (o se reusa si ya existe con ese nombre). En una tarea existente sólo se rellena lo que falta:
+  lo que Alex clasificó a mano no se toca.
+- `bitacora.py reclasificar` rellena lo que les falte a las tareas que ya salieron.
+- **A la par:** las dos caras leen el estado de la misma lista en memoria y se refrescan cada 15 s; si la
+  base dice otra cosa (una tarea nueva, o el Mac la pasó a revisión), se relee. Sesiones enseña cada tarea con
+  el nombre de su columna, «Trabajando ahora» y **Completar** en las que están en revisión.
+
 ### 14.1 · Modelo (`sql/2026-10-23-bitacora.sql`)
 
 - **`hoy_cc_sesiones`** — `id` = session_id de Claude Code · `cwd`, `carpeta`, `titulo` (el `ai-title` del transcript), `resumen` (lo escribe la IA), `inicio`, `ultimo`, `pasos`, `terminada`, `procesar_pedido` (lo enciende la app), `procesada_en`.

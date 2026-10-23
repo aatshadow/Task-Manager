@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Bot, CheckCircle2, CircleDashed, RefreshCw, ChevronDown, FileText, Terminal } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Bot, CheckCircle2, CircleDashed, RefreshCw, ChevronDown, FileText, Terminal } from 'lucide-react'
 import Boton from '../../componentes/Boton.jsx'
 import Segmentos from '../../componentes/Segmentos.jsx'
 import TableroClaude from './TableroClaude.jsx'
 import Vacio from '../../componentes/Vacio.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
-import { cargarDia, pedirProceso, resumenDia } from '../../datos/bitacora.js'
+import { usarGuardar } from '../../estado/usarGuardar.js'
+import * as datosTareas from '../../datos/tareas.js'
+import { cargarDia, desfasadas, pedirProceso, resumenDia } from '../../datos/bitacora.js'
 import { sumarDias } from '../../datos/fechas.js'
 
 const hora = (ts) => new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-const horas = (min) => (min < 60 ? `${min} min` : `${(min / 60).toFixed(1).replace('.', ',')} h`)
+const horas = (min) => (min < 60 ? `${min}m` : `${(min / 60).toFixed(1).replace('.', ',')}h`)
 
 function nombreDia(fecha, hoy) {
   if (fecha === hoy) return 'Hoy'
@@ -56,13 +58,14 @@ function Sesiones() {
   }, [dia, ajustes?.horaReinicio])
 
   useEffect(() => { setSesiones(null); cargar() }, [cargar])
-  // Mientras haya algo en cola, se mira cada 30 s: el clasificador tarda unos minutos.
-  const enCola = sesiones?.some((s) => s.procesarPedido)
+  const desfase = sesiones?.estados ? desfasadas(sesiones.estados, tareas) : false
+  useEffect(() => { if (desfase) recargar() }, [desfase, sesiones, recargar])
+
+  // Al mismo ritmo que el tablero (§14.4): las dos caras dicen lo mismo a la vez.
   useEffect(() => {
-    if (!enCola) return undefined
-    const t = setInterval(cargar, 30000)
+    const t = setInterval(() => { if (document.visibilityState === 'visible') cargar() }, 15000)
     return () => clearInterval(t)
-  }, [enCola, cargar])
+  }, [cargar])
 
   const procesar = async (s) => {
     try {
@@ -104,14 +107,27 @@ function Sesiones() {
       {sesiones && !sesiones.length && (
         <Vacio icono={Bot} titulo="Sin sesiones de Claude" texto="Cada sesión de Claude Code que abras se apunta aquí sola, paso a paso, y la IA la convierte en tareas." />
       )}
-      {sesiones?.map((s) => <Sesion key={s.id} sesion={s} alAbrir={abrir} alProcesar={() => procesar(s)} />)}
+      {sesiones?.map((s) => <Sesion key={s.id} sesion={s} tareas={tareas} alAbrir={abrir} alProcesar={() => procesar(s)} />)}
     </div>
   )
 }
 
-function Sesion({ sesion: s, alAbrir, alProcesar }) {
+// Las mismas tres columnas que el tablero, con el mismo nombre y color.
+const COLUMNA = {
+  in_progress: { nombre: 'En curso', clase: 'claude-curso' },
+  review: { nombre: 'En revisión', clase: 'claude-revision' },
+  done: { nombre: 'Completada', clase: 'claude-ok' },
+}
+const columnaDe = (t) => (t.hecha ? 'done' : t.estado === 'review' ? 'review' : 'in_progress')
+
+function Sesion({ sesion: s, tareas: enMemoria, alAbrir, alProcesar }) {
   const [abierta, setAbierta] = useState(false)
-  const hechas = s.tareas.filter((t) => t.hecha).length
+  const guardar = usarGuardar()
+  // El estado de cada tarea sale de la MISMA lista que pinta el tablero (el contexto): completar
+  // o devolver en una cara se ve al instante en la otra. Lo leído de la base sólo si aún no está.
+  const tareasSesion = s.tareas.map((t) => ({ ...t, ...(enMemoria.find((m) => m.id === t.id) || {}), pasos: t.pasos }))
+  const hechas = tareasSesion.filter((t) => t.hecha).length
+  const completar = (t) => guardar(t, datosTareas.parcheHecha(true), () => datosTareas.completar(t, true))
   return (
     <section className="claude-sesion">
       <header className="claude-sesion-cabeza">
@@ -120,23 +136,32 @@ function Sesion({ sesion: s, alAbrir, alProcesar }) {
           <span>{s.carpeta}</span>
           <span>{hora(s.inicio)}–{hora(s.fin)}</span>
           <span>{s.pasos.length} {s.pasos.length === 1 ? 'paso' : 'pasos'}</span>
-          {s.tareas.length > 0 && <span className="claude-ok">{hechas}/{s.tareas.length} hechas</span>}
+          {s.tareas.length > 0 && <span className="claude-ok">{hechas}/{s.tareas.length} completadas</span>}
         </div>
+        {s.activoDesde && (
+          <div className="ctab-viva claude-viva"><span className="ctab-pulso" /> Trabajando ahora: {s.activoPedido || '…'}</div>
+        )}
       </header>
 
       {s.resumen && <p className="claude-resumen">{s.resumen}</p>}
 
       {s.tareas.length > 0 && (
         <ul className="claude-tareas">
-          {s.tareas.map((t) => (
-            <li key={t.id}>
-              <button onClick={() => alAbrir(t.id)}>
-                {t.hecha ? <CheckCircle2 size={18} className="claude-ok" /> : <CircleDashed size={18} className={t.estado === 'review' ? 'claude-revision' : 'claude-curso'} />}
-                <span className="claude-tarea-titulo">{t.titulo}</span>
-                <span className="claude-tarea-pasos">{t.pasos}</span>
-              </button>
-            </li>
-          ))}
+          {tareasSesion.map((t) => {
+            const col = COLUMNA[columnaDe(t)]
+            return (
+              <li key={t.id}>
+                <button onClick={() => alAbrir(t.id)}>
+                  {t.hecha ? <CheckCircle2 size={18} className="claude-ok" /> : <CircleDashed size={18} className={col.clase} />}
+                  <span className="claude-tarea-titulo">{t.titulo}</span>
+                  <span className={`claude-tarea-estado ${col.clase}`}>{col.nombre}</span>
+                </button>
+                {columnaDe(t) === 'review' && (
+                  <button className="ctab-boton ctab-boton--ok claude-completar" onClick={() => completar(t)}><Check size={14} /> Completar</button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
 
