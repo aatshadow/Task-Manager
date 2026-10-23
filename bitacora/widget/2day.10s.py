@@ -90,6 +90,8 @@ def main():
     color = f' color={NARANJA}' if activas else ''
     print('  '.join(partes) + f' |{color}' if partes else '2day | sfimage=checklist')
     print('---')
+    print(f'▣ Panel visual (abrir / cerrar) | bash={BITACORA}/panel.sh terminal=false')
+    print('---')
 
     # ── trabajando ahora ──
     print(f'Trabajando ahora ({len(activas)}) | size=11 color={GRIS}')

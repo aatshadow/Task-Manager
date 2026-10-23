@@ -10,7 +10,7 @@ const cuando = (ts) => new Date(ts).toLocaleString('es-ES', { weekday: 'short', 
  * en Próximos (para validar); aquí se ve cuántas dejó y cuántas aceptaste.
  */
 export default function ReunionesClaude({ alIrAProximos }) {
-  const { proyectos } = useDatos()
+  const { proyectos, clientes } = useDatos()
   const [lista, setLista] = useState(null)
   const [error, setError] = useState(null)
   const [abierta, setAbierta] = useState(null)
@@ -31,7 +31,7 @@ export default function ReunionesClaude({ alIrAProximos }) {
   return (
     <div className="creu">
       {lista.map((r) => {
-        const pr = proyectos.find((p) => p.id === r.proyectoId)
+        const pr = r.clientId ? (c => c && { nombre: c.nombre, color: 'var(--acento)' })(clientes.find((x) => x.id === r.clientId)) : proyectos.find((p) => p.id === r.proyectoId)
         const abiertaEsta = abierta === r.id
         return (
           <section key={r.id} className="claude-sesion">

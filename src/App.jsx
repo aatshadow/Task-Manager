@@ -17,6 +17,7 @@ import Fitness from './pantallas/Fitness/Fitness.jsx'
 import Estadisticas from './pantallas/Estadisticas/Estadisticas.jsx'
 import Ajustes from './pantallas/Ajustes/Ajustes.jsx'
 import Acceso from './pantallas/Acceso/Acceso.jsx'
+import Panel from './pantallas/Panel/Panel.jsx'
 import Muestrario from './dev/Muestrario.jsx'
 import { ProveedorDatos, useDatos } from './estado/useDatos.jsx'
 import { usarEscritorio } from './estado/usarEscritorio.js'
@@ -35,7 +36,7 @@ const PANTALLAS = {
   ajustes: { Pantalla: Ajustes, titulo: 'Ajustes' },
 }
 
-// El hash solo sirve en desarrollo: #muestrario enseña los componentes, #acceso la pantalla de login.
+// El hash: #panel es la ventana del widget (§14.8); #muestrario y #acceso sólo sirven en desarrollo.
 function usarHash() {
   const [hash, setHash] = useState(() => window.location.hash)
   useEffect(() => {
@@ -65,6 +66,9 @@ function Raiz() {
 
   // Hasta saber si hay sesión persistida no se decide nada: evita el parpadeo del login.
   if (!sesionLista) return <div className="arranque">2day</div>
+
+  // #panel: la ventana estrecha que abre el widget de la barra de menús (LOGICA §14.8).
+  if (hash === '#panel' && sesion) return (<><Panel /><Aviso {...(aviso || {})} alCerrar={quitarAviso} /></>)
 
   return (
     <>

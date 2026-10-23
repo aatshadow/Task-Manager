@@ -112,6 +112,7 @@ const aColumnasHoy = (c) => {
   if ('titulo' in c) m.titulo = String(c.titulo || '').trim()
   if ('descripcion' in c) m.descripcion = c.descripcion || ''
   if ('proyectoId' in c) m.proyecto_id = c.proyectoId || null
+  if ('clientId' in c) m.client_id = c.clientId || null   // §14.9: etiqueta de cliente en una personal
   if ('categoria' in c) m.categoria = c.categoria || null
   if ('pipelineId' in c) m.pipeline_id = c.pipelineId || null
   if ('etapaId' in c) m.etapa_id = c.etapaId || null
@@ -220,6 +221,7 @@ export async function crear(datos = {}) {
       titulo,
       descripcion: datos.descripcion || '',
       proyecto_id: datos.proyectoId || null,
+      client_id: datos.clientId || null,   // §14.9: sólo llega aquí con origen 'hoy' explícito
       categoria: datos.categoria || null,
       pipeline_id: pipe?.id || null,
       etapa_id: etapaTodo?.id || null,

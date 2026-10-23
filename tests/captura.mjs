@@ -52,7 +52,7 @@ if (await pag.$('input[type="email"]')) {
 // Por eso: armazón montado (la nav) + DOS lecturas limpias seguidas.
 let limpias = 0
 for (let i = 0; i < 100; i += 1) {
-  const listo = await pag.evaluate(() => !!document.querySelector('nav[aria-label="Principal"]') && !(document.body.innerText || '').includes('Cargando')).catch(() => false)
+  const listo = await pag.evaluate(() => !!document.querySelector('nav[aria-label="Principal"], .panel') && !(document.body.innerText || '').includes('Cargando')).catch(() => false)
   limpias = listo ? limpias + 1 : 0
   if (limpias >= 2) break
   await espera(400)

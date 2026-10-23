@@ -1,0 +1,38 @@
+/* 2day · el panel del widget (LOGICA §14.8): ventana estrecha (~420 px), todo de tokens.css. */
+.panel { min-height: 100vh; background: var(--fondo); background-image: var(--fondo-halo); color: var(--texto); padding: 18px 14px 28px; display: flex; flex-direction: column; gap: 14px; }
+.panel-cabeza { display: flex; align-items: center; justify-content: space-between; }
+.panel-marca { font-size: 22px; font-weight: 800; color: var(--acento); letter-spacing: -0.02em; }
+.panel-fecha { font-size: var(--t-secundario); color: var(--texto-2); }
+.panel-fecha::first-letter { text-transform: uppercase; }
+.panel-anillo { position: relative; width: 76px; height: 76px; }
+.panel-anillo-fondo { fill: none; stroke: var(--tarjeta-alta); stroke-width: 7; }
+.panel-anillo-valor { fill: none; stroke: var(--ok); stroke-width: 7; stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
+.panel-anillo-texto { position: absolute; inset: 0; display: flex; align-items: baseline; justify-content: center; padding-top: 25px; font-variant-numeric: tabular-nums; }
+.panel-anillo-texto b { font-size: 20px; }
+.panel-anillo-texto span { font-size: var(--t-micro); color: var(--texto-3); }
+
+.panel-cifras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.panel-cifra { background: var(--tarjeta); border-radius: 16px; box-shadow: var(--sombra-minima); padding: 10px 6px; display: flex; flex-direction: column; align-items: center; }
+.panel-cifra b { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.panel-cifra span { font-size: var(--t-micro); color: var(--texto-2); }
+
+.panel-bloque { background: var(--tarjeta); border-radius: 18px; box-shadow: var(--sombra-minima); padding: 12px; }
+.panel-bloque-titulo { display: flex; align-items: center; gap: 7px; font-size: var(--t-micro); font-weight: 700; color: var(--texto-2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.panel-punto { width: 8px; height: 8px; border-radius: 50%; }
+.panel-bloque-cuerpo { display: flex; flex-direction: column; gap: 2px; }
+.panel-nada { font-size: var(--t-secundario); color: var(--texto-3); padding: 4px 2px; }
+
+.panel-viva { display: flex; align-items: flex-start; gap: 10px; padding: 8px; border-radius: 12px; background: linear-gradient(135deg, rgba(232, 177, 58, 0.12), transparent 70%); }
+.panel-pulso { width: 9px; height: 9px; margin-top: 5px; border-radius: 50%; background: var(--aviso); box-shadow: 0 0 0 0 rgba(232, 177, 58, 0.6); animation: panel-pulso 1.6s ease-out infinite; flex: none; }
+@keyframes panel-pulso { 70% { box-shadow: 0 0 0 8px rgba(232, 177, 58, 0); } 100% { box-shadow: 0 0 0 0 rgba(232, 177, 58, 0); } }
+.panel-viva-texto, .panel-fila-texto { flex: 1; min-width: 0; }
+.panel-clasif { display: flex; align-items: center; gap: 6px; padding: 4px 2px; }
+
+.panel-fila { display: flex; align-items: center; gap: 6px; padding: 7px 2px; }
+.panel-fila + .panel-fila { border-top: 1px solid var(--linea); }
+.panel-linea { font-size: 14px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.panel-sub { font-size: var(--t-micro); color: var(--texto-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-dia { color: var(--acento-claro); font-weight: 600; }
+.panel-boton { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--tarjeta-alta); border: 1px solid var(--tarjeta-borde); color: var(--texto-2); cursor: pointer; }
+.panel-boton--ok { background: rgba(62, 194, 122, 0.15); border-color: rgba(62, 194, 122, 0.4); color: var(--ok); }
+.panel-boton:hover { filter: brightness(1.25); }

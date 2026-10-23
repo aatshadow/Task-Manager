@@ -19,7 +19,7 @@ const duracion = (min) => (!min ? null : min < 60 ? `${min} min` : `${(min / 60)
  * Descartar la quita. El día se cambia antes de aceptar.
  */
 export default function ProximosClaude({ alCambiarCuenta }) {
-  const { hoy, recargar, avisar, proyectos, ajustes } = useDatos()
+  const { hoy, recargar, avisar, proyectos, clientes, ajustes } = useDatos()
   const [grupos, setGrupos] = useState(null)
   const [ocupado, setOcupado] = useState(null)
   const [error, setError] = useState(null)
@@ -73,7 +73,8 @@ export default function ProximosClaude({ alCambiarCuenta }) {
     return <div className="ctab-vacio"><Sparkles size={22} /> Sin próximos pasos por validar. Aparecen solos al acabar cada turno de Claude.</div>
   }
 
-  const proyecto = (id) => proyectos.find((x) => x.id === id)
+  // §14.9: un cliente de GrowthInfo se pinta como un proyecto más, con el acento
+  const proyecto = (p) => (p.clientId ? (c => c && { nombre: c.nombre, color: 'var(--acento)' })(clientes.find((x) => x.id === p.clientId)) : proyectos.find((x) => x.id === p.proyectoId))
   const cuadrante = (q) => ajustes?.cuadrantes?.[q]
 
   return (
@@ -87,7 +88,7 @@ export default function ProximosClaude({ alCambiarCuenta }) {
             )}
           </header>
           {g.pasos.map((p) => {
-            const pr = proyecto(p.proyectoId)
+            const pr = proyecto(p)
             const q = cuadrante(p.cuadrante)
             return (
               <div key={p.id} className="ctab-tarjeta cprox-paso">

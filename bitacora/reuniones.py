@@ -18,7 +18,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from bitacora import (OWNER, CHULETA, conexion, log, _catalogos, _proyecto, _llamar_claude, _dia_logico)  # noqa: E402
+from bitacora import (OWNER, CHULETA, conexion, log, _catalogos, _proyecto, _llamar_claude, _dia_logico, partir)  # noqa: E402
 
 WISPR = os.path.expanduser('~/Library/Application Support/Wispr Flow')
 DESDE = '2026-10-19'           # Alex graba todas desde aquí (operator/reuniones/README.md)
@@ -31,7 +31,7 @@ Escribe, todo en español y sin humo:
 - titulo: corto y claro, con quién y de qué («Daily con Pere: lanzamiento Gemelos»). Nunca «Hablante N»: deduce el nombre por lo que se dice (cómo se llaman entre ellos, de qué cliente hablan); si no se puede, titula sólo por el tema. En el resumen igual: nombres reales cuando se deduzcan, si no «el otro participante».
 - resumen: 3-6 viñetas en markdown («- …») con lo importante: qué se habló, números, fechas, cifras.
 - decisiones: lo que quedó decidido (quién decide y qué). Lista vacía si no hubo.
-- proyecto: el de la reunión, con la CHULETA (alias → proyecto) y PROYECTOS; proyecto_nuevo SÓLO si es un cliente o negocio nuevo de verdad (un curso, lanzamiento o tema de un cliente va a su proyecto).
+- proyecto: el de la reunión (y el de cada tarea), con la CHULETA (alias → proyecto) y PROYECTOS; si es de un CLIENTE de GrowthInfo («cliente:…»: Elena, Jonathan, Gemelos…), ese cliente, no «GrowthInfo»; proyecto_nuevo SÓLO si es un cliente o negocio nuevo de verdad (un curso, lanzamiento o tema de un cliente va a su proyecto).
 - tareas: SOLO lo que tiene que hacer ALEX (o su equipo de Claude/CORE por él), concreto y accionable, verbo + objeto. Lo que hacen otros no es tarea suya salvo que Alex tenga que perseguirlo («Pedir a Pere…»). Máximo 8, lo más importante primero. Ninguna que ya esté en TAREAS_DE_ALEX.
   · dia: desde HOY, repartiendo según CARGA (tareas ya planificadas por día): lo urgente (q1) hoy o mañana, lo que tiene fecha dicha en la reunión para esa fecha, sin pasar de ~5 por día.
 Responde sólo con el JSON."""
@@ -147,14 +147,15 @@ def _una(c, cur, mid, titulo_w, inicio, fin, ms, participantes, resumen_w, trans
     }, _esquema(list(categorias)), INSTRUCCIONES)
 
     proyecto = _proyecto(cur, salida, proyectos)
+    pid, cid = partir(proyecto)
     cur.execute("""insert into hoy_reuniones (id, owner_id, titulo, titulo_wispr, inicio, fin, minutos, participantes, resumen,
-                     decisiones, proyecto_id, resumen_wispr, transcripcion, procesada_en)
-                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+                     decisiones, proyecto_id, client_id, resumen_wispr, transcripcion, procesada_en)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
                    on conflict (id) do update set titulo = excluded.titulo, resumen = excluded.resumen, decisiones = excluded.decisiones,
-                     proyecto_id = excluded.proyecto_id, resumen_wispr = excluded.resumen_wispr, transcripcion = excluded.transcripcion,
+                     proyecto_id = excluded.proyecto_id, client_id = excluded.client_id, resumen_wispr = excluded.resumen_wispr, transcripcion = excluded.transcripcion,
                      procesada_en = now(), updated_at = now()""",
                 (mid, OWNER, salida['titulo'][:200], titulo_w or '', inicio, fin, round((ms or 0) / 60000), participantes or '',
-                 salida['resumen'], json.dumps(salida.get('decisiones', [])), proyecto, resumen_w, transcripcion))
+                 salida['resumen'], json.dumps(salida.get('decisiones', [])), pid, cid, resumen_w, transcripcion))
     n = 0
     if con_proximos:
         cur.execute("delete from hoy_proximos where reunion_id = %s and estado = 'propuesto'", (mid,))
@@ -163,9 +164,9 @@ def _una(c, cur, mid, titulo_w, inicio, fin, ms, participantes, resumen_w, trans
                 dia = max(dt.date.fromisoformat(t.get('dia') or ''), hoy)
             except ValueError:
                 dia = hoy
-            cur.execute("""insert into hoy_proximos (owner_id, reunion_id, titulo, descripcion, proyecto_id, categoria, cuadrante, dia, minutos, orden)
-                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                        (OWNER, mid, t['titulo'][:200], t.get('descripcion', ''), _proyecto(cur, t, proyectos) or proyecto,
+            cur.execute("""insert into hoy_proximos (owner_id, reunion_id, titulo, descripcion, proyecto_id, client_id, categoria, cuadrante, dia, minutos, orden)
+                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (OWNER, mid, t['titulo'][:200], t.get('descripcion', ''), *partir(_proyecto(cur, t, proyectos) or proyecto),
                          t.get('categoria') if t.get('categoria') in categorias else None,
                          t.get('cuadrante') if t.get('cuadrante') in ('q1', 'q2', 'q3', 'q4') else None, dia, t.get('minutos'), orden))
             n += 1

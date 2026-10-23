@@ -718,6 +718,28 @@ se oculte, sencillo y vivo; que 2day esté siempre actualizado aunque no entre e
 - Las acciones van por el comando `2day` (`aceptar`, `descartar`, `completar`, `mover`): una sola puerta.
 - `hoy_cc_sesiones.tty` lo escribe el hook `UserPromptSubmit`.
 
+### 14.9 · Clientes de GrowthInfo en las tareas personales y el panel visual (Alex, 23-10-2026)
+
+Pedido: «archiva bien las tasks: hay algunas que dicen Elena y no están en el proyecto de Elena» y «¿podemos
+hacerlo más visual?».
+
+- **Una tarea personal puede llevar cliente** (`hoy_tareas.client_id`, también en `hoy_proximos` y
+  `hoy_reuniones`): es una **etiqueta**, la tarea NO va al portal (el equipo no la ve). La vista `hoy_todas`
+  devuelve ese `client_id` y la app la pinta en el proyecto del cliente, junto a las del portal
+  (`sql/2026-10-23-cliente-en-personales.sql`). Esto relaja §1/§4 sólo para la etiqueta: mover y completar
+  siguen siendo de `hoy_tareas`.
+- Clientes válidos: los vivos de `clients` con `scope = 'growthinfo'` (Elena Calleja, Jonathan, Zona Gemelos,
+  A. Valenzuela, Alberto Chan, Academia Chatting). La IA los ve como «cliente:<id>» en PROYECTOS y la chuleta
+  dice qué alias van a cada uno; «GrowthInfo» queda para lo general (Pere, ScaleInfo, portal, equipo).
+- En la hoja de una tarea personal el selector de Proyecto ofrece también los clientes («Nombre · cliente»).
+  `2day … --proyecto Elena` también entiende clientes.
+- `bitacora.py rearchivar` pasa lo que estaba en «GrowthInfo» (o sin proyecto y salido de Claude) a su
+  cliente; guarda antes un respaldo JSON en `~/.claude/2day-bitacora/` para deshacer.
+- **Panel visual** (`#panel`, `src/pantallas/Panel/`): ventana estrecha (420 px) pegada a la derecha que abre
+  y cierra `bitacora/panel.sh` (entrada «▣ Panel visual» del widget). Anillo del día (hechas / total de hoy),
+  tres cifras (trabajando · revisión · próximos), terminales con pulso, revisión con ✓/↩, próximos con ✓/✕,
+  en curso y reuniones de 24 h. Refresco cada 10 s.
+
 ### 14.1 · Modelo (`sql/2026-10-23-bitacora.sql`)
 
 - **`hoy_cc_sesiones`** — `id` = session_id de Claude Code · `cwd`, `carpeta`, `titulo` (el `ai-title` del transcript), `resumen` (lo escribe la IA), `inicio`, `ultimo`, `pasos`, `terminada`, `procesar_pedido` (lo enciende la app), `procesada_en`.

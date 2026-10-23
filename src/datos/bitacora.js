@@ -141,7 +141,7 @@ export function resumenDia(sesiones) {
 /* ── Próximos pasos (§14.6) ─────────────────────────────────────────────────── */
 
 const aProximo = (f) => ({
-  id: f.id, sesionId: f.sesion_id, reunionId: f.reunion_id, titulo: f.titulo, descripcion: f.descripcion, proyectoId: f.proyecto_id,
+  id: f.id, sesionId: f.sesion_id, reunionId: f.reunion_id, titulo: f.titulo, descripcion: f.descripcion, proyectoId: f.proyecto_id, clientId: f.client_id,
   categoria: f.categoria, cuadrante: f.cuadrante, dia: f.dia, minutos: f.minutos, orden: f.orden,
   estado: f.estado, origen: f.origen, creadoEn: f.created_at,
 })
@@ -180,7 +180,7 @@ export async function cargarProximos() {
 export async function aceptarProximo(p, dia = p.dia) {
   listo()
   const tarea = await crearTarea({
-    titulo: p.titulo, descripcion: p.descripcion, origen: 'hoy', proyectoId: p.proyectoId,
+    titulo: p.titulo, descripcion: p.descripcion, origen: 'hoy', proyectoId: p.proyectoId, clientId: p.clientId,
     categoria: p.categoria, cuadrante: p.cuadrante, hoyPara: dia || null,
     notas: 'Próximo paso validado desde la bitácora de Claude',
   })
@@ -204,13 +204,13 @@ export async function cambiarDiaProximo(id, dia) {
 export async function cargarReuniones(dias = 30) {
   listo()
   const desde = new Date(Date.now() - dias * 86400000).toISOString()
-  const rs = filas(await supabase.from('hoy_reuniones').select('id, titulo, titulo_wispr, inicio, fin, minutos, resumen, decisiones, proyecto_id')
+  const rs = filas(await supabase.from('hoy_reuniones').select('id, titulo, titulo_wispr, inicio, fin, minutos, resumen, decisiones, proyecto_id, client_id')
     .gte('inicio', desde).order('inicio', { ascending: false }), 'no se pudieron leer las reuniones')
   const ids = rs.map((r) => r.id)
   const px = ids.length ? filas(await supabase.from('hoy_proximos').select('reunion_id, estado').in('reunion_id', ids), 'no se pudieron leer sus tareas') : []
   return rs.map((r) => ({
     id: r.id, titulo: r.titulo || r.titulo_wispr, inicio: r.inicio, minutos: r.minutos, resumen: r.resumen,
-    decisiones: r.decisiones || [], proyectoId: r.proyecto_id,
+    decisiones: r.decisiones || [], proyectoId: r.proyecto_id, clientId: r.client_id,
     propuestas: px.filter((p) => p.reunion_id === r.id && p.estado === 'propuesto').length,
     aceptadas: px.filter((p) => p.reunion_id === r.id && p.estado === 'aceptado').length,
   }))

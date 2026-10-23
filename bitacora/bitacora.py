@@ -271,7 +271,7 @@ Convierte los pasos en TAREAS como las que Alex apuntaría en su lista:
 - Tú NUNCA das una tarea por completada: eso lo hace Alex. estado «revision» si la respuesta deja claro que Claude terminó su parte (hecho, desplegado, verificado, entregado) y toca que Alex lo revise. «en_curso» si se empezó y sigue a medias, esperando algo, o si Alex ha vuelto a pedir cambios sobre algo que estaba en revisión.
 - Si el trabajo es una tarea que ya existe (TAREAS_DE_ESTA_SESION o TAREAS_DE_ALEX), usa su id en vez de «nueva»: así no se duplica y la tarea cambia de columna. Sé estricto: sólo si es claramente la misma. Una tarea con hecha=true ya la cerró Alex: si hay trabajo nuevo sobre ella, es una tarea «nueva».
 - Clasifica SIEMPRE cada tarea y cada pendiente: proyecto, categoría y cuadrante.
-  · Proyecto: usa la CHULETA (alias → proyecto) y PROYECTOS. Si el proyecto de la chuleta existe en PROYECTOS, su id. Si la chuleta nombra un proyecto que aún no existe, o el trabajo no encaja en ninguno, proyecto_id null y proyecto_nuevo con un nombre corto (2-3 palabras, como los de PROYECTOS). No inventes proyectos por tarea ni por tema: un proyecto nuevo sólo para un cliente o negocio nuevo de verdad; un curso, lanzamiento o tema de un cliente va al proyecto de ese cliente.
+  · Proyecto: usa la CHULETA (alias → proyecto) y PROYECTOS. Si el trabajo es de un CLIENTE de GrowthInfo (los «cliente:…» de PROYECTOS: Elena, Jonathan, Gemelos…), ese cliente, no «GrowthInfo». Si el proyecto de la chuleta existe en PROYECTOS, su id. Si la chuleta nombra un proyecto que aún no existe, o el trabajo no encaja en ninguno, proyecto_id null y proyecto_nuevo con un nombre corto (2-3 palabras, como los de PROYECTOS). No inventes proyectos por tarea ni por tema: un proyecto nuevo sólo para un cliente o negocio nuevo de verdad; un curso, lanzamiento o tema de un cliente va al proyecto de ese cliente.
   · Categoría: la que mejor describa el tipo de trabajo, de CATEGORIAS (clave → nombre).
   · Cuadrante: lo urgente es lo que tiene fecha o bloquea a alguien hoy; lo importante, lo que mueve dinero, clientes o el sistema.
 - proximos: los PRÓXIMOS PASOS de esta sesión, que Alex validará uno a uno: lo que queda por hacer para cerrar lo que se trabajó (pruebas, despliegues, revisiones, decisiones pendientes, lo que Alex dijo que haría luego, lo bloqueado). Concretos y accionables, máximo 5, los más importantes primero. Devuelve la lista completa y actualizada: mantén (con su id) los PROPUESTOS que siguen valiendo, quita los que ya no, y NUNCA repitas uno aceptado o descartado ni una tarea que ya exista en TAREAS_DE_ALEX o TAREAS_DE_ESTA_SESION. Si no queda nada, lista vacía.
@@ -357,6 +357,10 @@ def procesar(sesion_id=None, ya=False):
 def _catalogos(cur):
     cur.execute("select id, nombre from hoy_proyectos where owner_id = %s and archivado_at is null order by posicion", (OWNER,))
     proyectos = [{'id': str(i), 'nombre': n} for i, n in cur.fetchall()]
+    # §14.9: los clientes vivos de GrowthInfo también son «proyecto» (etiqueta en la tarea personal, no el portal).
+    cur.execute("""select id, name from clients where scope = 'growthinfo' and archivado_at is null and deleted_at is null
+                   order by name""")
+    proyectos += [{'id': f'cliente:{i}', 'nombre': f'{n} (cliente de GrowthInfo)'} for i, n in cur.fetchall()]
     cur.execute("select clave, nombre from hoy_categorias where owner_id = %s and archivado_at is null order by posicion", (OWNER,))
     categorias = dict(cur.fetchall()) or {'general': 'General'}
     return proyectos, categorias
@@ -370,7 +374,8 @@ def _proyecto(cur, t, proyectos):
     if not nombre:
         return None
     for p in proyectos:
-        if p['nombre'].strip().lower() == nombre.lower():
+        base = p['nombre'].replace(' (cliente de GrowthInfo)', '').strip().lower()
+        if base == nombre.lower():
             return p['id']
     cur.execute("""insert into hoy_proyectos (owner_id, nombre, color, posicion)
                    values (%s, %s, %s, 200 + %s) returning id""", (OWNER, nombre, COLORES[len(proyectos) % len(COLORES)], len(proyectos)))
@@ -378,6 +383,13 @@ def _proyecto(cur, t, proyectos):
     proyectos.append({'id': nuevo, 'nombre': nombre})  # la siguiente tarea de la tanda ya lo ve
     log('proyecto nuevo', nombre)
     return nuevo
+
+
+def partir(ref):
+    """§14.9: lo que devuelve `_proyecto` → (proyecto_id, client_id). Un cliente va en client_id."""
+    if ref and str(ref).startswith('cliente:'):
+        return None, str(ref)[8:]
+    return ref, None
 
 
 def _procesar_sesion(c, s):
@@ -454,16 +466,18 @@ def _procesar_sesion(c, s):
             cur.execute("""update hoy_tareas set estado = %s, etapa_id = coalesce(%s, etapa_id), updated_at = now()
                            where id = %s and not hecha""", (estado, etapas.get(estado), tarea_id))
             # Lo que Alex ya clasificó a mano no se toca: sólo se rellena lo que falte.
-            cur.execute("""update hoy_tareas set proyecto_id = coalesce(proyecto_id, %s), categoria = coalesce(categoria, %s)
-                           where id = %s""", (proyecto, categoria, tarea_id))
+            pid, cid = partir(proyecto)
+            cur.execute("""update hoy_tareas set proyecto_id = case when proyecto_id is null and client_id is null then %s else proyecto_id end,
+                             client_id = case when proyecto_id is null and client_id is null then %s else client_id end,
+                             categoria = coalesce(categoria, %s) where id = %s""", (pid, cid, categoria, tarea_id))
             cur.execute("""insert into hoy_capa (tarea_id, owner_id, origen, cuadrante) values (%s, %s, 'hoy', %s)
                            on conflict (tarea_id) do update set cuadrante = coalesce(hoy_capa.cuadrante, excluded.cuadrante)""",
                         (tarea_id, OWNER, cuadrante))
         else:
-            cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, categoria, pipeline_id,
+            cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, client_id, categoria, pipeline_id,
                              etapa_id, estado, inicio)
-                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
-                        (OWNER, t['titulo'][:200], t.get('descripcion', ''), proyecto, categoria, pipeline,
+                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
+                        (OWNER, t['titulo'][:200], t.get('descripcion', ''), *partir(proyecto), categoria, pipeline,
                          etapas.get(estado), estado, _dia_logico(mis_pasos[0]['inicio'])))
             tarea_id = cur.fetchone()[0]
             cur.execute("""insert into hoy_capa (tarea_id, owner_id, origen, hoy_para, cuadrante, notas)
@@ -480,17 +494,17 @@ def _procesar_sesion(c, s):
             dia = max(dt.date.fromisoformat(pr.get('dia') or ''), hoy)
         except ValueError:
             dia = hoy
-        valores = (pr['titulo'][:200], pr.get('descripcion', ''), proyecto_de(pr),
+        valores = (pr['titulo'][:200], pr.get('descripcion', ''), *partir(proyecto_de(pr)),
                    pr.get('categoria') if pr.get('categoria') in categorias else None,
                    pr.get('cuadrante') if pr.get('cuadrante') in ('q1', 'q2', 'q3', 'q4') else None,
                    dia, pr.get('minutos'), orden)
         if pr.get('id') in propuestos:
             seguidos.add(pr['id'])
-            cur.execute("""update hoy_proximos set titulo = %s, descripcion = %s, proyecto_id = %s, categoria = %s, cuadrante = %s,
+            cur.execute("""update hoy_proximos set titulo = %s, descripcion = %s, proyecto_id = %s, client_id = %s, categoria = %s, cuadrante = %s,
                              dia = %s, minutos = %s, orden = %s, updated_at = now() where id = %s""", (*valores, pr['id']))
         else:
-            cur.execute("""insert into hoy_proximos (owner_id, sesion_id, titulo, descripcion, proyecto_id, categoria, cuadrante, dia, minutos, orden)
-                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (OWNER, s['id'], *valores))
+            cur.execute("""insert into hoy_proximos (owner_id, sesion_id, titulo, descripcion, proyecto_id, client_id, categoria, cuadrante, dia, minutos, orden)
+                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (OWNER, s['id'], *valores))
     for quitado in propuestos - seguidos:
         cur.execute("delete from hoy_proximos where id = %s and estado = 'propuesto'", (quitado,))
 
@@ -517,7 +531,7 @@ def reclasificar():
                    from hoy_tareas t
                    join hoy_cc_pasos p on p.tarea_id = t.id join hoy_cc_sesiones s on s.id = p.sesion_id
                    left join hoy_capa k on k.tarea_id = t.id
-                   where t.owner_id = %s and (t.proyecto_id is null or t.categoria is null or k.cuadrante is null)
+                   where t.owner_id = %s and ((t.proyecto_id is null and t.client_id is null) or t.categoria is null or k.cuadrante is null)
                    group by t.id, k.cuadrante""", (OWNER,))
     faltan = [dict(zip(['id', 'titulo', 'descripcion', 'proyecto_id', 'categoria', 'cuadrante', 'sesion'], [str(f[0]), *f[1:]])) for f in cur.fetchall()]
     proyectos, categorias = _catalogos(cur)
@@ -538,8 +552,11 @@ def reclasificar():
         for r in salida.get('tareas', []):
             if r.get('id') not in por_id:
                 continue
-            cur.execute("""update hoy_tareas set proyecto_id = coalesce(proyecto_id, %s), categoria = coalesce(categoria, %s)
-                           where id = %s""", (_proyecto(cur, r, proyectos), r.get('categoria') if r.get('categoria') in categorias else None, r['id']))
+            pid, cid = partir(_proyecto(cur, r, proyectos))
+            cur.execute("""update hoy_tareas set proyecto_id = case when proyecto_id is null and client_id is null then %s else proyecto_id end,
+                             client_id = case when proyecto_id is null and client_id is null then %s else client_id end,
+                             categoria = coalesce(categoria, %s) where id = %s""",
+                        (pid, cid, r.get('categoria') if r.get('categoria') in categorias else None, r['id']))
             cur.execute("""insert into hoy_capa (tarea_id, owner_id, origen, cuadrante) values (%s, %s, 'hoy', %s)
                            on conflict (tarea_id) do update set cuadrante = coalesce(hoy_capa.cuadrante, excluded.cuadrante)""",
                         (r['id'], OWNER, r.get('cuadrante') if r.get('cuadrante') in ('q1', 'q2', 'q3', 'q4') else None))
@@ -548,6 +565,60 @@ def reclasificar():
     c.close()
     log('reclasificar', f'{hechas} de {len(faltan)}')
     return hechas
+
+
+# ── rearchivar (§14.9): lo que está en «GrowthInfo» (o sin proyecto y salió de Claude) → su cliente si lo tiene ──
+
+def rearchivar():
+    c = conexion()
+    cur = c.cursor()
+    cur.execute("select id from hoy_proyectos where owner_id = %s and nombre = 'GrowthInfo'", (OWNER,))
+    gi = cur.fetchone()[0]
+    cur.execute("""select 'tarea', t.id::text, t.titulo, t.descripcion, t.proyecto_id, t.client_id from hoy_tareas t
+                   left join hoy_capa k on k.tarea_id = t.id
+                   where t.owner_id = %s and t.archivado_at is null and t.client_id is null
+                     and (t.proyecto_id = %s or (t.proyecto_id is null and (k.notas like 'Sacada de la sesión%%'
+                          or k.notas like 'Próximo paso validado%%' or k.notas = 'Creada por Claude Code')))
+                   union all
+                   select 'proximo', id::text, titulo, descripcion, proyecto_id, client_id from hoy_proximos
+                   where owner_id = %s and estado = 'propuesto' and client_id is null and (proyecto_id = %s or proyecto_id is null)
+                   union all
+                   select 'reunion', id, titulo, left(resumen, 600), proyecto_id, client_id from hoy_reuniones
+                   where owner_id = %s and client_id is null and (proyecto_id = %s or proyecto_id is null)""",
+                (OWNER, gi, OWNER, gi, OWNER, gi))
+    items = [dict(zip(['tipo', 'id', 'titulo', 'descripcion', 'proyecto_id', 'client_id'], f)) for f in cur.fetchall()]
+    respaldo = os.path.join(CASA, f"rearchivar-{dt.datetime.now():%Y%m%d-%H%M%S}.json")
+    json.dump(items, open(respaldo, 'w'), default=str, ensure_ascii=False, indent=1)
+    proyectos, _ = _catalogos(cur)
+    ids = [p['id'] for p in proyectos]
+    schema = {'type': 'object', 'properties': {'items': {'type': 'array', 'items': {'type': 'object', 'properties': {
+        'id': {'type': 'string'}, 'destino': {'type': 'string', 'enum': ids + ['mantener']}}, 'required': ['id', 'destino']}}},
+        'required': ['items']}
+    tabla = {'tarea': 'hoy_tareas', 'proximo': 'hoy_proximos', 'reunion': 'hoy_reuniones'}
+    cambios = 0
+    for i in range(0, len(items), 60):
+        tanda = items[i:i + 60]
+        salida = _llamar_claude({
+            'ENCARGO': ('Para cada elemento decide su destino: el id de un proyecto o cliente de PROYECTOS si claramente es suyo '
+                        '(los «cliente:…» son clientes de GrowthInfo: si el elemento trata de ese cliente, va a él), o «mantener» '
+                        'si se queda como está (trabajo general de GrowthInfo, o no está claro). Usa la CHULETA.'),
+            'ELEMENTOS': [{k: t[k] for k in ('id', 'titulo', 'descripcion')} for t in tanda],
+            'PROYECTOS': proyectos,
+            'CHULETA': open(CHULETA).read() if os.path.exists(CHULETA) else '',
+        }, schema)
+        por_id = {t['id']: t for t in tanda}
+        for r in salida.get('items', []):
+            t = por_id.get(r.get('id'))
+            if not t or r.get('destino') in (None, 'mantener') or r['destino'] == str(t['proyecto_id'] or ''):
+                continue
+            pid, cid = partir(r['destino'])
+            cur.execute(f"update {tabla[t['tipo']]} set proyecto_id = %s, client_id = %s, updated_at = now() where id = %s",
+                        (pid, cid, t['id']))
+            cambios += 1
+        c.commit()
+    c.close()
+    log('rearchivar', f'{cambios} de {len(items)} · respaldo {respaldo}')
+    return cambios, len(items), respaldo
 
 
 # ── hook ────────────────────────────────────────────────────────────────────────
@@ -627,6 +698,8 @@ def main(argv):
             activo(argv[1], argv[2] if len(argv) > 2 else '', sys.stdin.read(), argv[3] if len(argv) > 3 else '')
         except Exception as e:
             log('activo ERROR', argv[1][:8], repr(e)[:300])
+    elif orden == 'rearchivar':
+        print('%s cambiados de %s · respaldo en %s' % rearchivar())
     elif orden == 'reclasificar':
         print(f'{reclasificar()} tareas clasificadas')
     elif orden == 'barrer':

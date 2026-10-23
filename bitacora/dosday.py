@@ -12,7 +12,7 @@
   2day proximo "Título" [opciones]                            próximo paso para que Alex lo valide
   2day aceptar <próximo> [--dia F] · 2day descartar <próximo>  validar un próximo paso (Alex)
   2day proyecto "Nombre" [--color #hex]                       crear (o reusar) proyecto
-  2day proyectos · 2day categorias · 2day frentes
+  2day proyectos · 2day categorias · 2day frentes   (--proyecto acepta también un cliente de GrowthInfo: Elena, Jonathan…)
   2day categoria "Nombre" [--clave k] [--color #hex]
   2day frente "Hito" --frente "Frente" [--fecha F]            hito de un frente
   2day frente-hecho <hito>
@@ -88,6 +88,18 @@ def proyecto_id(cur, nombre, crear=False):
     if crear:
         return crear_proyecto(cur, nombre.strip())
     raise Fallo(f'no hay un proyecto «{nombre}» claro. Existen: ' + ', '.join(x for _, x in filas) + '. Créalo con `2day proyecto "…"`.')
+
+
+def destino(cur, nombre):
+    """§14.9: «--proyecto X» → (proyecto_id, client_id). Un cliente vivo de GrowthInfo gana si el nombre es suyo."""
+    if not nombre:
+        return None, None
+    cur.execute("""select id, name from clients where scope = 'growthinfo' and archivado_at is null and deleted_at is null""")
+    n = nombre.strip().lower()
+    clientes = [(i, x) for i, x in cur.fetchall() if n in (i.lower(), x.lower()) or n in x.lower().split()]
+    if len(clientes) == 1:
+        return None, clientes[0][0]
+    return proyecto_id(cur, nombre), None
 
 
 def crear_proyecto(cur, nombre, color=None):
@@ -171,10 +183,12 @@ def ver(cur, pos, op):
         filtro.append("t.estado = %s")
         args.append(op['estado'])
     if op.get('proyecto'):
-        filtro.append("t.proyecto_id = %s")
-        args.append(proyecto_id(cur, op['proyecto']))
-    cur.execute(f"""select t.id, t.titulo, t.estado, t.hecha, coalesce(p.nombre, '—'), k.hoy_para, k.cuadrante
-                    from hoy_tareas t left join hoy_proyectos p on p.id = t.proyecto_id left join hoy_capa k on k.tarea_id = t.id
+        pid, cid = destino(cur, op['proyecto'])
+        filtro.append("(t.proyecto_id = %s or t.client_id = %s)")
+        args += [pid, cid]
+    cur.execute(f"""select t.id, t.titulo, t.estado, t.hecha, coalesce(p.nombre, cl.name, '—'), k.hoy_para, k.cuadrante
+                    from hoy_tareas t left join hoy_proyectos p on p.id = t.proyecto_id left join clients cl on cl.id = t.client_id
+                    left join hoy_capa k on k.tarea_id = t.id
                     where {' and '.join(filtro)} order by t.updated_at desc limit 60""", args)
     for i, titulo, estado, hecha, proy, dia, q in cur.fetchall():
         print(f"{str(i)[:8]}  {NOMBRE_ESTADO['done' if hecha else estado]:<11}  {proy[:18]:<18}  {str(dia or ''):<10}  {q or '  '}  {titulo}")
@@ -187,9 +201,9 @@ def crear(cur, pos, op):
     if estado not in ESTADOS:
         raise Fallo('estado: ' + ' · '.join(ESTADOS))
     pipeline, et = etapa(cur, None, estado)
-    cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, categoria, pipeline_id, etapa_id, estado, vence)
-                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
-                (OWNER, pos[0], op.get('desc', ''), proyecto_id(cur, op.get('proyecto')), categoria_clave(cur, op.get('categoria')),
+    cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, client_id, categoria, pipeline_id, etapa_id, estado, vence)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
+                (OWNER, pos[0], op.get('desc', ''), *destino(cur, op.get('proyecto')), categoria_clave(cur, op.get('categoria')),
                  pipeline, et, estado, fecha(op.get('vence'))))
     nueva = cur.fetchone()[0]
     capa(cur, nueva, hoy_para=fecha(op.get('dia')), cuadrante=cuadrante(op), notas='Creada por Claude Code')
@@ -221,12 +235,14 @@ def editar(cur, pos, op):
     i, titulo, *_ = tarea(cur, pos[0])
     sets, args = [], []
     for campo, col, conv in (('titulo', 'titulo', str), ('desc', 'descripcion', str),
-                             ('proyecto', 'proyecto_id', lambda v: proyecto_id(cur, v)),
                              ('categoria', 'categoria', lambda v: categoria_clave(cur, v)),
                              ('vence', 'vence', fecha)):
         if campo in op:
             sets.append(f'{col} = %s')
             args.append(conv(op[campo]))
+    if 'proyecto' in op:
+        sets += ['proyecto_id = %s', 'client_id = %s']
+        args += list(destino(cur, op['proyecto']))
     if sets:
         cur.execute(f"update hoy_tareas set {', '.join(sets)}, updated_at = now() where id = %s", (*args, i))
     dia = op.get('dia')
@@ -253,7 +269,7 @@ def proximo(cur, pos, op):
 
 
 def _proximo(cur, ref):
-    cur.execute("""select id, titulo, descripcion, proyecto_id, categoria, cuadrante, dia from hoy_proximos
+    cur.execute("""select id, titulo, descripcion, proyecto_id, categoria, cuadrante, dia, client_id from hoy_proximos
                    where owner_id = %s and estado = 'propuesto' and (id::text like %s or titulo ilike %s)""",
                 (OWNER, ref.lower() + '%', f'%{ref}%'))
     filas = cur.fetchall()
@@ -264,12 +280,12 @@ def _proximo(cur, ref):
 
 def aceptar(cur, pos, op):
     """Lo mismo que «Aceptar» en la app: la tarea nace planificada para su día, ya clasificada."""
-    i, titulo, desc, proy, cat, q, dia = _proximo(cur, pos[0] if pos else '')
+    i, titulo, desc, proy, cat, q, dia, cliente = _proximo(cur, pos[0] if pos else '')
     hoy = _dia_logico(dt.datetime.now().astimezone())
     dia = fecha(op['dia']) if op.get('dia') else max(dia or hoy, hoy)
     pipeline, et = etapa(cur, None, 'todo')
-    cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, categoria, pipeline_id, etapa_id, estado)
-                   values (%s, %s, %s, %s, %s, %s, %s, 'todo') returning id""", (OWNER, titulo, desc, proy, cat, pipeline, et))
+    cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, client_id, categoria, pipeline_id, etapa_id, estado)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, 'todo') returning id""", (OWNER, titulo, desc, proy, cliente, cat, pipeline, et))
     nueva = cur.fetchone()[0]
     capa(cur, nueva, hoy_para=dia, cuadrante=q, notas='Próximo paso validado desde la bitácora de Claude')
     cur.execute("update hoy_proximos set estado = 'aceptado', tarea_id = %s, dia = %s, decidido_en = now() where id = %s", (nueva, dia, i))

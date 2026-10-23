@@ -102,7 +102,11 @@ function Contenido({ tarea: t }) {
   /* ── proyecto / cliente ────────────────────────────────────────────────── */
   // Una personal no se convierte en una de GrowthInfo desde aquí (sería mover la fila de
   // tabla, y §4 dice `proyecto_id`): sólo proyectos propios. El de una del portal se ve.
-  const opcionesProyecto = useMemo(() => proyectos.map((p) => ({ valor: p.id, etiqueta: `${p.icono ? `${p.icono} ` : ''}${p.nombre}` })), [proyectos])
+  // §14.9: una personal también puede ir a un cliente de GrowthInfo (etiqueta, no el portal): `c:<id>`.
+  const opcionesProyecto = useMemo(() => [
+    ...proyectos.map((p) => ({ valor: p.id, etiqueta: `${p.icono ? `${p.icono} ` : ''}${p.nombre}` })),
+    ...clientes.filter((c) => !c.esAfiliados).map((c) => ({ valor: `c:${c.id}`, etiqueta: `${c.nombre} · cliente` })),
+  ], [proyectos, clientes])
   const proyectoActual = proyectosTodos.find((p) => p.id === t.proyectoId)
   const clienteActual = clientes.find((c) => c.id === t.clientId)
 
@@ -301,8 +305,8 @@ function Contenido({ tarea: t }) {
             etiqueta="Proyecto"
             modo="desplegable"
             opciones={opcionesProyecto.some((o) => o.valor === t.proyectoId) || !proyectoActual ? opcionesProyecto : [...opcionesProyecto, { valor: proyectoActual.id, etiqueta: `${proyectoActual.nombre} · archivado` }]}
-            valor={t.proyectoId}
-            alCambiar={(id) => editar({ proyectoId: id || null })}
+            valor={t.clientId ? `c:${t.clientId}` : t.proyectoId}
+            alCambiar={(id) => editar(id?.startsWith('c:') ? { clientId: id.slice(2), proyectoId: null } : { proyectoId: id || null, clientId: null })}
             placeholder="Sin proyecto"
             permitirVacio
           />
