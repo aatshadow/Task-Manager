@@ -287,14 +287,14 @@ def _dia_logico(ts):
     return (_local(ts) - dt.timedelta(hours=HORA_REINICIO)).date()
 
 
-def _llamar_claude(entrada, schema):
+def _llamar_claude(entrada, schema, instrucciones=None):
     entorno = {k: v for k, v in os.environ.items() if k not in ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN')}
     entorno['HOY_BITACORA_OFF'] = '1'
     os.makedirs(os.path.join(CASA, 'vacio'), exist_ok=True)
     r = subprocess.run(
         [CLAUDE, '-p', '--model', MODELO, '--output-format', 'json', '--json-schema', json.dumps(schema),
          '--tools', '', '--strict-mcp-config', '--no-session-persistence', '--setting-sources', '',
-         '--append-system-prompt', INSTRUCCIONES],
+         '--append-system-prompt', instrucciones or INSTRUCCIONES],
         input=json.dumps(entrada, ensure_ascii=False, default=str), capture_output=True, text=True,
         timeout=600, env=entorno, cwd=os.path.join(CASA, 'vacio'))
     if r.returncode != 0:
@@ -552,17 +552,17 @@ def reclasificar():
 
 # ── hook ────────────────────────────────────────────────────────────────────────
 
-def activo(sesion_id, cwd, pedido):
+def activo(sesion_id, cwd, pedido, tty=''):
     """§14.4: la terminal empieza a trabajar → tarjeta «Trabajando ahora» en el tablero."""
     carpeta = '~' if cwd.rstrip('/') in ('', os.path.expanduser('~')) else os.path.basename(cwd.rstrip('/'))
     c = conexion()
     with c, c.cursor() as cur:
         cur.execute("""
-          insert into hoy_cc_sesiones (id, owner_id, cwd, carpeta, inicio, ultimo, activo_desde, activo_pedido)
-          values (%s, %s, %s, %s, now(), now(), now(), %s)
+          insert into hoy_cc_sesiones (id, owner_id, cwd, carpeta, inicio, ultimo, activo_desde, activo_pedido, tty)
+          values (%s, %s, %s, %s, now(), now(), now(), %s, %s)
           on conflict (id) do update set activo_desde = now(), activo_pedido = excluded.activo_pedido,
-            ultimo = now(), updated_at = now()
-        """, (sesion_id, OWNER, cwd, carpeta, _limpiar_pedido(pedido)[:500]))
+            tty = coalesce(nullif(excluded.tty, ''), hoy_cc_sesiones.tty), ultimo = now(), updated_at = now()
+        """, (sesion_id, OWNER, cwd, carpeta, _limpiar_pedido(pedido)[:500], tty))
     c.close()
 
 
@@ -584,7 +584,13 @@ def hook():
         pedido = str(datos.get('prompt') or '')
         if _ruido(pedido) or _limpiar_pedido(pedido).split(' ')[0] in COMANDOS_RUIDO or not datos.get('session_id'):
             return
-        orden = [sys.executable, YO, 'activo', datos['session_id'], datos.get('cwd') or '']
+        # §14.8: la terminal de esta sesión (el widget salta a ella). El hook hereda el tty de Claude Code.
+        try:
+            tty = subprocess.run(['ps', '-o', 'tty=', '-p', str(os.getppid())], capture_output=True, text=True, timeout=2).stdout.strip()
+        except Exception:
+            tty = ''
+        tty = '/dev/' + tty if tty and tty not in ('??', '?') and not tty.startswith('/dev/') else ''
+        orden = [sys.executable, YO, 'activo', datos['session_id'], datos.get('cwd') or '', tty]
         entrada = pedido
     elif ruta and os.path.exists(ruta):
         orden = [sys.executable, YO, 'subir', ruta, '--fin-turno', '--procesar']
@@ -618,7 +624,7 @@ def main(argv):
             procesar(os.path.basename(ruta)[:-6], ya=True)
     elif orden == 'activo':
         try:
-            activo(argv[1], argv[2] if len(argv) > 2 else '', sys.stdin.read())
+            activo(argv[1], argv[2] if len(argv) > 2 else '', sys.stdin.read(), argv[3] if len(argv) > 3 else '')
         except Exception as e:
             log('activo ERROR', argv[1][:8], repr(e)[:300])
     elif orden == 'reclasificar':

@@ -10,6 +10,7 @@
   2day completar <tarea>                                      SÓLO si Alex lo pide (Completado es suyo)
   2day archivar <tarea>
   2day proximo "Título" [opciones]                            próximo paso para que Alex lo valide
+  2day aceptar <próximo> [--dia F] · 2day descartar <próximo>  validar un próximo paso (Alex)
   2day proyecto "Nombre" [--color #hex]                       crear (o reusar) proyecto
   2day proyectos · 2day categorias · 2day frentes
   2day categoria "Nombre" [--clave k] [--color #hex]
@@ -251,6 +252,36 @@ def proximo(cur, pos, op):
     print(f'próximo paso propuesto {str(cur.fetchone()[0])[:8]}  {pos[0]}  (Alex lo valida en Tareas → Claude → Próximos)')
 
 
+def _proximo(cur, ref):
+    cur.execute("""select id, titulo, descripcion, proyecto_id, categoria, cuadrante, dia from hoy_proximos
+                   where owner_id = %s and estado = 'propuesto' and (id::text like %s or titulo ilike %s)""",
+                (OWNER, ref.lower() + '%', f'%{ref}%'))
+    filas = cur.fetchall()
+    if len(filas) != 1:
+        raise Fallo(f'próximo «{ref}» no encontrado o ambiguo:\n' + '\n'.join(f'  {str(f[0])[:8]}  {f[1]}' for f in filas[:10]))
+    return filas[0]
+
+
+def aceptar(cur, pos, op):
+    """Lo mismo que «Aceptar» en la app: la tarea nace planificada para su día, ya clasificada."""
+    i, titulo, desc, proy, cat, q, dia = _proximo(cur, pos[0] if pos else '')
+    hoy = _dia_logico(dt.datetime.now().astimezone())
+    dia = fecha(op['dia']) if op.get('dia') else max(dia or hoy, hoy)
+    pipeline, et = etapa(cur, None, 'todo')
+    cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, categoria, pipeline_id, etapa_id, estado)
+                   values (%s, %s, %s, %s, %s, %s, %s, 'todo') returning id""", (OWNER, titulo, desc, proy, cat, pipeline, et))
+    nueva = cur.fetchone()[0]
+    capa(cur, nueva, hoy_para=dia, cuadrante=q, notas='Próximo paso validado desde la bitácora de Claude')
+    cur.execute("update hoy_proximos set estado = 'aceptado', tarea_id = %s, dia = %s, decidido_en = now() where id = %s", (nueva, dia, i))
+    print(f'aceptado → tarea {str(nueva)[:8]} para el {dia}  {titulo}')
+
+
+def descartar(cur, pos, op):
+    i, titulo, *_ = _proximo(cur, pos[0] if pos else '')
+    cur.execute("update hoy_proximos set estado = 'descartado', decidido_en = now() where id = %s", (i,))
+    print(f'descartado  {titulo}')
+
+
 def proyecto(cur, pos, op):
     if not pos:
         raise Fallo('falta el nombre')
@@ -317,7 +348,7 @@ def frentes(cur, pos, op):
 
 
 ORDENES = {'ver': ver, 'crear': crear, 'mover': mover, 'editar': editar, 'completar': completar, 'archivar': archivar,
-           'proximo': proximo, 'próximo': proximo, 'proyecto': proyecto, 'proyectos': proyectos, 'categoria': categoria,
+           'proximo': proximo, 'próximo': proximo, 'aceptar': aceptar, 'descartar': descartar, 'proyecto': proyecto, 'proyectos': proyectos, 'categoria': categoria,
            'categorias': categorias, 'frente': frente, 'frente-hecho': frente_hecho, 'frentes': frentes}
 
 

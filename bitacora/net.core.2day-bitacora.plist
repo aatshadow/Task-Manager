@@ -6,7 +6,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/sh</string><string>-c</string>
-    <string>/usr/bin/python3 /Users/alex/CORE/2day/bitacora/bitacora.py barrer --horas 6; /usr/bin/python3 /Users/alex/CORE/2day/bitacora/bitacora.py procesar</string>
+    <string>/usr/bin/python3 /Users/alex/CORE/2day/bitacora/bitacora.py barrer --horas 6; /usr/bin/python3 /Users/alex/CORE/2day/bitacora/bitacora.py procesar; /usr/bin/python3 /Users/alex/CORE/2day/bitacora/reuniones.py</string>
   </array>
   <key>StartInterval</key><integer>300</integer>
   <key>RunAtLoad</key><true/>

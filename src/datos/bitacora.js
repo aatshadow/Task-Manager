@@ -141,7 +141,7 @@ export function resumenDia(sesiones) {
 /* ── Próximos pasos (§14.6) ─────────────────────────────────────────────────── */
 
 const aProximo = (f) => ({
-  id: f.id, sesionId: f.sesion_id, titulo: f.titulo, descripcion: f.descripcion, proyectoId: f.proyecto_id,
+  id: f.id, sesionId: f.sesion_id, reunionId: f.reunion_id, titulo: f.titulo, descripcion: f.descripcion, proyectoId: f.proyecto_id,
   categoria: f.categoria, cuadrante: f.cuadrante, dia: f.dia, minutos: f.minutos, orden: f.orden,
   estado: f.estado, origen: f.origen, creadoEn: f.created_at,
 })
@@ -151,15 +151,24 @@ export async function cargarProximos() {
   listo()
   const lista = filas(await supabase.from('hoy_proximos').select('*').eq('estado', 'propuesto').order('created_at', { ascending: false }), 'no se pudieron leer los próximos pasos').map(aProximo)
   const ids = [...new Set(lista.map((p) => p.sesionId).filter(Boolean))]
+  const idsR = [...new Set(lista.map((p) => p.reunionId).filter(Boolean))]
   const sesiones = ids.length
     ? Object.fromEntries(filas(await supabase.from('hoy_cc_sesiones').select('id, titulo, carpeta, ultimo').in('id', ids), 'no se pudieron leer las sesiones').map((s) => [s.id, s]))
     : {}
+  const reuniones = idsR.length
+    ? Object.fromEntries(filas(await supabase.from('hoy_reuniones').select('id, titulo, fin').in('id', idsR), 'no se pudieron leer las reuniones').map((r) => [r.id, r]))
+    : {}
   const grupos = new Map()
   for (const p of lista) {
-    const clave = p.sesionId || 'sin-sesion'
+    const clave = p.reunionId ? `r:${p.reunionId}` : p.sesionId || 'sin-sesion'
     if (!grupos.has(clave)) {
       const s = sesiones[p.sesionId]
-      grupos.set(clave, { id: clave, titulo: s ? (s.titulo || s.carpeta) : 'Propuestos por Claude', ultimo: s?.ultimo || p.creadoEn, pasos: [] })
+      const r = reuniones[p.reunionId]
+      grupos.set(clave, {
+        id: clave, reunion: !!r,
+        titulo: r ? r.titulo : s ? (s.titulo || s.carpeta) : 'Propuestos por Claude',
+        ultimo: r?.fin || s?.ultimo || p.creadoEn, pasos: [],
+      })
     }
     grupos.get(clave).pasos.push(p)
   }
@@ -187,4 +196,22 @@ export async function descartarProximo(id) {
 export async function cambiarDiaProximo(id, dia) {
   listo()
   ok(await supabase.from('hoy_proximos').update({ dia: dia || null }).eq('id', id), 'no se pudo cambiar el día')
+}
+
+/* ── Reuniones de Wispr Flow (§14.7) ───────────────────────────────────────── */
+
+/** Las reuniones de los últimos `dias`, la más reciente primero, con cuántas tareas dejó (propuestas y aceptadas). */
+export async function cargarReuniones(dias = 30) {
+  listo()
+  const desde = new Date(Date.now() - dias * 86400000).toISOString()
+  const rs = filas(await supabase.from('hoy_reuniones').select('id, titulo, titulo_wispr, inicio, fin, minutos, resumen, decisiones, proyecto_id')
+    .gte('inicio', desde).order('inicio', { ascending: false }), 'no se pudieron leer las reuniones')
+  const ids = rs.map((r) => r.id)
+  const px = ids.length ? filas(await supabase.from('hoy_proximos').select('reunion_id, estado').in('reunion_id', ids), 'no se pudieron leer sus tareas') : []
+  return rs.map((r) => ({
+    id: r.id, titulo: r.titulo || r.titulo_wispr, inicio: r.inicio, minutos: r.minutos, resumen: r.resumen,
+    decisiones: r.decisiones || [], proyectoId: r.proyecto_id,
+    propuestas: px.filter((p) => p.reunion_id === r.id && p.estado === 'propuesto').length,
+    aceptadas: px.filter((p) => p.reunion_id === r.id && p.estado === 'aceptado').length,
+  }))
 }

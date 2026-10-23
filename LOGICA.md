@@ -684,10 +684,45 @@ siguen por el portal.
   termina trabajo, Claude lo refleja con `2day` sin que se lo pidan. **`completar` sólo si Alex lo dice**
   (§14.4: Completado es de Alex); lo terminado por Claude va a `review`.
 
+### 14.7 · Reuniones de Wispr Flow (Alex, 23-10-2026)
+
+Pedido: «conecto Wispr Flow para que después de cada meeting se me pongan las tareas en 2day: entro en la
+reunión, salgo y tengo el resumen y las tareas puestas».
+
+- **Fuente: la base local de Wispr Flow** (`~/Library/Application Support/Wispr Flow/flow.sqlite`, tabla
+  `Meetings`: título, inicio, fin, duración, resumen de Wispr) y la transcripción de cada una
+  (`meetings/<id>/refined.ndjson`, si no `live.ndjson`). Sólo lectura, abierta en modo `ro`.
+- **Cuándo:** el LaunchAgent de la bitácora (cada 5 min) mira las reuniones **terminadas** (`finalized`, con
+  `endedAt`) que aún no están en 2day. Se procesa cuando hay transcripción o resumen listos.
+- **Qué deja** (`hoy_reuniones`): título en español, resumen corto (3-6 puntos), decisiones, proyecto y la
+  transcripción. Las **tareas de Alex** que salen van a **Próximos** (`hoy_proximos.reunion_id`) con día
+  propuesto según la carga, para validarlas como las de las sesiones (Aceptar todos = un toque). Las de otros
+  no: van en el resumen.
+- **Lo viejo:** al estrenar se registran las reuniones desde el 19-10 (cuando Alex empezó a grabarlas todas),
+  pero sólo las de las últimas 48 h generan próximos.
+- **Dónde se ve:** Tareas → Claude → **Reuniones** (lista con resumen y decisiones) y sus próximos en
+  Próximos, agrupados por reunión.
+
+### 14.8 · El widget de la barra de menús (Alex, 23-10-2026)
+
+Pedido: «un widget en el Mac cuando tengo terminales activas, visibilidad completa de cada cosa, que se abra y
+se oculte, sencillo y vivo; que 2day esté siempre actualizado aunque no entre en la app».
+
+- **SwiftBar** (app de la barra de menús) con el plugin `bitacora/widget/2day.10s.py`, que se refresca cada
+  10 s leyendo la base. En la barra: `● N` terminales trabajando · `◐ N` en revisión · `✦ N` próximos (o
+  «2day» si no hay nada).
+- **Al desplegar:** Trabajando ahora (cada terminal con lo que se pidió y desde cuándo; **clic = salta a esa
+  ventana de Terminal**, por el `tty` que apunta el hook) · Clasificando · En revisión (Completar · Devolver) ·
+  Próximos (Aceptar · Descartar), agrupados por sesión o reunión · Reuniones de hoy · Hoy (hechas / en Hoy) ·
+  Abrir 2day · Empezar.
+- Las acciones van por el comando `2day` (`aceptar`, `descartar`, `completar`, `mover`): una sola puerta.
+- `hoy_cc_sesiones.tty` lo escribe el hook `UserPromptSubmit`.
+
 ### 14.1 · Modelo (`sql/2026-10-23-bitacora.sql`)
 
 - **`hoy_cc_sesiones`** — `id` = session_id de Claude Code · `cwd`, `carpeta`, `titulo` (el `ai-title` del transcript), `resumen` (lo escribe la IA), `inicio`, `ultimo`, `pasos`, `terminada`, `procesar_pedido` (lo enciende la app), `procesada_en`.
 - **`hoy_cc_sesiones.activo_desde` · `activo_pedido`** (§14.4, `sql/2026-10-23-bitacora-tablero.sql`): la terminal está trabajando ahora mismo.
+- **`hoy_reuniones`** (§14.7, `sql/2026-10-23-reuniones.sql`) — `id` = id de Wispr · `titulo`, `titulo_wispr`, `inicio`, `fin`, `minutos`, `participantes` · `resumen`, `decisiones` jsonb, `proyecto_id` · `resumen_wispr`, `transcripcion` · `procesada_en`. `hoy_proximos.reunion_id` enlaza sus tareas.
 - **`hoy_proximos`** (§14.6, `sql/2026-10-23-proximos.sql`) — `sesion_id` · `titulo`, `descripcion`, `proyecto_id`, `categoria`, `cuadrante`, `dia`, `minutos`, `orden` · `estado` (`propuesto`/`aceptado`/`descartado`) · `tarea_id` · `origen` (`ia`/`claude`) · `decidido_en`.
 - **`hoy_cc_pasos`** — `id` = uuid del mensaje humano · `sesion_id` · `inicio`, `fin` · `pedido`, `respuesta` (recortadas) · `herramientas` jsonb (`{Bash: 4, Edit: 2}`) · `archivos[]` · `comandos[]` · `tarea_id` (la `hoy_tareas` a la que la IA lo asignó; null = ruido) · `procesado`.
 - RLS por dueño en las dos; `anon` revocado. El hook y el clasificador escriben con `SUPABASE_DB_URL` del vault (sólo en el Mac) poniendo `owner_id` de Alex a mano.

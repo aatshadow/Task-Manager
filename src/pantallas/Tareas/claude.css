@@ -2,7 +2,7 @@
 .claude { display: flex; flex-direction: column; gap: 16px; }
 .claude-sesiones { display: flex; flex-direction: column; gap: 14px; }
 .claude-caras { width: 100%; }
-.app--escritorio .claude-caras { width: 440px; }
+.app--escritorio .claude-caras { width: 560px; }
 .claude-revision { color: #4c8dff; }
 
 .claude-dia { display: flex; align-items: center; justify-content: space-between; }
@@ -136,3 +136,12 @@
 /* el input de fecha va invisible encima de la píldora: el toque abre el selector nativo */
 .cprox-dia input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
 .app--escritorio .cprox { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+
+/* ── reuniones (§14.7) ────────────────────────────────────────────────────── */
+.creu { display: flex; flex-direction: column; gap: 14px; }
+.creu-resumen p, .creu-decisiones p { margin: 0 0 6px; font-size: var(--t-secundario); line-height: 1.5; color: var(--texto-2); padding-left: 12px; position: relative; }
+.creu-resumen p::before, .creu-decisiones p::before { content: ''; position: absolute; left: 0; top: 0.6em; width: 4px; height: 4px; border-radius: 50%; background: var(--texto-3); }
+.creu-resumen--corto { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.creu-decisiones { border-top: 1px solid var(--linea); padding-top: 10px; }
+.creu-etiqueta { font-size: var(--t-micro); font-weight: 700; color: var(--texto-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.app--escritorio .creu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }

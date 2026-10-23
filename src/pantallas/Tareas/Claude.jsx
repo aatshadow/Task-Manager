@@ -4,6 +4,7 @@ import Boton from '../../componentes/Boton.jsx'
 import Segmentos from '../../componentes/Segmentos.jsx'
 import TableroClaude from './TableroClaude.jsx'
 import ProximosClaude from './ProximosClaude.jsx'
+import ReunionesClaude from './ReunionesClaude.jsx'
 import { cargarProximos } from '../../datos/bitacora.js'
 import Vacio from '../../componentes/Vacio.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
@@ -25,7 +26,7 @@ function nombreDia(fecha, hoy) {
 // La pestaña recuerda la cara y el día al volver de una tarea abierta.
 let ultimoDia = null
 let ultimaCara = 'tablero'
-/** CLAUDE (LOGICA §14): tres caras, el tablero (§14.4), los próximos pasos por validar (§14.6) y las sesiones del día. */
+/** CLAUDE (LOGICA §14): cuatro caras (más Reuniones de Wispr, §14.7), el tablero (§14.4), los próximos pasos por validar (§14.6) y las sesiones del día. */
 export default function Claude() {
   const [cara, setCaraEstado] = useState(ultimaCara)
   const setCara = (c) => { ultimaCara = c; setCaraEstado(c) }
@@ -42,6 +43,7 @@ export default function Claude() {
     { valor: 'tablero', etiqueta: 'Tablero' },
     { valor: 'proximos', etiqueta: porValidar ? `Próximos · ${porValidar}` : 'Próximos' },
     { valor: 'sesiones', etiqueta: 'Sesiones' },
+    { valor: 'reuniones', etiqueta: 'Reuniones' },
   ]
   return (
     <div className="claude">
@@ -49,6 +51,7 @@ export default function Claude() {
       {cara === 'tablero' && <TableroClaude />}
       {cara === 'proximos' && <ProximosClaude alCambiarCuenta={setPorValidar} />}
       {cara === 'sesiones' && <Sesiones />}
+      {cara === 'reuniones' && <ReunionesClaude alIrAProximos={() => setCara('proximos')} />}
     </div>
   )
 }

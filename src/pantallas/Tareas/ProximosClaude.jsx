@@ -81,7 +81,7 @@ export default function ProximosClaude({ alCambiarCuenta }) {
       {grupos.map((g) => (
         <section key={g.id} className="cprox-grupo">
           <header className="cprox-cabeza">
-            <span className="cprox-sesion">{g.titulo}</span>
+            <span className="cprox-sesion">{g.reunion ? '🎙 ' : ''}{g.titulo}</span>
             {g.pasos.length > 1 && (
               <button className="ctab-boton" onClick={() => aceptarTodos(g)} disabled={!!ocupado}><CheckCheck size={15} /> Aceptar todos</button>
             )}
