@@ -1,5 +1,9 @@
 /* 2day · Tareas → Claude (LOGICA §14). Todo sale de tokens.css. */
-.claude { display: flex; flex-direction: column; gap: 14px; }
+.claude { display: flex; flex-direction: column; gap: 16px; }
+.claude-sesiones { display: flex; flex-direction: column; gap: 14px; }
+.claude-caras { width: 100%; }
+.app--escritorio .claude-caras { width: 320px; }
+.claude-revision { color: #4c8dff; }
 
 .claude-dia { display: flex; align-items: center; justify-content: space-between; }
 .claude-dia-nombre { font-size: var(--t-titulo); font-weight: 600; text-transform: capitalize; }
@@ -67,9 +71,46 @@
 }
 
 /* escritorio: la lista de sesiones en dos columnas */
-.app--escritorio .claude { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+.app--escritorio .claude-sesiones { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
 .app--escritorio .claude-dia,
 .app--escritorio .claude-numeros,
 .app--escritorio .claude-error,
 .app--escritorio .claude-cargando,
 .app--escritorio .claude .vacio { grid-column: 1 / -1; }
+
+/* ── el tablero (§14.4) ───────────────────────────────────────────────────── */
+.ctab { display: flex; flex-direction: column; gap: 18px; }
+.ctab-vacio { display: flex; align-items: center; gap: 10px; color: var(--texto-2); font-size: var(--t-secundario); padding: 4px 2px; }
+.ctab-columna { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ctab-columna-cabeza { display: flex; align-items: center; gap: 8px; font-size: var(--t-secundario); font-weight: 600; color: var(--texto-2); padding: 0 4px; }
+.ctab-punto { width: 8px; height: 8px; border-radius: 50%; }
+.ctab-cuenta { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--texto-3); font-weight: 500; }
+.ctab-lista { display: flex; flex-direction: column; gap: 8px; }
+.ctab-nada { color: var(--texto-3); font-size: var(--t-secundario); padding: 14px; border: 1px dashed var(--linea-fuerte); border-radius: 18px; text-align: center; }
+
+.ctab-tarjeta { background: var(--tarjeta); border-radius: 18px; box-shadow: var(--sombra-minima); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ctab-tarjeta--viva { border: 1px solid rgba(232, 177, 58, 0.35); background: linear-gradient(135deg, rgba(232, 177, 58, 0.10), var(--tarjeta) 60%); }
+.ctab-tarjeta--clasificando { opacity: 0.75; }
+.ctab-tarjeta--hecha .ctab-titulo { color: var(--texto-2); text-decoration: line-through; text-decoration-color: var(--texto-3); }
+.ctab-cuerpo { background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; display: flex; flex-direction: column; gap: 6px; }
+.ctab-titulo { font-size: var(--t-cuerpo); line-height: 1.3; font-weight: 500; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ctab-meta { display: flex; flex-direction: column; gap: 2px; font-size: var(--t-micro); color: var(--texto-3); }
+.ctab-viva { display: flex; align-items: center; gap: 6px; font-size: var(--t-micro); color: var(--aviso); font-weight: 600; }
+.ctab-pulso { width: 7px; height: 7px; border-radius: 50%; background: var(--aviso); animation: ctab-pulso 1.4s ease-in-out infinite; }
+@keyframes ctab-pulso { 50% { opacity: 0.3; transform: scale(0.8); } }
+
+.ctab-acciones { display: flex; gap: 8px; }
+.ctab-boton {
+  display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: var(--radio-pildora);
+  background: var(--tarjeta-alta); border: 1px solid var(--tarjeta-borde); color: var(--texto-2); font: inherit; font-size: var(--t-secundario);
+}
+.ctab-boton--ok { background: rgba(62, 194, 122, 0.14); border-color: rgba(62, 194, 122, 0.35); color: var(--ok); font-weight: 600; }
+
+/* en el móvil, lo que pide una decisión de Alex va primero */
+.ctab-columna--revision { order: -1; }
+.app--escritorio .ctab-columna--revision { order: 0; }
+
+/* escritorio: las tres columnas en fila, como un kanban */
+.app--escritorio .ctab { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 16px; }
+.app--escritorio .ctab-vacio { grid-column: 1 / -1; }

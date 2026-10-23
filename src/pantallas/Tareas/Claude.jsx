@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Bot, CheckCircle2, CircleDashed, RefreshCw, ChevronDown, FileText, Terminal } from 'lucide-react'
 import Boton from '../../componentes/Boton.jsx'
+import Segmentos from '../../componentes/Segmentos.jsx'
+import TableroClaude from './TableroClaude.jsx'
 import Vacio from '../../componentes/Vacio.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { cargarDia, pedirProceso, resumenDia } from '../../datos/bitacora.js'
@@ -16,14 +18,28 @@ function nombreDia(fecha, hoy) {
   return new Date(a, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })
 }
 
-// La pestaña recuerda el día al volver de una tarea abierta.
+// La pestaña recuerda la cara y el día al volver de una tarea abierta.
 let ultimoDia = null
+let ultimaCara = 'tablero'
+const CARAS = [{ valor: 'tablero', etiqueta: 'Tablero' }, { valor: 'sesiones', etiqueta: 'Sesiones' }]
+
+/** CLAUDE (LOGICA §14): dos caras, el tablero de tareas (§14.4) y las sesiones del día (§14.0-8). */
+export default function Claude() {
+  const [cara, setCaraEstado] = useState(ultimaCara)
+  const setCara = (c) => { ultimaCara = c; setCaraEstado(c) }
+  return (
+    <div className="claude">
+      <Segmentos opciones={CARAS} valor={cara} alCambiar={setCara} className="claude-caras" />
+      {cara === 'tablero' ? <TableroClaude /> : <Sesiones />}
+    </div>
+  )
+}
 
 /**
- * CLAUDE (LOGICA §14): lo que hicieron las sesiones de Claude Code en un día. Cada sesión
- * con su resumen, las tareas que la IA sacó de sus pasos y, desplegando, los pasos en crudo.
+ * Sesiones: lo que hicieron las sesiones de Claude Code en un día. Cada sesión con su
+ * resumen, las tareas que la IA sacó de sus pasos y, desplegando, los pasos en crudo.
  */
-export default function Claude() {
+function Sesiones() {
   const { hoy, ajustes, tareas, abrirTarea, recargar, avisar } = useDatos()
   const [dia, setDiaEstado] = useState(ultimoDia || hoy)
   const setDia = (d) => { ultimoDia = d; setDiaEstado(d) }
@@ -67,7 +83,7 @@ export default function Claude() {
   const r = sesiones ? resumenDia(sesiones) : null
 
   return (
-    <div className="claude">
+    <div className="claude-sesiones">
       <div className="claude-dia">
         <button className="claude-flecha" onClick={() => setDia(sumarDias(dia, -1))} aria-label="Día anterior"><ChevronLeft size={20} /></button>
         <div className="claude-dia-nombre">{nombreDia(dia, hoy)}</div>
@@ -115,7 +131,7 @@ function Sesion({ sesion: s, alAbrir, alProcesar }) {
           {s.tareas.map((t) => (
             <li key={t.id}>
               <button onClick={() => alAbrir(t.id)}>
-                {t.hecha ? <CheckCircle2 size={18} className="claude-ok" /> : <CircleDashed size={18} className="claude-curso" />}
+                {t.hecha ? <CheckCircle2 size={18} className="claude-ok" /> : <CircleDashed size={18} className={t.estado === 'review' ? 'claude-revision' : 'claude-curso'} />}
                 <span className="claude-tarea-titulo">{t.titulo}</span>
                 <span className="claude-tarea-pasos">{t.pasos}</span>
               </button>

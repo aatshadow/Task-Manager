@@ -3,8 +3,9 @@
 """
 Bitácora de Claude (LOGICA §14): las sesiones de Claude Code se apuntan solas en 2day.
 
-  bitacora.py hook                    # Stop / SessionEnd de Claude Code (lee stdin, vuelve al instante)
-  bitacora.py subir <transcript> [--terminada]
+  bitacora.py hook                    # UserPromptSubmit / Stop / SessionEnd de Claude Code (lee stdin, vuelve al instante)
+  bitacora.py activo <sesion> <cwd>   # «trabajando ahora» (UserPromptSubmit; el pedido llega por stdin)
+  bitacora.py subir <transcript> [--terminada] [--fin-turno] [--procesar]
   bitacora.py barrer [--horas 6]      # relee los transcripts tocados en las últimas N horas
   bitacora.py procesar [--sesion ID] [--ya]   # la IA divide los pasos en tareas
 
@@ -28,7 +29,7 @@ PROYECTOS = os.path.expanduser('~/.claude/projects')
 CLAUDE = os.path.expanduser('~/.local/bin/claude')
 YO = os.path.realpath(__file__)
 
-QUIETA_MIN = 20       # §14.0-5
+QUIETA_MIN = 2        # §14.0-5: lo normal es procesar en el Stop; el barrido recoge lo que se quedó atrás
 TANDA_MAX = 25
 PASOS_POR_LLAMADA = 40
 HORA_REINICIO = 4     # hoy_ajustes.hora_reinicio
@@ -152,7 +153,7 @@ def _huella(p):
     return hashlib.sha1(json.dumps(p, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
-def subir(ruta, terminada=False):
+def subir(ruta, terminada=False, fin_turno=False):
     meta, pasos = leer_transcript(ruta)
     # Las sesiones lanzadas por programa (`claude -p`, bots, SDK) no son trabajo de Alex.
     if not pasos or (meta.get('entrypoint') or '').startswith('sdk'):
@@ -167,7 +168,7 @@ def subir(ruta, terminada=False):
             estado = {}
         nuevos = [p for p in pasos if estado.get(p['id']) != _huella(p)]
         firma_sesion = _huella([meta, len(pasos), terminada])
-        if not nuevos and estado.get('_sesion') == firma_sesion:
+        if not nuevos and estado.get('_sesion') == firma_sesion and not fin_turno:
             return 0
         c = conexion()
         with c, c.cursor() as cur:
@@ -177,9 +178,10 @@ def subir(ruta, terminada=False):
               on conflict (id) do update set cwd = excluded.cwd, carpeta = excluded.carpeta,
                 titulo = coalesce(nullif(excluded.titulo, ''), hoy_cc_sesiones.titulo),
                 ultimo = excluded.ultimo, pasos = excluded.pasos,
-                terminada = hoy_cc_sesiones.terminada or excluded.terminada, updated_at = now()
+                terminada = hoy_cc_sesiones.terminada or excluded.terminada,
+                activo_desde = case when %s then null else hoy_cc_sesiones.activo_desde end, updated_at = now()
             """, (meta['id'], OWNER, meta['cwd'], '~' if meta['cwd'].rstrip('/') in ('', os.path.expanduser('~')) else os.path.basename(meta['cwd'].rstrip('/')),
-                  meta['titulo'], pasos[0]['inicio'], pasos[-1]['fin'], len(pasos), terminada))
+                  meta['titulo'], pasos[0]['inicio'], pasos[-1]['fin'], len(pasos), terminada, fin_turno or terminada))
             for p in nuevos:
                 # Si un paso ya procesado cambia (siguió creciendo), vuelve a la cola.
                 cur.execute("""
@@ -219,7 +221,7 @@ ESQUEMA = {
                 'descripcion': {'type': 'string', 'description': 'Qué se hizo y con qué resultado, 1-3 frases.'},
                 'proyecto_id': {'type': ['string', 'null']},
                 'categoria': {'type': 'string', 'enum': ['proyecto', 'soporte', 'contenido', 'ventas', 'ia', 'afiliados', 'general']},
-                'estado': {'type': 'string', 'enum': ['hecha', 'en_curso']},
+                'estado': {'type': 'string', 'enum': ['revision', 'en_curso'], 'description': 'revision = Claude lo dio por terminado y espera el visto bueno de Alex; en_curso = sigue a medias.'},
                 'pasos': {'type': 'array', 'items': {'type': 'string'}, 'description': 'ids de los pasos que forman esta tarea.'},
             },
             'required': ['id', 'titulo', 'descripcion', 'proyecto_id', 'categoria', 'estado', 'pasos'],
@@ -238,8 +240,8 @@ INSTRUCCIONES = """Eres el registrador de trabajo de Alex dentro de 2day, su app
 Convierte los pasos en TAREAS como las que Alex apuntaría en su lista:
 - Una tarea es un resultado reconocible («Desplegar la landing de Jonathan», «Arreglar el login del portal»), no una acción técnica suelta. Agrupa todos los pasos que trabajan en lo mismo, aunque no sean seguidos. Una sesión típica da 1-6 tareas.
 - Cada paso va como mucho a UNA tarea. Los pasos sin resultado (saludos, /clear, preguntas sueltas, pruebas que no llevan a nada) no van a ninguna.
-- estado «hecha» sólo si la respuesta deja claro que se terminó (hecho, desplegado, verificado, entregado). Si se empezó y quedó a medias o esperando algo, «en_curso».
-- Si el trabajo es una tarea que ya existe (TAREAS_DE_ESTA_SESION o TAREAS_DE_ALEX, abiertas o cerradas hace poco), usa su id en vez de «nueva». Así no se duplica y, si quedó terminada, se marca hecha. Sé estricto: sólo si es claramente la misma.
+- Tú NUNCA das una tarea por completada: eso lo hace Alex. estado «revision» si la respuesta deja claro que Claude terminó su parte (hecho, desplegado, verificado, entregado) y toca que Alex lo revise. «en_curso» si se empezó y sigue a medias, esperando algo, o si Alex ha vuelto a pedir cambios sobre algo que estaba en revisión.
+- Si el trabajo es una tarea que ya existe (TAREAS_DE_ESTA_SESION o TAREAS_DE_ALEX), usa su id en vez de «nueva»: así no se duplica y la tarea cambia de columna. Sé estricto: sólo si es claramente la misma. Una tarea con hecha=true ya la cerró Alex: si hay trabajo nuevo sobre ella, es una tarea «nueva».
 - proyecto_id: uno de PROYECTOS si encaja claramente (por el tema o la carpeta), si no null.
 - pendientes: sólo lo que Alex dijo explícitamente que haría luego o lo que quedó bloqueado y hay que retomar. Máximo 3. Nunca uno que ya esté en TAREAS_DE_ALEX o TAREAS_DE_ESTA_SESION. Si no hay, lista vacía.
 - Todo en español, sin humo. Responde sólo con el JSON."""
@@ -284,15 +286,7 @@ def _toca(sesion, n_pendientes, ultimo_fin, ya):
 
 
 def procesar(sesion_id=None, ya=False):
-    # Un solo clasificador a la vez (LaunchAgent y SessionEnd): dos a la vez duplicarían tareas.
-    # Si está ocupado, el que llega se va; el LaunchAgent lo recoge en la siguiente vuelta.
-    os.makedirs(CASA, exist_ok=True)
-    candado = open(os.path.join(CASA, 'procesar.lock'), 'w')
-    try:
-        fcntl.flock(candado, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        log('procesar: ocupado, lo recoge la siguiente vuelta')
-        return 0
+    os.makedirs(os.path.join(CASA, 'candados'), exist_ok=True)
     c = conexion()
     cur = c.cursor()
     cur.execute("""
@@ -308,12 +302,22 @@ def procesar(sesion_id=None, ya=False):
     for s in sesiones:
         if not _toca(s, s['n'], s['ultimo_fin'], ya):
             continue
+        # Un clasificador por SESIÓN (§14.0-5): dos a la vez sobre la misma duplicarían tareas;
+        # cuatro terminales distintas sí van en paralelo. Ocupada → la recoge quien la tiene.
+        candado = open(os.path.join(CASA, 'candados', s['id'] + '.lock'), 'w')
+        try:
+            fcntl.flock(candado, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            log('procesar: ocupada', s['id'][:8])
+            continue
         try:
             hechas += _procesar_sesion(c, s)
         except Exception as e:  # una sesión rota no para las demás
             c.rollback()
             log('procesar ERROR', s['id'][:8], repr(e)[:400])
             print('ERROR', s['id'][:8], e, file=sys.stderr)
+        finally:
+            candado.close()
     c.close()
     return hechas
 
@@ -326,9 +330,9 @@ def _procesar_sesion(c, s):
     pasos = [dict(zip(['id', 'inicio', 'fin', 'pedido', 'respuesta', 'herramientas', 'archivos', 'comandos'], f)) for f in cur.fetchall()]
     if not pasos:
         return 0
-    cur.execute("""select distinct t.id, t.titulo, t.hecha from hoy_cc_pasos p join hoy_tareas t on t.id = p.tarea_id
+    cur.execute("""select distinct t.id, t.titulo, t.hecha, t.estado from hoy_cc_pasos p join hoy_tareas t on t.id = p.tarea_id
                    where p.sesion_id = %s""", (s['id'],))
-    de_la_sesion = [{'id': str(i), 'titulo': t, 'hecha': h} for i, t, h in cur.fetchall()]
+    de_la_sesion = [{'id': str(i), 'titulo': t, 'hecha': h, 'estado': e} for i, t, h, e in cur.fetchall()]
     # También las cerradas hace poco: si otra sesión (o Alex) ya la marcó hecha, se enlaza, no se duplica.
     cur.execute("""select t.id, t.titulo, coalesce(pr.nombre, ''), t.hecha from hoy_tareas t
                    left join hoy_proyectos pr on pr.id = t.proyecto_id
@@ -369,22 +373,21 @@ def _procesar_sesion(c, s):
         if not mis_pasos:
             continue
         usados.update(p['id'] for p in mis_pasos)
-        hecha = t.get('estado') == 'hecha'
-        estado = 'done' if hecha else 'in_progress'
+        # §14.4: la IA nunca completa. Terminada por Claude → revisión; a medias → en curso.
+        estado = 'review' if t.get('estado') == 'revision' else 'in_progress'
         fin = max(p['fin'] for p in mis_pasos)
         proyecto = t.get('proyecto_id') if t.get('proyecto_id') in ids_proyecto else None
         if t.get('id') in validas:
             tarea_id = t['id']
-            if hecha:
-                cur.execute("""update hoy_tareas set hecha = true, hecha_en = coalesce(hecha_en, %s), estado = 'done',
-                               etapa_id = coalesce(%s, etapa_id), updated_at = now() where id = %s and not hecha""",
-                            (fin, etapas.get('done'), tarea_id))
+            # Una tarea que Alex ya completó no se reabre (sólo se le enlazan los pasos).
+            cur.execute("""update hoy_tareas set estado = %s, etapa_id = coalesce(%s, etapa_id), updated_at = now()
+                           where id = %s and not hecha""", (estado, etapas.get(estado), tarea_id))
         else:
             cur.execute("""insert into hoy_tareas (owner_id, titulo, descripcion, proyecto_id, categoria, pipeline_id,
-                             etapa_id, estado, hecha, hecha_en, inicio)
-                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
+                             etapa_id, estado, inicio)
+                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s) returning id""",
                         (OWNER, t['titulo'][:200], t.get('descripcion', ''), proyecto, t.get('categoria'), pipeline,
-                         etapas.get(estado), estado, hecha, fin if hecha else None, _dia_logico(mis_pasos[0]['inicio'])))
+                         etapas.get(estado), estado, _dia_logico(mis_pasos[0]['inicio'])))
             tarea_id = cur.fetchone()[0]
             cur.execute("""insert into hoy_capa (tarea_id, owner_id, origen, hoy_para, notas)
                            values (%s, %s, 'hoy', %s, %s) on conflict (tarea_id) do nothing""",
@@ -406,14 +409,29 @@ def _procesar_sesion(c, s):
                    where id = %s""", (salida.get('resumen') or s['resumen'], s['id']))
     c.commit()
     log('procesar', s['id'][:8], f'{len(pasos)} pasos → {len(salida.get("tareas", []))} tareas, {creadas} nuevas')
-    # Si quedaban más pasos que una llamada, sigue con la siguiente tanda.
-    if len(pasos) == PASOS_POR_LLAMADA:
+    # Si quedan pasos (más de una llamada, u otro Stop llegó mientras se clasificaba), otra tanda.
+    cur.execute("select count(*) from hoy_cc_pasos where sesion_id = %s and not procesado", (s['id'],))
+    if cur.fetchone()[0]:
         s = dict(s, resumen=salida.get('resumen') or s['resumen'])
         return creadas + _procesar_sesion(c, s)
     return creadas
 
 
 # ── hook ────────────────────────────────────────────────────────────────────────
+
+def activo(sesion_id, cwd, pedido):
+    """§14.4: la terminal empieza a trabajar → tarjeta «Trabajando ahora» en el tablero."""
+    carpeta = '~' if cwd.rstrip('/') in ('', os.path.expanduser('~')) else os.path.basename(cwd.rstrip('/'))
+    c = conexion()
+    with c, c.cursor() as cur:
+        cur.execute("""
+          insert into hoy_cc_sesiones (id, owner_id, cwd, carpeta, inicio, ultimo, activo_desde, activo_pedido)
+          values (%s, %s, %s, %s, now(), now(), now(), %s)
+          on conflict (id) do update set activo_desde = now(), activo_pedido = excluded.activo_pedido,
+            ultimo = now(), updated_at = now()
+        """, (sesion_id, OWNER, cwd, carpeta, _limpiar_pedido(pedido)[:500]))
+    c.close()
+
 
 def hook():
     if os.environ.get('HOY_BITACORA_OFF'):
@@ -422,17 +440,31 @@ def hook():
         datos = json.load(sys.stdin)
     except ValueError:
         return
-    ruta = datos.get('transcript_path')
-    if not ruta or not os.path.exists(ruta):
-        return
     evento = datos.get('hook_event_name')
-    orden = [sys.executable, YO, 'subir', ruta]
-    if evento == 'SessionEnd':
-        orden += ['--terminada', '--procesar']
+    ruta = datos.get('transcript_path') or ''
+    # Las sesiones de programa (`claude -p`, bots) no van al tablero.
+    if os.environ.get('CLAUDE_CODE_ENTRYPOINT', 'cli').startswith('sdk'):
+        return
     os.makedirs(CASA, exist_ok=True)
+    entrada = None
+    if evento == 'UserPromptSubmit':
+        pedido = str(datos.get('prompt') or '')
+        if _ruido(pedido) or _limpiar_pedido(pedido).split(' ')[0] in COMANDOS_RUIDO or not datos.get('session_id'):
+            return
+        orden = [sys.executable, YO, 'activo', datos['session_id'], datos.get('cwd') or '']
+        entrada = pedido
+    elif ruta and os.path.exists(ruta):
+        orden = [sys.executable, YO, 'subir', ruta, '--fin-turno', '--procesar']
+        if evento == 'SessionEnd':
+            orden.append('--terminada')
+    else:
+        return
     # Suelto del hook: Claude Code no espera a la red ni a la IA.
-    subprocess.Popen(orden, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                     stderr=open(os.path.join(CASA, 'errores.log'), 'a'), start_new_session=True)
+    hijo = subprocess.Popen(orden, stdin=subprocess.PIPE if entrada else subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                            stderr=open(os.path.join(CASA, 'errores.log'), 'a'), start_new_session=True, text=True)
+    if entrada:
+        hijo.stdin.write(entrada)
+        hijo.stdin.close()
 
 
 def main(argv):
@@ -445,12 +477,17 @@ def main(argv):
     elif orden == 'subir':
         ruta = argv[1]
         try:
-            subir(ruta, terminada='--terminada' in argv)
+            subir(ruta, terminada='--terminada' in argv, fin_turno='--fin-turno' in argv)
         except Exception as e:
             log('subir ERROR', os.path.basename(ruta)[:8], repr(e)[:300])
             raise
         if '--procesar' in argv:
             procesar(os.path.basename(ruta)[:-6], ya=True)
+    elif orden == 'activo':
+        try:
+            activo(argv[1], argv[2] if len(argv) > 2 else '', sys.stdin.read())
+        except Exception as e:
+            log('activo ERROR', argv[1][:8], repr(e)[:300])
     elif orden == 'barrer':
         horas = float(argv[argv.index('--horas') + 1]) if '--horas' in argv else 6
         n = 0

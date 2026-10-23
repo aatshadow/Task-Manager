@@ -614,21 +614,45 @@ las clasifique y marque hechas. Así automatizo y sigo teniendo el control de qu
 | 2 | **Lo apunta un hook de Claude Code, no Claude.** `Stop` y `SessionEnd` en `~/.claude/settings.json` llaman a `bitacora/bitacora.py hook`, que vuelve al instante y deja a un proceso suelto leer el transcript y subir los pasos. Nada depende de que el modelo se acuerde de registrar. |
 | 3 | **El transcript es la fuente.** Se relee entero y se suben sólo los pasos nuevos o cambiados (estado local en `~/.claude/2day-bitacora/`). Idempotente: si falla la red, el siguiente `Stop` o el barrido lo arregla. |
 | 4 | **Clasifica `claude -p` con la suscripción**, no la API (la clave de `~/.tokens` no tiene saldo): se lanza sin `ANTHROPIC_API_KEY`, sin herramientas, sin guardar sesión y con `HOY_BITACORA_OFF=1` para no apuntarse a sí mismo. Modelo `sonnet`, salida con `--json-schema`. |
-| 5 | **Cuándo se procesa una sesión:** al cerrarla (`SessionEnd`), cuando lleva **20 min quieta**, cuando acumula **25 pasos** sin procesar, o al tocar «Procesar» en la app. Un LaunchAgent (`net.core.2day-bitacora`, cada 5 min) barre los transcripts de las últimas 6 h y procesa lo que toque. |
-| 6 | **Las tareas que salen son tareas normales de 2day** (`hoy_tareas` + `hoy_capa` con `hoy_para` = el día lógico del paso), así cuentan en Hoy, Stats y Overview. Hecha → `hecha=true`, `estado='done'`, `hecha_en` = fin de su último paso. A medias → `in_progress`. La IA **reusa una tarea abierta** de Alex si el trabajo es esa tarea (la marca hecha si acabó) en vez de duplicarla, y **reusa las tareas ya sacadas de la misma sesión** en las tandas siguientes. |
+| 5 | **Cuándo se procesa una sesión:** ~~a los 20 min quieta~~ → **al acabar cada turno** (`Stop`), desde el 23-10 (§14.4): el tablero tiene que moverse mientras se trabaja. Un LaunchAgent (`net.core.2day-bitacora`, cada 5 min) barre los transcripts de las últimas 6 h y procesa lo que se haya quedado atrás. El candado es **por sesión**: cuatro terminales se clasifican a la vez. |
+| 6 | **Las tareas que salen son tareas normales de 2day** (`hoy_tareas` + `hoy_capa` con `hoy_para` = el día lógico del paso), así cuentan en Hoy, Stats y Overview. ~~Hecha → `done`~~ → desde el 23-10 **la IA nunca completa** (§14.4): terminada por Claude → `review`; a medias → `in_progress`. **Completar es de Alex.** La IA **reusa una tarea abierta** de Alex si el trabajo es esa tarea (la marca hecha si acabó) en vez de duplicarla, y **reusa las tareas ya sacadas de la misma sesión** en las tandas siguientes. |
 | 7 | **Pendientes que quedan** (lo que Alex dijo «luego» o lo que quedó por hacer explícitamente): como mucho 3 por tanda, a Bandeja, sin paso. |
 | 8 | **Dónde se ve:** Tareas → pestaña **Claude**: día con flechas, totales (sesiones · pasos · tareas hechas · horas), y cada sesión con título, carpeta, horario, resumen, las tareas que salieron y los pasos en crudo. Proyecto por carpeta sólo como pista para la IA. |
+
+### 14.4 · El tablero de Claude (Alex, 23-10-2026)
+
+Pedido: «quiero un kanban: cuando en alguna terminal empecemos algo, la tarea en curso; cuando lo termine, en
+revisión; y cuando yo la dé por completada, completado».
+
+- **Tres columnas sobre el vocabulario de siempre** (`estado` + `etapa_id` de su tablero, como el kanban de
+  Tareas): **En curso** (`in_progress`) · **En revisión** (`review`) · **Completado** (`done`, del día elegido).
+  Entran las tareas con algún paso de Claude enlazado, también una tarea vieja de Alex que la IA reconoce.
+- **En curso al instante.** `UserPromptSubmit` apunta en la sesión `activo_desde` + `activo_pedido`; la
+  columna En curso enseña arriba una tarjeta **«Trabajando ahora»** por terminal activa (sesión y lo que se
+  pidió) hasta que el turno acaba y la IA lo pone en su tarea. `Stop` lo borra y procesa. Una marca de más de
+  3 h se da por muerta (terminal cerrada a lo bruto).
+- **Revisión la pone Claude, Completado sólo Alex.** En revisión cada tarjeta lleva **Completar** (✓, la misma
+  puerta `completar()` de la app) y **Devolver** (a En curso). Si Alex vuelve a pedir algo sobre una tarea en
+  revisión, la IA la devuelve a En curso sola. Una tarea que Alex ya completó no se reabre: el trabajo nuevo
+  es otra tarea.
+- **Lo de antes del 23-10** (las 37 que la IA marcó hechas al estrenar la bitácora) se queda como historia.
+- En el móvil las columnas van apiladas con **En revisión primero** (es la que pide una decisión); en escritorio, en fila.
+- La pestaña Claude tiene dos caras, **Tablero · Sesiones** (la de §14.0-8). El tablero se refresca cada
+  15 s mientras está a la vista.
 
 ### 14.1 · Modelo (`sql/2026-10-23-bitacora.sql`)
 
 - **`hoy_cc_sesiones`** — `id` = session_id de Claude Code · `cwd`, `carpeta`, `titulo` (el `ai-title` del transcript), `resumen` (lo escribe la IA), `inicio`, `ultimo`, `pasos`, `terminada`, `procesar_pedido` (lo enciende la app), `procesada_en`.
+- **`hoy_cc_sesiones.activo_desde` · `activo_pedido`** (§14.4, `sql/2026-10-23-bitacora-tablero.sql`): la terminal está trabajando ahora mismo.
 - **`hoy_cc_pasos`** — `id` = uuid del mensaje humano · `sesion_id` · `inicio`, `fin` · `pedido`, `respuesta` (recortadas) · `herramientas` jsonb (`{Bash: 4, Edit: 2}`) · `archivos[]` · `comandos[]` · `tarea_id` (la `hoy_tareas` a la que la IA lo asignó; null = ruido) · `procesado`.
 - RLS por dueño en las dos; `anon` revocado. El hook y el clasificador escriben con `SUPABASE_DB_URL` del vault (sólo en el Mac) poniendo `owner_id` de Alex a mano.
 
 ### 14.2 · Capa de datos (amplía §7)
 
 ```
-bitacora.js   cargarSesiones(desde, hasta) → [Sesion con pasos]   · pedirProceso(sesionId)
+bitacora.js   cargarDia(fecha, horaReinicio) → [Sesion con pasos y tareas]   · pedirProceso(sesionId)
+              cargarTablero(fecha, horaReinicio) → { activas, enCurso, revision, completadas }   (§14.4)
+tareas.js     aEstado(tarea, clave)   // mueve a la etapa con esa clave de SU tablero (como completar)
               puro: resumenDia(sesiones, tareas) → { sesiones, pasos, hechas, abiertas, minutos }
 ```
 

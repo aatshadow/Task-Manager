@@ -54,6 +54,45 @@ export async function cargarDia(fecha, horaReinicio) {
   }).sort((a, b) => (a.inicio < b.inicio ? 1 : -1))
 }
 
+const VIVA_HORAS = 3 // §14.4: una marca de «trabajando» más vieja es una terminal cerrada a lo bruto
+
+/**
+ * El tablero (§14.4): qué tareas tocó Claude (últimos 30 días) y qué terminales están trabajando
+ * ahora. Las columnas las arma la pantalla con las tareas del contexto, que son las que se mueven.
+ */
+export async function cargarTablero() {
+  listo()
+  const desde = new Date(Date.now() - 30 * 86400000).toISOString()
+  const pasos = filas(await supabase.from('hoy_cc_pasos').select('sesion_id, tarea_id, fin, procesado').gte('inicio', desde), 'no se pudieron leer los pasos')
+  const viva = new Date(Date.now() - VIVA_HORAS * 3600000).toISOString()
+  const ids = [...new Set(pasos.map((p) => p.sesion_id))]
+  const sesiones = filas(await supabase.from('hoy_cc_sesiones').select('id, titulo, carpeta, activo_desde, activo_pedido')
+    .or(`activo_desde.gte.${viva}${ids.length ? `,id.in.(${ids.join(',')})` : ''}`), 'no se pudieron leer las sesiones')
+  const porSesion = Object.fromEntries(sesiones.map((s) => [s.id, s]))
+
+  // tareaId → de qué sesiones salió, cuántos pasos y cuándo se tocó por última vez
+  const deClaude = new Map()
+  const sinClasificar = new Map()
+  for (const p of pasos) {
+    if (!p.procesado) sinClasificar.set(p.sesion_id, (sinClasificar.get(p.sesion_id) || 0) + 1)
+    if (!p.tarea_id) continue
+    const t = deClaude.get(p.tarea_id) || { sesiones: new Set(), pasos: 0, ultimo: p.fin }
+    t.sesiones.add(p.sesion_id)
+    t.pasos += 1
+    if (p.fin > t.ultimo) t.ultimo = p.fin
+    deClaude.set(p.tarea_id, t)
+  }
+  for (const t of deClaude.values()) {
+    t.sesion = [...t.sesiones].map((id) => porSesion[id]).filter(Boolean).map((s) => s.titulo || s.carpeta).join(' · ')
+  }
+  const activas = sesiones.filter((s) => s.activo_desde && s.activo_desde >= viva)
+    .map((s) => ({ id: s.id, titulo: s.titulo || s.carpeta, carpeta: s.carpeta, desde: s.activo_desde, pedido: s.activo_pedido }))
+  const clasificando = [...sinClasificar.entries()]
+    .filter(([id]) => !activas.some((a) => a.id === id) && porSesion[id])
+    .map(([id, n]) => ({ id, titulo: porSesion[id].titulo || porSesion[id].carpeta, pasos: n }))
+  return { deClaude, activas, clasificando }
+}
+
 /** Enciende `procesar_pedido`: el clasificador la procesa en su próxima vuelta aunque no esté quieta. */
 export async function pedirProceso(sesionId) {
   listo()

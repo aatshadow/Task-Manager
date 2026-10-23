@@ -387,6 +387,14 @@ export async function completar(tarea, hecha = true) {
   return mover(tarea, etapa, { estadoPedido: etapa ? null : clave })
 }
 
+/** Mueve a la etapa con esa clave del vocabulario (`in_progress`, `review`…) de SU tablero (§14.4). */
+export async function aEstado(tarea, clave) {
+  listo()
+  const tab = await tableroDe(tarea)
+  const etapa = tab?.etapas.find((e) => e.clave === clave) || null
+  return mover(tarea, etapa, { estadoPedido: etapa ? null : clave })
+}
+
 /* ── LA CAPA ───────────────────────────────────────────────────────────────── */
 
 const aCapa = (c) => ({
