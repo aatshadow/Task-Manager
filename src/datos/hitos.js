@@ -2,8 +2,9 @@
  * hitos.js — los lanzamientos de los frentes (LOGICA §10.5).
  *
  * Un hito es un nombre con frente y fecha (o sin fecha). No es una tarea: no se
- * planifica ni se arrastra; se ve en Hoy como «en 3 días» y se marca hecho cuando
- * pasa. `clientId` es texto suelto: un frente puede no existir aún en `clients`.
+ * planifica; se ve en Hoy como «en 3 días» y se marca hecho cuando pasa. Desde §5.4
+ * puede durar: `inicio` (opcional) → `fecha` (el final), y en el Gantt se arrastra.
+ * `clientId` es texto suelto: un frente puede no existir aún en `clients`.
  */
 import { supabase, isConfigured, ErrorHoy, filas, uno, ok } from '../lib/supabase.js'
 import { diasEntre } from './fechas.js'
@@ -13,7 +14,7 @@ const listo = () => {
 }
 
 const aHito = (h) => ({
-  id: h.id, nombre: h.nombre, frente: h.frente || '', fecha: h.fecha || null,
+  id: h.id, nombre: h.nombre, frente: h.frente || '', fecha: h.fecha || null, inicio: h.inicio || null,
   clientId: h.client_id || null, hecho: !!h.hecho, posicion: h.posicion ?? 0, creadoEn: h.created_at,
 })
 const aColumnas = (c) => {
@@ -21,6 +22,7 @@ const aColumnas = (c) => {
   if ('nombre' in c) m.nombre = String(c.nombre || '').trim()
   if ('frente' in c) m.frente = String(c.frente || '').trim()
   if ('fecha' in c) m.fecha = c.fecha || null
+  if ('inicio' in c) m.inicio = c.inicio || null
   if ('clientId' in c) m.client_id = c.clientId || null
   if ('hecho' in c) m.hecho = !!c.hecho
   if ('posicion' in c) m.posicion = c.posicion
@@ -34,9 +36,9 @@ export async function cargarHitos({ incluirHechos = true } = {}) {
   return filas(await q, 'no se pudieron leer los hitos').map(aHito)
 }
 
-export async function crearHito({ nombre, frente = '', fecha = null, clientId = null, posicion }) {
+export async function crearHito({ nombre, frente = '', fecha = null, inicio = null, clientId = null, posicion }) {
   listo()
-  const fila = aColumnas({ nombre, frente, fecha, clientId })
+  const fila = aColumnas({ nombre, frente, fecha, inicio, clientId })
   if (!fila.nombre) throw new ErrorHoy('un hito necesita nombre')
   if (posicion == null) {
     const f = filas(await supabase.from('hoy_hitos').select('posicion').order('posicion', { ascending: false }).limit(1))
@@ -95,4 +97,21 @@ export function ordenarHitos(hitos, hoy) {
     if (db == null) return -1
     return da - db || a.posicion - b.posicion
   })
+}
+
+/**
+ * Inicio y fin de un hito tras arrastrarlo `delta` días (§5.4). `modo`: 'mover' (las dos fechas),
+ * 'inicio' o 'fin' (sólo ese borde, sin cruzar el otro). Un hito sin inicio sólo se mueve.
+ */
+export function moverHito(hito, modo, delta, sumar) {
+  if (!hito?.fecha || !delta) return { inicio: hito?.inicio || null, fecha: hito?.fecha || null }
+  if (!hito.inicio || modo === 'mover') {
+    return { inicio: hito.inicio ? sumar(hito.inicio, delta) : null, fecha: sumar(hito.fecha, delta) }
+  }
+  if (modo === 'inicio') {
+    const inicio = sumar(hito.inicio, delta)
+    return { inicio: inicio > hito.fecha ? hito.fecha : inicio, fecha: hito.fecha }
+  }
+  const fecha = sumar(hito.fecha, delta)
+  return { inicio: hito.inicio, fecha: fecha < hito.inicio ? hito.inicio : fecha }
 }

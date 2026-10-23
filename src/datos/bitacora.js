@@ -215,3 +215,19 @@ export async function cargarReuniones(dias = 30) {
     aceptadas: px.filter((p) => p.reunion_id === r.id && p.estado === 'aceptado').length,
   }))
 }
+
+/* ── Meetings: la ficha IA del comunicador (§15) ─────────────────────────────── */
+
+const aPerfil = (f) => ({ id: f.id, creadaEn: f.created_at, estado: f.estado, desde: f.desde, hasta: f.hasta, modelo: f.modelo, metricas: f.metricas, ficha: f.ficha, error: f.error })
+
+/** Todas las versiones (la más reciente primero), también la pedida que aún se está escribiendo. */
+export async function cargarPerfiles() {
+  listo()
+  return filas(await supabase.from('hoy_meetings_perfil').select('*').order('created_at', { ascending: false }).limit(30), 'no se pudo leer la ficha').map(aPerfil)
+}
+
+/** «Regenerar»: deja un encargo; el Mac lo escribe con Claude en su próxima vuelta (≤ 5 min). */
+export async function pedirPerfil() {
+  listo()
+  ok(await supabase.from('hoy_meetings_perfil').insert({ estado: 'pedido' }), 'no se pudo pedir la ficha')
+}

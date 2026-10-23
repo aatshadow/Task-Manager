@@ -205,9 +205,10 @@
   width: 100%;
   max-width: var(--ancho-columna);
   height: calc(var(--alto-nav) + var(--safe-abajo));
-  padding: 0 8px var(--safe-abajo);
+  padding: 0 4px var(--safe-abajo);
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  /* siete pestañas desde Meetings (§15): columnas que pueden encoger y etiqueta de 10 px */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   background: var(--nav);
   border-top: 1px solid var(--linea);
   backdrop-filter: blur(14px);
@@ -221,12 +222,14 @@
   justify-content: center;
   gap: 4px;
   height: var(--alto-nav);
+  min-width: 0;
   color: var(--texto-3);
-  font-size: var(--t-micro);
+  font-size: 10px;
   font-weight: 500;
   transition: color var(--dur-corta);
   -webkit-tap-highlight-color: transparent;
 }
+.nav-item span:not(.nav-punto) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-item:hover { color: var(--texto-2); }
 .nav-item--activa { color: var(--acento); }
 .nav-item--activa svg { filter: drop-shadow(0 0 8px rgba(255, 106, 26, 0.65)); }

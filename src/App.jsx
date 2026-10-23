@@ -15,6 +15,7 @@ import Calendario from './pantallas/Calendario/Calendario.jsx'
 import Habitos from './pantallas/Habitos/Habitos.jsx'
 import Fitness from './pantallas/Fitness/Fitness.jsx'
 import Estadisticas from './pantallas/Estadisticas/Estadisticas.jsx'
+import Meetings from './pantallas/Meetings/Meetings.jsx'
 import Ajustes from './pantallas/Ajustes/Ajustes.jsx'
 import Acceso from './pantallas/Acceso/Acceso.jsx'
 import Panel from './pantallas/Panel/Panel.jsx'
@@ -33,6 +34,7 @@ const PANTALLAS = {
   habitos: { Pantalla: Habitos, titulo: 'Hábitos' },
   fitness: { Pantalla: Fitness, titulo: 'Fitness' },
   estadisticas: { Pantalla: Estadisticas, titulo: 'Stats' },
+  meetings: { Pantalla: Meetings, titulo: 'Meetings' },
   ajustes: { Pantalla: Ajustes, titulo: 'Ajustes' },
 }
 

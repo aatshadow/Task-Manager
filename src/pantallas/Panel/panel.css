@@ -36,3 +36,5 @@
 .panel-boton { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--tarjeta-alta); border: 1px solid var(--tarjeta-borde); color: var(--texto-2); cursor: pointer; }
 .panel-boton--ok { background: rgba(62, 194, 122, 0.15); border-color: rgba(62, 194, 122, 0.4); color: var(--ok); }
 .panel-boton:hover { filter: brightness(1.25); }
+.panel-fila--hecha .panel-linea { color: var(--texto-2); }
+.panel-check { color: var(--ok); flex: none; }

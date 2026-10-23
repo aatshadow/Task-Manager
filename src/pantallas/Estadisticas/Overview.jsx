@@ -293,7 +293,7 @@ function colorDeNombre(nombre, tareas, nombreProyecto, colorProyecto) {
   return (t && colorProyecto(t)) || 'var(--st-creadas)'
 }
 
-function Kpi({ etiqueta, valor, pie, acento = false, peligro = false }) {
+export function Kpi({ etiqueta, valor, pie, acento = false, peligro = false }) {
   return (
     <div className={`ov-kpi${acento ? ' ov-kpi--acento' : ''}${peligro ? ' ov-kpi--peligro' : ''}`}>
       <span className="ov-kpi-etiqueta">{etiqueta}</span>
@@ -304,7 +304,7 @@ function Kpi({ etiqueta, valor, pie, acento = false, peligro = false }) {
 }
 
 /** La nota global 0-100 como anillo. */
-function Anillo({ valor }) {
+export function Anillo({ valor }) {
   const R = 38, C = 2 * Math.PI * R
   const v = Math.max(0, Math.min(100, Number(valor) || 0))
   return (
@@ -372,7 +372,7 @@ function Columnas({ valores, etiquetas, marcar = null }) {
 }
 
 /** La nota global de cada versión, en línea. */
-function Evolucion({ versiones }) {
+export function Evolucion({ versiones }) {
   const W = 320, H = 120, P = 18
   const xs = versiones.map((_, i) => (versiones.length === 1 ? W / 2 : P + (i / (versiones.length - 1)) * (W - 2 * P)))
   const ys = versiones.map((v) => H - P - ((Number(v.ficha?.nota_global) || 0) / 100) * (H - 2 * P))
@@ -391,7 +391,7 @@ function Evolucion({ versiones }) {
   )
 }
 
-function Lista({ titulo, items, tono }) {
+export function Lista({ titulo, items, tono }) {
   if (!items?.length) return null
   return (
     <div className={`ov-puntos ov-puntos--${tono}`}>

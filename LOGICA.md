@@ -198,6 +198,16 @@ lo hecho antes y las marcas anteriores no entran en el cumplimiento. **No se bor
 Se cambia en Ajustes → Día → «Stats desde». El mismo día el Zero Agent Challenge se reinició a
 **22-10-2026 → 19-01-2027** (antes 23-09 → 21-12). Para deshacer: `sql/2026-10-22-reinicio.sql`.
 
+### 5.4 · Gantt: frentes arrastrables y con inicio (Alex, 23-10-2026)
+
+Pedido: «en el Gantt poder arrastrar los frentes de fechas y un botoncito pequeño para añadir nuevos frentes, y poder poner la opción de inicio y final de cada uno, en caso de que quiera».
+
+- **Un hito puede durar.** `hoy_hitos.inicio` (opcional, `sql/2026-10-23-hitos-inicio.sql`). `fecha` sigue siendo el día del hito o su **final**. Sin inicio, el hito es un día, como siempre: Hoy, Año y los avisos «en 3 días» siguen leyendo `fecha`.
+- **Frentes arriba del Gantt.** La fila de etiquetas pasa a ser una fila por hito que caiga en la ventana, ordenadas por inicio (o fecha). Sin inicio, rombo ámbar en su día con el nombre al lado; con inicio, barra ámbar de inicio a fecha, cortada si se sale de la ventana. La raya vertical del día del hito sigue cruzando el cuerpo. En la columna fija va el frente; en escritorio, también el nombre.
+- **Arrastrar.** El hito se mueve entero en horizontal, con imán al día. En una barra, los bordes cambian sólo el inicio o sólo el final, sin cruzarse (`moverHito`). Mientras se arrastra, barra, raya y día se mueven juntos y una etiqueta enseña las fechas. Con ratón basta tirar 4 px; con el dedo, pulsación sostenida (300 ms) y desde ahí `touchmove` no pasivo, el mismo criterio que §5.1. Al soltar se guarda en `hoy_hitos` de forma optimista; si falla, se avisa y se relee. Un toque sin arrastre abre la hoja; tras un arrastre el click se suprime.
+- **«+» en la cabecera «Frentes»** abre la hoja de crear: frente (con sugerencias de los que ya existen), hito, inicio opcional y fecha o final; por defecto, el día elegido o hoy. **Tocar un hito** abre la misma hoja para editarlo, marcarlo hecho o borrarlo. El inicio no puede ir después del final.
+- Los frentes siguen editándose también en Ajustes → Frentes (§10.5).
+
 ## 6 · Diseño — el mockup, en tokens
 
 - Fondo página `#151515`; tarjeta `#1f1f1f`; tarjeta elevada `#262626`; nav `#191919`.
@@ -762,3 +772,29 @@ tareas.js     aEstado(tarea, clave)   // mueve a la etapa con esa clave de SU ta
 
 - `python3 bitacora/bitacora.py barrer --horas 48` sube las sesiones de ayer y hoy; `procesar --ya` las clasifica; se comprueba en la base que hay tareas con pasos enlazados.
 - La pestaña Claude pinta el día con capturas a 390 y 1440.
+
+## 15 · Meetings — la sección de las reuniones (Alex, 23-10-2026)
+
+Pedido: «una sección debajo de Stats que se llame Meetings: visibilidad de las tareas que se propusieron después
+de cada reunión para aceptarlas, y que me analice mi forma de hablar y mi estilo en reuniones completo, tan
+detallado como Fitness, con un overview generado con IA».
+
+- **Séptima pestaña** después de Stats (icono micrófono; nav de 7 con etiquetas de 10 px; atajos `1`–`7`).
+  Tres caras: **Perfil** · **Por validar** (los próximos de las reuniones, §14.7) · **Reuniones**.
+- **Quién es Alex en cada reunión:** `speakerAssignments` de Wispr (manda lo puesto a mano, luego micro,
+  plataforma e IA de Wispr; contacto de Alex `f8f46b1e…`). Si Wispr no lo sabe, la IA lo deduce por el
+  contexto (`deducido: true`). Se guarda en `hoy_reuniones.hablantes`; las transcripciones ya llevan nombres.
+- **Métricas sin IA** (`hoy_reuniones.metricas`, `reuniones.py --metricas` las recalcula): cuota de tiempo y de
+  palabras, palabras por minuto, intervenciones, turnos (rachas seguidas), turno medio y máximo, monólogos
+  (>90 s), preguntas y % de preguntas, muletillas por cada mil palabras.
+- **La ficha del comunicador** (`hoy_meetings_perfil`, por versiones; `bitacora/perfil_meetings.py`, `claude -p`
+  con Opus y la suscripción): titular, arquetipo, nota 0-100, confianza, **8 dimensiones** (claridad ·
+  concisión · escucha · preguntas · estructura · liderazgo · cierre · energía) en radar con la versión anterior
+  de fantasma, forma de hablar (ritmo, vocabulario, muletillas), estilo (cómo abre, dirige, cierra y si cambia
+  según con quién), momentos con citas literales, patrones, ejercicios con cómo se miden y foco de la próxima
+  reunión, evolución.
+- **Cuándo se escribe:** «Regenerar» en la app inserta una fila `pedido`; el LaunchAgent (cada 5 min) la rellena.
+  También se escribe sola cuando hay reuniones nuevas con métricas desde la última versión.
+- **Widget y panel (§14.8) ganan «Completado hoy»:** lo cerrado en el día lógico de hoy (desde la hora de
+  reinicio, 04:00), sólo tareas de 2day; se limpia solo al cambiar de día. En el widget, `✓ N` en la barra y
+  «Reabrir» por tarea.

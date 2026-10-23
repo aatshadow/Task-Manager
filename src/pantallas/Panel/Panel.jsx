@@ -49,6 +49,9 @@ export default function Panel() {
   const revision = useMemo(() => tareas.filter((t) => !t.hecha && !t.archivadoEn && t.estado === 'review'), [tareas])
   const enCurso = useMemo(() => (tablero ? tareas.filter((t) => !t.hecha && !t.archivadoEn && t.estado !== 'review' && tablero.deClaude.has(t.id)) : []), [tareas, tablero])
   const r = resumenHoy(tareas, hoy)
+  // «Completado hoy» se limpia solo: es lo cerrado en el día lógico de hoy (desde las 04:00).
+  const completadasHoy = useMemo(() => tareas.filter((t) => t.hecha && t.origen === 'hoy' && diaDe(t.hechaEn) === hoy)
+    .sort((a, b) => ((a.hechaEn || '') < (b.hechaEn || '') ? 1 : -1)), [tareas, hoy])
   const hechasHoy = tareas.filter((t) => t.hecha && diaDe(t.hechaEn) === hoy).length
   const total = hechasHoy + r.enHoy
   const pct = total ? hechasHoy / total : 0
@@ -147,6 +150,20 @@ export default function Panel() {
           ))}
         </Bloque>
       )}
+
+      <Bloque titulo={`Completado hoy · ${completadasHoy.length}`} color="var(--ok)">
+        {!completadasHoy.length && <div className="panel-nada">Nada cerrado todavía hoy</div>}
+        {completadasHoy.slice(0, 10).map((t) => (
+          <div key={t.id} className="panel-fila panel-fila--hecha">
+            <Check size={14} className="panel-check" />
+            <div className="panel-fila-texto">
+              <div className="panel-linea">{t.titulo}</div>
+              <div className="panel-sub">{nombreProyecto(t) || 'Sin proyecto'} · {new Date(t.hechaEn).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          </div>
+        ))}
+        {completadasHoy.length > 10 && <div className="panel-sub">y {completadasHoy.length - 10} más</div>}
+      </Bloque>
 
       {reuniones.length > 0 && (
         <Bloque titulo="Reuniones · 24 h" icono={<Mic size={14} />}>

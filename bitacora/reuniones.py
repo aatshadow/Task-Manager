@@ -43,7 +43,127 @@ def _limpiar(texto):
     return re.sub(r'<@speaker:(\d+)>', r'Hablante \1', texto)
 
 
-def _transcripcion(mid):
+ALEX = ('f8f46b1e-f257-4aaa-b535-3e5ba3022332', 'alex gutiérrez')   # contacto de Alex en Wispr
+MULETILLAS = ['vale', 'o sea', 'sabes', 'bueno', 'tío', 'en plan', '¿no?', 'eh', 'vamos', 'básicamente',
+              'literalmente', 'realmente', 'pues', 'claro', 'digamos', 'la verdad', 'tipo']
+
+
+def _hablantes(asignaciones):
+    """speakerAssignments de Wispr → {id: {nombre, alex}}. Manda lo que puso Alex a mano, luego el micro,
+    luego la plataforma (Meet) y por último la IA de Wispr."""
+    try:
+        datos = json.loads(asignaciones or '{}')
+    except ValueError:
+        return {}
+    out = {}
+    for sid, fuentes in datos.items():
+        for clave in ('user', 'mic', 'dom', 'llm'):
+            f = (fuentes or {}).get(clave)
+            if f and f.get('name'):
+                es_alex = f.get('contactId') == ALEX[0] or f['name'].strip().lower() == ALEX[1]
+                out[str(sid)] = {'nombre': f['name'], 'alex': es_alex}
+                break
+    return out
+
+
+def _completar_alex(mid, hablantes, segs):
+    """Si Wispr no sabe qué voz es Alex (reuniones viejas), que lo deduzca la IA por el contexto."""
+    if any(v['alex'] for v in hablantes.values()) or not segs:
+        return hablantes
+    muestra = '\n'.join(f'[{h}] {x}' for _, h, x in segs[:220])[:14000]
+    ids = sorted({h for _, h, _ in segs})
+    schema = {'type': 'object', 'properties': {'alex': {'type': 'array', 'items': {'type': 'string', 'enum': ids}}}, 'required': ['alex']}
+    try:
+        r = _llamar_claude({'ENCARGO': 'Di qué ids de hablante son Alex Gutiérrez (CEO de CORE/GrowthInfo: monta sistemas, portales, '
+                                       'automatizaciones, habla de Claude, del portal y de los clientes). Puede ser más de uno '
+                                       '(la diarización a veces lo parte). Si no está claro, lista vacía.',
+                            'TRANSCRIPCION': muestra}, schema, 'Responde sólo con el JSON.')
+    except Exception as e:
+        log('reunion alex ERROR', mid[:8], repr(e)[:200])
+        return hablantes
+    out = dict(hablantes)
+    for h in r.get('alex', []):
+        out[h] = {'nombre': 'Alex Gutiérrez', 'alex': True, 'deducido': True}
+    return out
+
+
+def _segundos(marca):
+    try:
+        partes = [int(x) for x in str(marca).split(':')]
+    except ValueError:
+        return None
+    seg = 0
+    for p in partes:
+        seg = seg * 60 + p
+    return seg
+
+
+def _segmentos(mid):
+    """[(segundo, id_hablante, texto)] de la transcripción refinada (o la viva)."""
+    for nombre in ('refined.ndjson', 'live.ndjson'):
+        ruta = os.path.join(WISPR, 'meetings', mid, nombre)
+        if not os.path.exists(ruta):
+            continue
+        segs = []
+        for linea in open(ruta, errors='replace'):
+            try:
+                d = json.loads(linea)
+            except ValueError:
+                continue
+            if d.get('text', '').strip():
+                segs.append((_segundos(d.get('timestamp')), str((d.get('speaker') or {}).get('id', '?')), d['text'].strip()))
+        if segs:
+            return segs
+    return []
+
+
+def metricas(segs, hablantes):
+    """§15: cómo habla Alex en una reunión, medido sin IA."""
+    alex_ids = {k for k, v in hablantes.items() if v['alex']}
+    if not segs or not alex_ids:
+        return None
+    dur = []
+    for i, (t, _, _) in enumerate(segs):
+        sig = segs[i + 1][0] if i + 1 < len(segs) else None
+        dur.append(min(45, max(1, sig - t)) if t is not None and sig is not None and sig >= t else 5)
+    palabras = lambda x: len(re.findall(r"\w+", x))
+    total_p = sum(palabras(x) for _, _, x in segs) or 1
+    alex = [(t, x, d) for (t, h, x), d in zip(segs, dur) if h in alex_ids]
+    alex_p = sum(palabras(x) for _, x, _ in alex)
+    alex_s = sum(d for _, _, d in alex)
+    total_s = sum(dur) or 1
+    # turnos = rachas seguidas de Alex; monólogo = turno de más de 90 s
+    turnos, actual = [], None
+    for (t, h, x), d in zip(segs, dur):
+        if h in alex_ids:
+            actual = (actual or 0) + d
+        elif actual is not None:
+            turnos.append(actual); actual = None
+    if actual is not None:
+        turnos.append(actual)
+    texto = ' '.join(x for _, x, _ in alex).lower()
+    muletillas = {}
+    for m in MULETILLAS:
+        patron = re.escape(m) if not m[0].isalpha() else r'(?<!\w)' + re.escape(m) + r'(?!\w)'
+        n = len(re.findall(patron, texto))
+        if n:
+            muletillas[m] = round(n * 1000 / max(alex_p, 1), 1)
+    otros = sorted({v['nombre'] for k, v in hablantes.items() if not v['alex']})
+    return {
+        'minutos': round(total_s / 60), 'hablantes': len({h for _, h, _ in segs}), 'con': otros,
+        'cuota_palabras': round(100 * alex_p / total_p), 'cuota_tiempo': round(100 * alex_s / total_s),
+        'palabras': alex_p, 'ppm': round(alex_p / (alex_s / 60)) if alex_s > 30 else None,
+        'intervenciones': len(alex), 'turnos': len(turnos),
+        'turno_medio_s': round(sum(turnos) / len(turnos)) if turnos else 0,
+        'monologos': sum(1 for x in turnos if x > 90), 'turno_max_s': round(max(turnos)) if turnos else 0,
+        'preguntas': sum(1 for _, x, _ in alex if '?' in x),
+        'pct_preguntas': round(100 * sum(1 for _, x, _ in alex if '?' in x) / max(len(alex), 1)),
+        'muletillas_por_mil': dict(sorted(muletillas.items(), key=lambda kv: -kv[1])),
+    }
+
+
+def _transcripcion(mid, hablantes=None):
+    hablantes = hablantes or {}
     for nombre in ('refined.ndjson', 'live.ndjson'):
         ruta = os.path.join(WISPR, 'meetings', mid, nombre)
         if not os.path.exists(ruta):
@@ -54,7 +174,8 @@ def _transcripcion(mid):
                 d = json.loads(linea)
             except ValueError:
                 continue
-            quien = (d.get('speaker') or {}).get('name') or f"Hablante {(d.get('speaker') or {}).get('id', '?')}"
+            sid = str((d.get('speaker') or {}).get('id', '?'))
+            quien = (d.get('speaker') or {}).get('name') or (hablantes.get(sid) or {}).get('nombre') or f"Hablante {sid}"
             if d.get('text', '').strip():
                 lineas.append(f"[{d.get('timestamp', '')}] {quien}: {d['text'].strip()}")
         if lineas:
@@ -64,7 +185,7 @@ def _transcripcion(mid):
 
 def _wispr():
     c = sqlite3.connect(f"file:{os.path.join(WISPR, 'flow.sqlite')}?mode=ro", uri=True, timeout=10)
-    filas = c.execute("""select id, title, createdAt, endedAt, recordedMs, participantNames, summary
+    filas = c.execute("""select id, title, createdAt, endedAt, recordedMs, participantNames, summary, speakerAssignments
                          from Meetings where isDeleted = 0 and finalized = 1 and endedAt is not null
                            and coalesce(isTourDemo, 0) = 0 order by createdAt""").fetchall()
     c.close()
@@ -105,10 +226,11 @@ def procesar(desde=DESDE, solo=None):
     cur.execute("select id from hoy_reuniones where owner_id = %s and procesada_en is not null", (OWNER,))
     hechas = {r[0] for r in cur.fetchall()}
     n = 0
-    for mid, titulo, creada, fin_ms, ms, participantes, resumen_w in _wispr():
+    for mid, titulo, creada, fin_ms, ms, participantes, resumen_w, asignaciones in _wispr():
         if (solo and mid != solo) or (not solo and (mid in hechas or creada[:10] < desde)):
             continue
-        transcripcion = _transcripcion(mid)
+        hablantes = _hablantes(asignaciones)
+        transcripcion = _transcripcion(mid, hablantes)
         if not transcripcion and not resumen_w:
             continue  # aún sin nada que leer: la siguiente vuelta
         inicio = dt.datetime.fromisoformat(creada.replace(' +00:00', '+00:00'))
@@ -116,6 +238,11 @@ def procesar(desde=DESDE, solo=None):
         con_proximos = fin > dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=CON_PROXIMOS_HORAS)
         try:
             n += _una(c, cur, mid, titulo, inicio, fin, ms, participantes, _limpiar(resumen_w), transcripcion, con_proximos)
+            segs = _segmentos(mid)
+            hablantes = _completar_alex(mid, hablantes, segs)
+            cur.execute("update hoy_reuniones set hablantes = %s, metricas = %s where id = %s",
+                        (json.dumps(hablantes), json.dumps(metricas(segs, hablantes)), mid))
+            c.commit()
         except Exception as e:
             c.rollback()
             log('reunion ERROR', mid[:8], repr(e)[:300])
@@ -175,8 +302,30 @@ def _una(c, cur, mid, titulo_w, inicio, fin, ms, participantes, resumen_w, trans
     return 1
 
 
+def recalcular_metricas():
+    """Rellena hablantes y métricas de todas las reuniones ya registradas (sin IA)."""
+    c = conexion()
+    cur = c.cursor()
+    cur.execute("select id from hoy_reuniones where owner_id = %s", (OWNER,))
+    ids = {r[0] for r in cur.fetchall()}
+    n = 0
+    for mid, *_, asignaciones in _wispr():
+        if mid in ids:
+            segs = _segmentos(mid)
+            h = _completar_alex(mid, _hablantes(asignaciones), segs)
+            cur.execute("update hoy_reuniones set hablantes = %s, metricas = %s where id = %s",
+                        (json.dumps(h), json.dumps(metricas(segs, h)), mid))
+            n += 1
+    c.commit()
+    c.close()
+    return n
+
+
 if __name__ == '__main__':
     a = sys.argv[1:]
+    if '--metricas' in a:
+        print(f'{recalcular_metricas()} reuniones con métricas')
+        sys.exit(0)
     desde = a[a.index('--desde') + 1] if '--desde' in a else DESDE
     solo = a[a.index('--id') + 1] if '--id' in a else None
     print(f'{procesar(desde, solo)} reuniones')

@@ -287,12 +287,12 @@ def _dia_logico(ts):
     return (_local(ts) - dt.timedelta(hours=HORA_REINICIO)).date()
 
 
-def _llamar_claude(entrada, schema, instrucciones=None):
+def _llamar_claude(entrada, schema, instrucciones=None, modelo=None):
     entorno = {k: v for k, v in os.environ.items() if k not in ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN')}
     entorno['HOY_BITACORA_OFF'] = '1'
     os.makedirs(os.path.join(CASA, 'vacio'), exist_ok=True)
     r = subprocess.run(
-        [CLAUDE, '-p', '--model', MODELO, '--output-format', 'json', '--json-schema', json.dumps(schema),
+        [CLAUDE, '-p', '--model', modelo or MODELO, '--output-format', 'json', '--json-schema', json.dumps(schema),
          '--tools', '', '--strict-mcp-config', '--no-session-persistence', '--setting-sources', '',
          '--append-system-prompt', instrucciones or INSTRUCCIONES],
         input=json.dumps(entrada, ensure_ascii=False, default=str), capture_output=True, text=True,

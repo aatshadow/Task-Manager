@@ -598,3 +598,51 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
 .gantt-barra-texto { font-size: var(--t-micro); font-weight: 600; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gantt-fila--hecha .gantt-nombre { text-decoration: line-through; color: var(--texto-3); }
 .gantt-fila--hecha .gantt-barra { opacity: 0.4; }
+
+/* ── Gantt · frentes arrastrables (LOGICA §5.4) ─────────────────────────── */
+.gantt-fila--frentes-cabeza { height: 26px; }
+.gantt-nombre--frentes { color: var(--aviso); }
+.gantt-mas {
+  margin-left: auto; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(232, 177, 58, 0.16); color: var(--aviso); border: 1px solid rgba(232, 177, 58, 0.35); cursor: pointer;
+}
+.gantt-mas:hover { background: rgba(232, 177, 58, 0.28); }
+.gantt-fila--frente { height: 26px; }
+.gantt-frente-nombre {
+  border: 0; font: inherit; text-align: left; cursor: pointer; color: var(--texto-2);
+  font-size: var(--t-micro); gap: 5px;
+}
+.gantt-frente-nombre b { color: var(--aviso); font-weight: 600; flex: none; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+.gantt-frente-nombre span { overflow: hidden; text-overflow: ellipsis; }
+.gantt-frente-nombre:hover { color: var(--texto); }
+.gantt-frente, .gantt-frente-rombo { cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.gantt-frente {
+  position: absolute; top: 4px; bottom: 4px; z-index: 2; display: flex; align-items: center; padding: 0 8px;
+  border-radius: 7px; background: rgba(232, 177, 58, 0.22); box-shadow: inset 0 0 0 1px rgba(232, 177, 58, 0.6);
+}
+.gantt-frente:hover { background: rgba(232, 177, 58, 0.32); }
+.gantt-frente-texto { font-size: var(--t-micro); font-weight: 600; color: var(--aviso); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.gantt-frente-borde { position: absolute; top: 0; bottom: 0; width: 9px; cursor: ew-resize; z-index: 1; }
+.gantt-frente-borde--ini { left: -3px; }
+.gantt-frente-borde--fin { right: -3px; }
+.gantt-frente-borde::after { content: ''; position: absolute; top: 4px; bottom: 4px; left: 3px; width: 3px; border-radius: 2px; background: var(--aviso); opacity: 0; transition: opacity var(--dur-corta); }
+.gantt-frente:hover .gantt-frente-borde::after { opacity: 0.9; }
+.gantt-frente-rombo {
+  position: absolute; top: 50%; z-index: 2; width: 14px; height: 14px; border-radius: 3px;
+  background: var(--aviso); box-shadow: 0 0 10px rgba(232, 177, 58, 0.45); transform: translateY(-50%) rotate(45deg);
+}
+.gantt-fila--hecha .gantt-frente, .gantt-fila--hecha .gantt-frente-rombo { opacity: 0.4; filter: grayscale(1); }
+.gantt-fila--vuelo .gantt-frente, .gantt-fila--vuelo .gantt-frente-rombo { cursor: grabbing; filter: brightness(1.3); box-shadow: 0 0 0 2px var(--aviso), 0 6px 18px rgba(0, 0, 0, 0.45); }
+.gantt-frente-fecha {
+  position: absolute; top: -18px; z-index: 4; padding: 1px 6px; border-radius: 6px; white-space: nowrap;
+  background: var(--aviso); color: #1b1408; font-size: var(--t-micro); font-weight: 700; pointer-events: none;
+}
+.hhito { display: flex; flex-direction: column; gap: 14px; }
+.hhito-fechas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hhito-hecho { display: flex; align-items: center; gap: 10px; font-size: var(--t-cuerpo); color: var(--texto-2); }
+.hhito-pie { justify-content: flex-end; gap: 8px; align-items: center; }
+.gantt-frente-lado { position: absolute; top: 50%; transform: translateY(-50%); font-size: var(--t-micro); color: var(--texto-3); white-space: nowrap; pointer-events: none; }
+.gantt-frente-nombre span { display: none; }
+.gantt-frente-nombre b { max-width: 100%; }
+.app--escritorio .gantt-frente-nombre span { display: inline; }
+.app--escritorio .gantt-frente-nombre b { max-width: 55%; }

@@ -70,6 +70,12 @@ def main():
                    from hoy_proximos x left join hoy_cc_sesiones s on s.id = x.sesion_id left join hoy_reuniones r on r.id = x.reunion_id
                    where x.owner_id = %s and x.estado = 'propuesto' order by 5 desc, x.orden""", (OWNER,))
     proximos = cur.fetchall()
+    # «Completado hoy»: lo cerrado desde las 04:00 de hoy (el día lógico); mañana se limpia solo.
+    cur.execute("""select t.id, t.titulo, coalesce(p.nombre, cl.name, ''), t.hecha_en from hoy_tareas t
+                   left join hoy_proyectos p on p.id = t.proyecto_id left join clients cl on cl.id = t.client_id
+                   where t.owner_id = %s and t.hecha and t.archivado_at is null and t.hecha_en >= %s
+                   order by t.hecha_en desc""", (OWNER, dt.datetime.combine(hoy, dt.time(4)).astimezone()))
+    completadas = cur.fetchall()
     cur.execute("""select titulo, inicio, minutos from hoy_reuniones where owner_id = %s and inicio > now() - interval '24 hours'
                    order by inicio desc""", (OWNER,))
     reuniones = cur.fetchall()
@@ -87,6 +93,8 @@ def main():
         partes.append(f'◐ {len(revision)}')
     if proximos:
         partes.append(f'✦ {len(proximos)}')
+    if completadas:
+        partes.append(f'✓ {len(completadas)}')
     color = f' color={NARANJA}' if activas else ''
     print('  '.join(partes) + f' |{color}' if partes else '2day | sfimage=checklist')
     print('---')
@@ -138,6 +146,19 @@ def main():
         print(f'-- ✕ Descartar | {accion("descartar", str(pid)[:8])}')
     if len(proximos) > 25:
         print(f'… y {len(proximos) - 25} más en 2day | href=http://localhost:5400 color={GRIS}')
+
+    # ── completado hoy ──
+    print('---')
+    print(f'Completado hoy ({len(completadas)}) | size=11 color={GRIS}')
+    if not completadas:
+        print(f'Nada cerrado todavía hoy | color={GRIS}')
+    for tid, titulo, proyecto, cuando in completadas[:15]:
+        print(f'✓ {limpio(titulo)}  ·  {cuando.astimezone().strftime("%H:%M")} | color={VERDE}')
+        if proyecto:
+            print(f'-- {limpio(proyecto, 40)} | color={GRIS}')
+        print(f'-- ↩ Reabrir (a En curso) | {accion("mover", str(tid)[:8], "in_progress")}')
+    if len(completadas) > 15:
+        print(f'… y {len(completadas) - 15} más | color={GRIS}')
 
     # ── reuniones y el día ──
     if reuniones:

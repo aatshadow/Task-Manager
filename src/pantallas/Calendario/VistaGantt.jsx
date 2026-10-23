@@ -1,8 +1,12 @@
-import { Fragment, useLayoutEffect, useMemo, useRef } from 'react'
-import { Flag } from 'lucide-react'
+import { Fragment, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Flag, Plus } from 'lucide-react'
 import EstadoCarga from './EstadoCarga.jsx'
-import { carrilesHitos, filasGantt, hitosPorDia, tramoGantt } from './calendario.js'
+import HojaHito from './HojaHito.jsx'
+import { filasGantt, hitosPorDia, tramoGantt } from './calendario.js'
+import { usarArrastreHito } from './arrastreHito.js'
 import { useDatos } from '../../estado/useDatos.jsx'
+import * as datosHitos from '../../datos/hitos.js'
+import { moverHito } from '../../datos/hitos.js'
 import { deISO, diaSemanaISO, diasEntre, nombreMes, rangoDias, sumarDias, textoFecha } from '../../datos/fechas.js'
 
 /** `calc(var(--gantt-dia) * n)`: las columnas de día miden lo que diga el CSS (móvil o escritorio). */
@@ -10,18 +14,42 @@ const dias = (n) => `calc(var(--gantt-dia) * ${n})`
 
 /**
  * Gantt (LOGICA §5.2): una fila por tarea con fecha, agrupadas por proyecto; la barra va de
- * `inicio` a `vence` (una tarea sin inicio ocupa su día). Los hitos son rayas verticales de
- * arriba abajo en su día, con la etiqueta arriba; la de hoy, naranja. La columna de nombres
- * se queda fija y los días se desplazan en horizontal. Toque en una fila → su hoja.
+ * `inicio` a `vence` (una tarea sin inicio ocupa su día). Arriba, los FRENTES (§5.4): una fila
+ * por hito, rombo en su día o barra de `inicio` a `fecha`, que se arrastran (bordes = sólo
+ * inicio o sólo final) y se tocan para editarlos; «+» crea uno. Su día sigue marcado con una
+ * raya vertical de arriba abajo; la de hoy, naranja. La columna de nombres se queda fija y los
+ * días se desplazan en horizontal. Toque en una fila de tarea → su hoja.
  */
 export default function VistaGantt({ tareas, hitos, desde, nDias, hoy, fecha, estado = null }) {
-  const { nombreProyecto, colorProyecto, abrirTarea } = useDatos()
+  const { nombreProyecto, colorProyecto, abrirTarea, setHitos, recargar, avisar } = useDatos()
   const hasta = sumarDias(desde, nDias - 1)
   const lista = useMemo(() => rangoDias(desde, hasta), [desde, hasta])
   const grupos = useMemo(() => filasGantt(tareas, desde, hasta, nombreProyecto), [tareas, desde, hasta, nombreProyecto])
-  const hitosDia = useMemo(() => hitosPorDia(hitos, desde, hasta), [hitos, desde, hasta])
-  const etiquetas = useMemo(() => carrilesHitos(hitosDia, desde), [hitosDia, desde])
-  const carriles = etiquetas.reduce((n, e) => Math.max(n, e.carril + 1), 0)
+
+  /* ── frentes: arrastrar y editar (§5.4) ── */
+  const [hoja, setHoja] = useState(null) // null · { hito } · { nuevo: fecha }
+  const caja = useRef(null)
+  const anchoDia = useCallback(() => caja.current?.querySelector('.gantt-dia')?.offsetWidth || 28, [])
+  const soltarHito = useCallback(async (h, modo, delta) => {
+    const cambios = moverHito(h, modo, delta, sumarDias)
+    setHitos((hs) => hs.map((x) => (x.id === h.id ? { ...x, ...cambios } : x)))
+    try {
+      await datosHitos.actualizarHito(h.id, cambios)
+    } catch (e) {
+      avisar(e.message || 'No se pudo mover el frente', 'error')
+      recargar()
+    }
+  }, [setHitos, avisar, recargar])
+  const { vuelo, props: arrastrable, suprimirClick } = usarArrastreHito({ alSoltar: soltarHito, anchoDia })
+  // Lo que se pinta: el hito en vuelo ya desplazado, para que barra, raya y día se muevan juntos.
+  const hitosVivos = useMemo(() => (vuelo
+    ? (hitos || []).map((h) => (h.id === vuelo.id ? { ...h, ...moverHito(h, vuelo.modo, vuelo.delta, sumarDias) } : h))
+    : hitos || []), [hitos, vuelo])
+  const frentes = useMemo(() => hitosVivos
+    .filter((h) => h.fecha && (h.inicio || h.fecha) <= hasta && h.fecha >= desde)
+    .sort((a, b) => (a.inicio || a.fecha).localeCompare(b.inicio || b.fecha) || a.posicion - b.posicion), [hitosVivos, desde, hasta])
+  const hitosDia = useMemo(() => hitosPorDia(hitosVivos, desde, hasta), [hitosVivos, desde, hasta])
+  const abrirHito = (h) => { if (!suprimirClick.current) setHoja({ hito: h }) }
 
   // los meses de la ventana, como tramos de la primera fila de la cabecera
   const meses = useMemo(() => {
@@ -35,7 +63,6 @@ export default function VistaGantt({ tareas, hitos, desde, nDias, hoy, fecha, es
   }, [lista])
 
   // Al abrir, el día elegido (o hoy) queda a tres columnas del borde, no en el lado izquierdo de la ventana.
-  const caja = useRef(null)
   useLayoutEffect(() => {
     const el = caja.current
     const celda = el?.querySelector('.gantt-dia')
@@ -62,23 +89,58 @@ export default function VistaGantt({ tareas, hitos, desde, nDias, hoy, fecha, es
           </div>
         </div>
 
-        {carriles > 0 && (
-          <div className="gantt-fila gantt-fila--hitos" style={{ height: carriles * 22 + 4 }}>
-            <div className="gantt-nombre gantt-nombre--cabecera"><Flag size={13} strokeWidth={1.75} /> Hitos</div>
-            <div className="gantt-pista">
-              {etiquetas.map(({ hito: h, columna, carril }) => (
-                <span
-                  key={h.id}
-                  className={`gantt-hito-etiqueta${h.hecho ? ' gantt-hito-etiqueta--hecho' : ''}`}
-                  style={{ left: `calc(${dias(columna)} + var(--gantt-dia) / 2 - 1px)`, top: carril * 22 + 2 }}
-                  title={`${textoFecha(h.fecha, true)} · ${h.frente ? `${h.frente}: ` : ''}${h.nombre}`}
-                >
-                  {h.frente || h.nombre}
-                </span>
-              ))}
-            </div>
+        {/* ── Frentes (§5.4): una fila por hito, arrastrables; «+» crea uno ── */}
+        <div className="gantt-fila gantt-fila--frentes-cabeza">
+          <div className="gantt-nombre gantt-nombre--cabecera gantt-nombre--frentes">
+            <Flag size={13} strokeWidth={1.75} /> Frentes
+            <button type="button" className="gantt-mas" onClick={() => setHoja({ nuevo: fecha >= desde && fecha <= hasta ? fecha : hoy })} aria-label="Nuevo frente" title="Nuevo frente">
+              <Plus size={14} strokeWidth={2} />
+            </button>
           </div>
-        )}
+          <div className="gantt-pista" />
+        </div>
+        {frentes.map((h) => {
+          const ini = h.inicio && h.inicio < h.fecha ? h.inicio : null
+          const a = ini && ini < desde ? desde : ini || h.fecha
+          const b = h.fecha > hasta ? hasta : h.fecha
+          const col = diasEntre(desde, a)
+          const n = diasEntre(a, b) + 1
+          const enVuelo = vuelo?.id === h.id
+          const titulo = `${h.frente ? `${h.frente}: ` : ''}${h.nombre} · ${ini ? `${textoFecha(ini)} → ` : ''}${textoFecha(h.fecha, true)}`
+          return (
+            <div key={h.id} className={`gantt-fila gantt-fila--frente${h.hecho ? ' gantt-fila--hecha' : ''}${enVuelo ? ' gantt-fila--vuelo' : ''}`}>
+              <button type="button" className="gantt-nombre gantt-frente-nombre" onClick={() => abrirHito(h)} title={titulo}>
+                {h.frente && <b>{h.frente}</b>}<span>{h.nombre}</span>
+              </button>
+              <div className="gantt-pista">
+                {ini ? (
+                  <span
+                    className={['gantt-frente', ini < desde && 'gantt-barra--corta-izq', h.fecha > hasta && 'gantt-barra--corta-der'].filter(Boolean).join(' ')}
+                    style={{ left: dias(col), width: dias(n) }}
+                    title={titulo}
+                    onClick={() => abrirHito(h)}
+                    {...arrastrable(h, 'mover')}
+                  >
+                    {ini >= desde && <span className="gantt-frente-borde gantt-frente-borde--ini" {...arrastrable(h, 'inicio')} />}
+                    {n >= 3 && <span className="gantt-frente-texto">{h.nombre}</span>}
+                    {h.fecha <= hasta && <span className="gantt-frente-borde gantt-frente-borde--fin" {...arrastrable(h, 'fin')} />}
+                  </span>
+                ) : (
+                  <span
+                    className="gantt-frente-rombo"
+                    style={{ left: `calc(${dias(col)} + var(--gantt-dia) / 2 - 7px)` }}
+                    title={titulo}
+                    onClick={() => abrirHito(h)}
+                    {...arrastrable(h, 'mover')}
+                  />
+                )}
+                {/* el nombre al lado del rombo (o tras una barra corta): en el móvil la columna sólo cabe el frente */}
+                {(!ini || n < 3) && <span className="gantt-frente-lado" style={{ left: `calc(${dias(col + (ini ? n : 1))} + 4px)` }}>{h.nombre}</span>}
+                {enVuelo && <span className="gantt-frente-fecha" style={{ left: dias(col) }}>{ini ? `${textoFecha(ini)} → ` : ''}{textoFecha(h.fecha)}</span>}
+              </div>
+            </div>
+          )
+        })}
 
         <div className="gantt-fila gantt-fila--dias">
           <div className="gantt-nombre gantt-nombre--cabecera" />
@@ -159,6 +221,7 @@ export default function VistaGantt({ tareas, hitos, desde, nDias, hoy, fecha, es
           ))}
         </div>
       </div>
+      <HojaHito abierta={!!hoja} hito={hoja?.hito || null} fechaInicial={hoja?.nuevo || null} alCerrar={() => setHoja(null)} />
     </div>
   )
 }

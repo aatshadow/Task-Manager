@@ -18,7 +18,7 @@ const duracion = (min) => (!min ? null : min < 60 ? `${min} min` : `${(min / 60)
  * a uno: Aceptar crea la tarea para el día elegido (con proyecto, categoría y cuadrante);
  * Descartar la quita. El día se cambia antes de aceptar.
  */
-export default function ProximosClaude({ alCambiarCuenta }) {
+export default function ProximosClaude({ alCambiarCuenta, soloReuniones = false }) {
   const { hoy, recargar, avisar, proyectos, clientes, ajustes } = useDatos()
   const [grupos, setGrupos] = useState(null)
   const [ocupado, setOcupado] = useState(null)
@@ -27,13 +27,13 @@ export default function ProximosClaude({ alCambiarCuenta }) {
   const cargar = useCallback(async () => {
     try {
       setError(null)
-      const g = await cargarProximos()
+      const g = (await cargarProximos()).filter((x) => !soloReuniones || x.reunion)
       setGrupos(g)
       alCambiarCuenta?.(g.reduce((n, x) => n + x.pasos.length, 0))
     } catch (e) {
       setError(e.message)
     }
-  }, [alCambiarCuenta])
+  }, [alCambiarCuenta, soloReuniones])
 
   useEffect(() => {
     cargar()
