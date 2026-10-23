@@ -18,7 +18,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from bitacora import (OWNER, CHULETA, conexion, log, _catalogos, _proyecto, _llamar_claude, _dia_logico, partir)  # noqa: E402
+from bitacora import (OWNER, CHULETA, conexion, log, _catalogos, _proyecto, _llamar_claude, _dia_logico, partir, parecida)  # noqa: E402
 
 WISPR = os.path.expanduser('~/Library/Application Support/Wispr Flow')
 DESDE = '2026-10-19'           # Alex graba todas desde aquí (operator/reuniones/README.md)
@@ -287,6 +287,8 @@ def _una(c, cur, mid, titulo_w, inicio, fin, ms, participantes, resumen_w, trans
     if con_proximos:
         cur.execute("delete from hoy_proximos where reunion_id = %s and estado = 'propuesto'", (mid,))
         for orden, t in enumerate(salida.get('tareas', [])[:8]):
+            if parecida(t['titulo'], abiertas):
+                continue  # §14.6: ya es una tarea
             try:
                 dia = max(dt.date.fromisoformat(t.get('dia') or ''), hoy)
             except ValueError:

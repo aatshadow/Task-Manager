@@ -3,14 +3,15 @@
 """
 2day desde la terminal (LOGICA §14.6): las manos de Claude en la app de Alex.
 
-  2day ver [texto] [--proyecto P] [--estado E] [--todas]     tareas vivas (o todas)
+  2day ver [texto] [--proyecto P] [--estado E] [--todas]     tareas vivas (o todas) y próximos propuestos
   2day crear "Título" [opciones]                             tarea nueva
   2day mover <tarea> todo|in_progress|review|blocked          cambiar de columna
   2day editar <tarea> [opciones] [--titulo T]                 cambiar campos
   2day completar <tarea>                                      SÓLO si Alex lo pide (Completado es suyo)
   2day archivar <tarea>
   2day proximo "Título" [opciones]                            próximo paso para que Alex lo valide
-  2day aceptar <próximo> [--dia F] · 2day descartar <próximo>  validar un próximo paso (Alex)
+  2day aceptar <próximo> [--dia F] [--nueva] · 2day descartar <próximo>  validar un próximo paso (Alex);
+                                                              si ya hay una tarea igual, se enlaza a ella (--nueva la crea igual)
   2day proyecto "Nombre" [--color #hex]                       crear (o reusar) proyecto
   2day proyectos · 2day categorias · 2day frentes   (--proyecto acepta también un cliente de GrowthInfo: Elena, Jonathan…)
   2day categoria "Nombre" [--clave k] [--color #hex]
@@ -27,7 +28,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from bitacora import OWNER, COLORES, conexion, _dia_logico  # noqa: E402
+from bitacora import OWNER, COLORES, conexion, _dia_logico, parecida  # noqa: E402
 
 ESTADOS = ('todo', 'in_progress', 'review', 'blocked')
 NOMBRE_ESTADO = {'todo': 'Por hacer', 'in_progress': 'En curso', 'review': 'En revisión', 'blocked': 'Bloqueada', 'done': 'Completada'}
@@ -192,6 +193,20 @@ def ver(cur, pos, op):
                     where {' and '.join(filtro)} order by t.updated_at desc limit 60""", args)
     for i, titulo, estado, hecha, proy, dia, q in cur.fetchall():
         print(f"{str(i)[:8]}  {NOMBRE_ESTADO['done' if hecha else estado]:<11}  {proy[:18]:<18}  {str(dia or ''):<10}  {q or '  '}  {titulo}")
+    if op.get('estado'):
+        return
+    filtro, args = ["x.owner_id = %s", "x.estado = 'propuesto'"], [OWNER]
+    if pos:
+        filtro.append("x.titulo ilike %s")
+        args.append(f'%{pos[0]}%')
+    if op.get('proyecto'):
+        filtro.append("(x.proyecto_id = %s or x.client_id = %s)")
+        args += [pid, cid]
+    cur.execute(f"""select x.id, x.titulo, coalesce(p.nombre, cl.name, '—'), x.dia, x.cuadrante
+                    from hoy_proximos x left join hoy_proyectos p on p.id = x.proyecto_id left join clients cl on cl.id = x.client_id
+                    where {' and '.join(filtro)} order by x.dia nulls last, x.orden""", args)
+    for i, titulo, proy, dia, q in cur.fetchall():
+        print(f"{str(i)[:8]}  {'Próximo':<11}  {proy[:18]:<18}  {str(dia or ''):<10}  {q or '  '}  {titulo}")
 
 
 def crear(cur, pos, op):
@@ -261,11 +276,23 @@ def archivar(cur, pos, op):
 def proximo(cur, pos, op):
     if not pos:
         raise Fallo('falta el título')
+    igual = _tarea_igual(cur, pos[0])
+    if igual:
+        raise Fallo(f'ya hay una tarea así: {str(igual[0])[:8]}  {igual[1]} (muévela en vez de proponerla)')
     cur.execute("""insert into hoy_proximos (owner_id, titulo, descripcion, proyecto_id, categoria, cuadrante, dia, minutos, origen)
                    values (%s, %s, %s, %s, %s, %s, %s, %s, 'claude') returning id""",
                 (OWNER, pos[0], op.get('desc', ''), proyecto_id(cur, op.get('proyecto')), categoria_clave(cur, op.get('categoria')),
                  cuadrante(op), fecha(op.get('dia')), int(op['minutos']) if op.get('minutos') else None))
     print(f'próximo paso propuesto {str(cur.fetchone()[0])[:8]}  {pos[0]}  (Alex lo valida en Tareas → Claude → Próximos)')
+
+
+def _tarea_igual(cur, titulo):
+    """§14.6: la tarea viva (o cerrada hace poco) que ya dice lo mismo que `titulo`, o None."""
+    cur.execute("""select id, titulo from hoy_tareas where owner_id = %s and archivado_at is null
+                     and (not hecha or hecha_en > now() - interval '3 days')""", (OWNER,))
+    filas = cur.fetchall()
+    igual = parecida(titulo, [t for _, t in filas])
+    return next(f for f in filas if f[1] == igual) if igual else None
 
 
 def _proximo(cur, ref):
@@ -281,6 +308,11 @@ def _proximo(cur, ref):
 def aceptar(cur, pos, op):
     """Lo mismo que «Aceptar» en la app: la tarea nace planificada para su día, ya clasificada."""
     i, titulo, desc, proy, cat, q, dia, cliente = _proximo(cur, pos[0] if pos else '')
+    igual = None if op.get('nueva') else _tarea_igual(cur, titulo)
+    if igual:
+        cur.execute("update hoy_proximos set estado = 'aceptado', tarea_id = %s, decidido_en = now() where id = %s", (igual[0], i))
+        print(f'aceptado → ya existía la tarea {str(igual[0])[:8]}  {igual[1]} (enlazado, sin duplicar; --nueva para crear otra)')
+        return
     hoy = _dia_logico(dt.datetime.now().astimezone())
     dia = fecha(op['dia']) if op.get('dia') else max(dia or hoy, hoy)
     pipeline, et = etapa(cur, None, 'todo')

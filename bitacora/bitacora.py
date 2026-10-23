@@ -20,8 +20,10 @@ import glob
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
+import unicodedata
 
 OWNER = 'e0b4c8d6-3799-43fe-a334-022bb3d8a839'  # alex@growthinfo.io
 VAULT = os.path.expanduser('~/.core-secrets/growthinfo-supabase.env')
@@ -392,6 +394,26 @@ def partir(ref):
     return ref, None
 
 
+# §14.6: un próximo no repite una tarea que ya existe (la IA a veces crea la tarea y el próximo en la misma tanda).
+VACIAS = set('de del la las el los lo un una unos unas y o a al en con para por que se su sus mi hoy ya como sin'.split())
+
+
+def _palabras(titulo):
+    t = unicodedata.normalize('NFKD', titulo.lower()).encode('ascii', 'ignore').decode()
+    return {w for w in re.findall(r'[a-z0-9]+', t) if w not in VACIAS and (len(w) > 2 or w.isdigit())}
+
+
+def parecida(titulo, titulos):
+    """El primero de `titulos` que dice lo mismo que `titulo` (≥3 palabras en común y ≥75 % del más corto), o None."""
+    a = _palabras(titulo)
+    for otro in titulos:
+        b = _palabras(otro)
+        comun = len(a & b)
+        if comun >= 3 and comun / min(len(a), len(b)) >= 0.75:
+            return otro
+    return None
+
+
 def _procesar_sesion(c, s):
     cur = c.cursor()
     cur.execute("""select id, inicio, fin, pedido, respuesta, herramientas, archivos, comandos
@@ -489,7 +511,10 @@ def _procesar_sesion(c, s):
     # §14.6: la lista de próximos PROPUESTOS de la sesión queda como la devuelve la IA (los decididos no se tocan).
     propuestos = {p['id'] for p in proximos if p['estado'] == 'propuesto'}
     seguidos = set()
+    ya_tareas = [t['titulo'] for t in abiertas + de_la_sesion] + [t.get('titulo', '') for t in salida.get('tareas', [])]
     for orden, pr in enumerate(salida.get('proximos', [])[:5]):
+        if parecida(pr['titulo'], ya_tareas):
+            continue  # ya es una tarea: no se duplica (si era un propuesto, se quita abajo)
         try:
             dia = max(dt.date.fromisoformat(pr.get('dia') or ''), hoy)
         except ValueError:

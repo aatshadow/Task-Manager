@@ -684,6 +684,12 @@ proyectos, o lo que sea, que lo muevas, para que la app esté siempre actualizad
   `hoy_para` = ese día, proyecto, categoría y cuadrante; el paso queda `aceptado` con su `tarea_id`) o
   **Descartar**. «Aceptar todos» por sesión.
 - Claude puede proponer uno a mano en mitad de una sesión con `2day proximo …`.
+- **Nunca un próximo igual a una tarea** (Alex, 24-10-2026: «me estás poniendo las próximas tareas, que no son
+  las de la lista de hoy»). La IA llegó a crear en la misma tanda la tarea y el próximo de lo mismo, así que
+  además del prompt hay un filtro en el código, `parecida()` en `bitacora.py`: ≥3 palabras en común y ≥75 % del
+  título más corto, sin acentos ni palabras vacías. La bitácora y las reuniones no proponen lo que ya es tarea,
+  `2day proximo` lo rechaza y `2day aceptar` enlaza el próximo a la tarea existente en vez de crear otra
+  (`--nueva` fuerza la creación). `2day ver` lista también los próximos propuestos.
 
 **El comando `2day`** (`bitacora/dosday.py`, enlazado en `~/.local/bin/2day`) — las manos de Claude:
 `ver · crear · mover · editar · completar · archivar · proyecto · proyectos · categoria · categorias ·
