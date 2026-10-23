@@ -241,7 +241,7 @@ Convierte los pasos en TAREAS como las que Alex apuntaría en su lista:
 - estado «hecha» sólo si la respuesta deja claro que se terminó (hecho, desplegado, verificado, entregado). Si se empezó y quedó a medias o esperando algo, «en_curso».
 - Si el trabajo es una tarea que ya existe (TAREAS_DE_ESTA_SESION o TAREAS_DE_ALEX, abiertas o cerradas hace poco), usa su id en vez de «nueva». Así no se duplica y, si quedó terminada, se marca hecha. Sé estricto: sólo si es claramente la misma.
 - proyecto_id: uno de PROYECTOS si encaja claramente (por el tema o la carpeta), si no null.
-- pendientes: sólo lo que Alex dijo explícitamente que haría luego o lo que quedó bloqueado y hay que retomar. Máximo 3. Si no hay, lista vacía.
+- pendientes: sólo lo que Alex dijo explícitamente que haría luego o lo que quedó bloqueado y hay que retomar. Máximo 3. Nunca uno que ya esté en TAREAS_DE_ALEX o TAREAS_DE_ESTA_SESION. Si no hay, lista vacía.
 - Todo en español, sin humo. Responde sólo con el JSON."""
 
 
