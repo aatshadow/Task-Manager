@@ -1,20 +1,13 @@
 #!/bin/sh
-# Abre el panel de 2day (LOGICA §14.8) como ventana estrecha pegada a la derecha; si ya está abierto, lo cierra.
-abierto=$(/usr/bin/osascript <<'APPLE'
-tell application "System Events" to set corre to (exists process "Google Chrome")
-if not corre then return "no"
-tell application "Google Chrome"
-	repeat with w in windows
-		if (URL of active tab of w) contains "localhost:5400/#panel" then
-			close w
-			return "cerrado"
-		end if
-	end repeat
-end tell
-return "no"
-APPLE
-)
-[ "$abierto" = "cerrado" ] && exit 0
-ancho=$(/usr/bin/osascript -e 'tell application "Finder" to get item 3 of (get bounds of window of desktop)')
+# Panel de 2day (LOGICA §14.8): abre o cierra la ventana estrecha pegada a la derecha.
+# Va en un Chrome aislado (perfil propio en ~/.claude/2day-bitacora/panel-chrome) para poder
+# saber si está abierto y cerrarlo sin tocar el Chrome de Alex: abrir/cerrar = arrancar/parar ese proceso.
+PERFIL="$HOME/.claude/2day-bitacora/panel-chrome"
+if pgrep -f "user-data-dir=$PERFIL" >/dev/null; then
+  pkill -f "user-data-dir=$PERFIL"
+  exit 0
+fi
+ancho=$(/usr/bin/osascript -e 'tell application "Finder" to get item 3 of (get bounds of window of desktop)' 2>/dev/null)
 x=$(( ${ancho:-1710} - 430 ))
-open -na "Google Chrome" --args --app="http://localhost:5400/#panel" --window-size=420,1040 --window-position=$x,38
+open -na "Google Chrome" --args --user-data-dir="$PERFIL" --no-first-run --no-default-browser-check \
+  --app="http://localhost:5400/#panel" --window-size=420,1040 --window-position=$x,38

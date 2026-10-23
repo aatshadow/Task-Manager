@@ -736,7 +736,7 @@ hacerlo más visual?».
 - `bitacora.py rearchivar` pasa lo que estaba en «GrowthInfo» (o sin proyecto y salido de Claude) a su
   cliente; guarda antes un respaldo JSON en `~/.claude/2day-bitacora/` para deshacer.
 - **Panel visual** (`#panel`, `src/pantallas/Panel/`): ventana estrecha (420 px) pegada a la derecha que abre
-  y cierra `bitacora/panel.sh` (entrada «▣ Panel visual» del widget). Anillo del día (hechas / total de hoy),
+  y cierra `bitacora/panel.sh` (entrada «▣ Panel visual» del widget). Va en un **Chrome aislado** (perfil propio en `~/.claude/2day-bitacora/panel-chrome`): así abrir/cerrar es arrancar/parar ese proceso, sin adivinar ventanas del Chrome de Alex (sin permiso de accesibilidad no se pueden leer). La primera vez se entra con la cuenta. Anillo del día (hechas / total de hoy),
   tres cifras (trabajando · revisión · próximos), terminales con pulso, revisión con ✓/↩, próximos con ✓/✕,
   en curso y reuniones de 24 h. Refresco cada 10 s.
 
