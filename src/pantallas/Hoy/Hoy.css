@@ -262,3 +262,6 @@
 .frente-hito { font-size: var(--t-micro); color: var(--texto-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frente-cuando { flex: none; font-size: var(--t-secundario); color: var(--texto-2); font-variant-numeric: tabular-nums; }
 .frente--urgente .frente-cuando { color: var(--peligro); font-weight: 600; }
+.hoy-aviso-dia.hoy-aviso-eod { border-color: var(--acento-apagado); }
+.hoy-aviso-eod .hoy-aviso-icono { color: var(--acento); }
+.hoy-aviso-eod .hoy-aviso-texto b { color: var(--texto); font-weight: 600; }

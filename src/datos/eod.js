@@ -6,7 +6,7 @@
  * Aquí sólo las respuestas y el «cerrado»; sueño, peso y dientes son marcas de hábitos.
  */
 import { supabase, isConfigured, ErrorHoy, uno } from '../lib/supabase.js'
-import { diaDe } from './fechas.js'
+import { aMinutos, diaDe } from './fechas.js'
 
 const listo = () => {
   if (!isConfigured || !supabase) throw new ErrorHoy('Supabase no está configurado')
@@ -48,4 +48,28 @@ export const creadasDelDia = (tareas, hoy) => tareas
 export const habitoEod = (habitos, cual) => {
   const nombres = { sueno: /sueño/i, peso: /^peso$/i, dientes: /dientes/i }
   return habitos.find((h) => nombres[cual].test(h.nombre)) || null
+}
+
+/** Desde qué hora Hoy avisa del EOD sin rellenar (la de «Planificar el mañana»), hasta el reinicio. */
+export const AVISO_DESDE = '19:30'
+
+/** ¿Estamos en la ventana del aviso? De `AVISO_DESDE` a medianoche y de medianoche al reinicio. */
+export const enHoraDeAviso = (ahora, reinicio = '04:00') =>
+  aMinutos(ahora) >= aMinutos(AVISO_DESDE) || aMinutos(ahora) < aMinutos(reinicio)
+
+/** Lo que falta del EOD de `hoy`, en palabras: `['sueño', 'peso', 'dientes', '2 preguntas']`. */
+export function faltaEod({ habitos, marcas, eod, preguntas = [], hoy }) {
+  const marcada = (cual) => {
+    const h = habitoEod(habitos, cual)
+    if (!h) return true // sin hábito no hay nada que pedir
+    const m = marcas.find((x) => x.habitoId === h.id && x.fecha === hoy)
+    return !!m && (h.tipo !== 'medir' || m.valor != null)
+  }
+  const out = []
+  if (!marcada('sueno')) out.push('sueño')
+  if (!marcada('peso')) out.push('peso')
+  if (!marcada('dientes')) out.push('dientes')
+  const sinRespuesta = preguntas.filter((p) => !String(eod?.respuestas?.[p] || '').trim()).length
+  if (sinRespuesta) out.push(sinRespuesta === 1 ? '1 pregunta' : `${sinRespuesta} preguntas`)
+  return out
 }

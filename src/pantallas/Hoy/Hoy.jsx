@@ -12,6 +12,7 @@ import HabitosHoy from './HabitosHoy.jsx'
 import CabeceraReto from './Reto.jsx'
 import Ahora from './Ahora.jsx'
 import Frentes from './Frentes.jsx'
+import AvisoEod from './AvisoEod.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarGuardar, usarCompletar } from '../../estado/usarGuardar.js'
 import * as datosTareas from '../../datos/tareas.js'
@@ -191,6 +192,9 @@ export default function Hoy({ onIrA } = {}) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* el EOD sin rellenar, de noche (§16.2) */}
+      <AvisoEod alIr={onIrA ? () => onIrA('eod') : null} />
 
       {/* AHORA: el bloque actual del raíl (§10.0-7) */}
       {bloque && (

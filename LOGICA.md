@@ -833,3 +833,9 @@ completando a lo largo del día».
 `hoy_eod (owner_id, fecha, respuestas jsonb, cerrado_en, updated_at)`, PK `(owner_id, fecha)`, RLS
 `owner_id = auth.uid()`, sin `anon`. `hoy_ajustes.eod_preguntas jsonb` con 4 por defecto. Capa: `src/datos/eod.js`;
 pantalla: `src/pantallas/Eod/`; test: `tests/eod.mjs` (respuesta y dientes de ida y vuelta, y lo restaura).
+
+### 16.2 · El aviso en Hoy (Alex, 24-10-2026)
+De **19:30** (la hora de «Planificar el mañana»; `AVISO_DESDE` en `src/datos/eod.js`) **hasta el reinicio**, Hoy
+enseña bajo la cabecera del reto «**EOD sin rellenar** · falta sueño, peso, dientes y N preguntas» con
+«Rellenar» → pestaña EOD. Desaparece cuando no falta nada o cuando el día se cierra. `faltaEod()` es la única
+fórmula de «qué falta» (`AvisoEod.jsx`).
