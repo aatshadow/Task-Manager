@@ -16,6 +16,7 @@ import Habitos from './pantallas/Habitos/Habitos.jsx'
 import Fitness from './pantallas/Fitness/Fitness.jsx'
 import Estadisticas from './pantallas/Estadisticas/Estadisticas.jsx'
 import Meetings from './pantallas/Meetings/Meetings.jsx'
+import Eod from './pantallas/Eod/Eod.jsx'
 import Ajustes from './pantallas/Ajustes/Ajustes.jsx'
 import Acceso from './pantallas/Acceso/Acceso.jsx'
 import Panel from './pantallas/Panel/Panel.jsx'
@@ -35,6 +36,7 @@ const PANTALLAS = {
   fitness: { Pantalla: Fitness, titulo: 'Fitness' },
   estadisticas: { Pantalla: Estadisticas, titulo: 'Stats' },
   meetings: { Pantalla: Meetings, titulo: 'Meetings' },
+  eod: { Pantalla: Eod, titulo: 'EOD', subtitulo: 'El cierre del día' },
   ajustes: { Pantalla: Ajustes, titulo: 'Ajustes' },
 }
 
@@ -110,7 +112,7 @@ function Armazon() {
   const capturar = () => nuevaTarea(pestana === 'hoy' ? { hoyPara: hoy } : {})
 
   /* ── atajos de teclado, sólo en escritorio (§10.0-9) ───────────────────── */
-  // `1`–`6` pestañas · `t` Hoy · `n` nueva tarea. Escape lo gestiona cada hoja (cierra el
+  // `1`–`8` pestañas · `t` Hoy · `n` nueva tarea. Escape lo gestiona cada hoja (cierra el
   // panel), así que aquí no se toca. Nada de esto se dispara escribiendo en un campo.
   useEffect(() => {
     if (!escritorio) return undefined

@@ -60,7 +60,7 @@ for (let i = 0; i < 100; i += 1) {
 }
 await espera(Number(arg('espera', 1200)))
 if (PESTANA !== 'hoy') {
-  const etiquetas = { tareas: 'Tareas', calendario: 'Calendario', habitos: 'Hábitos', fitness: 'Fitness', estadisticas: 'Stats', meetings: 'Meetings' }
+  const etiquetas = { tareas: 'Tareas', calendario: 'Calendario', habitos: 'Hábitos', fitness: 'Fitness', estadisticas: 'Stats', meetings: 'Meetings', eod: 'EOD' }
   if (PESTANA === 'ajustes') await pag.click('[aria-label="Ajustes"]')
   else await pag.click(`nav[aria-label="Principal"] >> text=${etiquetas[PESTANA]}`)
   await espera(1500)

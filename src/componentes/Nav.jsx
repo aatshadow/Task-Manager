@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { Home, ListChecks, CalendarDays, Repeat, Dumbbell, BarChart3, Mic } from 'lucide-react'
+import { Home, ListChecks, CalendarDays, Repeat, Dumbbell, BarChart3, Mic, MoonStar } from 'lucide-react'
 
-// Las siete pestañas (LOGICA.md §5 + Fitness §11 + Meetings §15). Las claves son las que usa App para elegir pantalla.
+// Las ocho pestañas (LOGICA.md §5 + Fitness §11 + Meetings §15 + EOD §16). Las claves son las que usa App para elegir pantalla.
 export const PESTANAS = [
   { clave: 'hoy', etiqueta: 'Hoy', Icono: Home },
   { clave: 'tareas', etiqueta: 'Tareas', Icono: ListChecks },
@@ -10,6 +10,7 @@ export const PESTANAS = [
   { clave: 'fitness', etiqueta: 'Fitness', Icono: Dumbbell },
   { clave: 'estadisticas', etiqueta: 'Stats', Icono: BarChart3 },
   { clave: 'meetings', etiqueta: 'Meetings', Icono: Mic },   // LOGICA §15
+  { clave: 'eod', etiqueta: 'EOD', Icono: MoonStar },        // LOGICA §16
 ]
 
 // Nav inferior fija. Activa = icono naranja con un punto debajo que se desliza entre pestañas.

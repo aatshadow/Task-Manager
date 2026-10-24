@@ -207,8 +207,8 @@
   height: calc(var(--alto-nav) + var(--safe-abajo));
   padding: 0 4px var(--safe-abajo);
   display: grid;
-  /* siete pestañas desde Meetings (§15): columnas que pueden encoger y etiqueta de 10 px */
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* ocho pestañas desde EOD (§16): columnas que pueden encoger y etiqueta de 10 px */
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   background: var(--nav);
   border-top: 1px solid var(--linea);
   backdrop-filter: blur(14px);

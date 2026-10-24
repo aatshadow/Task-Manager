@@ -52,6 +52,8 @@ const aAjustes = (a) => ({
   cuadrantes: a.cuadrantes || {},
   // Stats cuentan desde aquí (null = desde siempre): el «ponerlas a 0» sin borrar nada (LOGICA §5.3)
   statsDesde: a.stats_desde || null,
+  // las preguntas del EOD (LOGICA §16), editables desde la propia pantalla
+  eodPreguntas: Array.isArray(a.eod_preguntas) ? a.eod_preguntas : [],
   actualizadoEn: a.updated_at,
 })
 const aColumnasAjustes = (c) => {
@@ -61,6 +63,7 @@ const aColumnasAjustes = (c) => {
   if ('diasBandeja' in c) m.dias_bandeja = c.diasBandeja
   if ('cuadrantes' in c) m.cuadrantes = c.cuadrantes
   if ('statsDesde' in c) m.stats_desde = c.statsDesde || null
+  if ('eodPreguntas' in c) m.eod_preguntas = c.eodPreguntas || []
   return m
 }
 

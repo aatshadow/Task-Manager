@@ -806,3 +806,30 @@ detallado como Fitness, con un overview generado con IA».
 - **Widget y panel (§14.8) ganan «Completado hoy»:** lo cerrado en el día lógico de hoy (desde la hora de
   reinicio, 04:00), sólo tareas de 2day; se limpia solo al cambiar de día. En el widget, `✓ N` en la barra y
   «Reabrir» por tarea.
+
+## 16 · EOD — el cierre del día (Alex, 24-10-2026)
+
+Pedido: «una sección que se llame EOD: relleno algunas preguntas, me aparece para anotar el sueño de ese día,
+el peso, un (dientes lavados) con botón de seleccionado, y me hace un recap de las completadas hoy y de las
+tareas creadas hoy, por si quiero editar o cambiar alguna. Está disponible hasta que se resetee el sistema
+(04:00)». Y luego: «los hábitos de horas de sueño y peso se actualizan y completan ahí; el EOD se puede ir
+completando a lo largo del día».
+
+- **Octava pestaña** después de Meetings (icono luna; nav de 8 columnas; atajos `1`–`8`).
+- **Vale para el día lógico**: el de la hora de reinicio. Se rellena cuando se quiera durante el día y, a las
+  04:00, nace el EOD del día siguiente vacío (el anterior se queda guardado en la base). La cabecera dice hasta
+  cuándo y cuánto queda. «Cerrar el día» sólo apunta `cerrado_en`; se puede reabrir y seguir editando.
+- **Sueño y peso NO se duplican**: son las marcas de los hábitos `medir` «Horas de sueño» y «Peso» de ese día.
+  Escribir aquí completa el hábito (y alimenta Stats y la ficha); lo apuntado en Hoy o Hábitos sale aquí.
+- **«Dientes lavados»** es un hábito `hacer` del Apagado (21:50), creado por la migración; el botón lo marca.
+  Cuenta en la adherencia como cualquier otro.
+- **Preguntas**: lista editable en la propia pantalla («Editar»), guardada en `hoy_ajustes.eod_preguntas`.
+  Las respuestas van en `hoy_eod.respuestas` como `{ pregunta: texto }`; cada una se guarda al salir del campo.
+- **Recap**: *Completadas hoy* (`hecha_en` en el día lógico, de 2day y del portal) y *Creadas hoy*
+  (`created_at` en el día lógico, sin archivadas). Con la marca de completar/reabrir y, al tocar, la hoja de
+  detalle de siempre para editarlas.
+
+### 16.1 · Modelo (`sql/2026-10-24-eod.sql`)
+`hoy_eod (owner_id, fecha, respuestas jsonb, cerrado_en, updated_at)`, PK `(owner_id, fecha)`, RLS
+`owner_id = auth.uid()`, sin `anon`. `hoy_ajustes.eod_preguntas jsonb` con 4 por defecto. Capa: `src/datos/eod.js`;
+pantalla: `src/pantallas/Eod/`; test: `tests/eod.mjs` (respuesta y dientes de ida y vuelta, y lo restaura).
