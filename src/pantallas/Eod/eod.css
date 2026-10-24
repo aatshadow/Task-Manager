@@ -50,3 +50,54 @@
 .app--escritorio .eod { max-width: 760px; }
 .app--escritorio .eod-cuerpo { grid-template-columns: 1fr 1fr 1fr; }
 .app--escritorio .eod-dientes { grid-column: auto; }
+
+/* recap y lectura (§16.3) */
+.eod-con-icono { display: inline-flex; align-items: center; gap: 6px; }
+.eod-barra { height: 6px; border-radius: 3px; background: var(--linea); overflow: hidden; margin: -4px 0 12px; }
+.eod-barra span { display: block; height: 100%; background: var(--ok); border-radius: 3px; transition: width var(--dur); }
+.eod-habitos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.eod-habito {
+  display: flex; align-items: center; gap: 8px; min-width: 0; text-align: left; cursor: pointer;
+  background: var(--tarjeta); border: 1px solid var(--tarjeta-borde); border-radius: var(--radio-campo);
+  padding: 8px 10px; color: var(--texto-2); font: inherit; font-size: var(--t-secundario);
+}
+.eod-habito:disabled { cursor: default; }
+.eod-habito--hecho { color: var(--texto); }
+.eod-habito-marca {
+  width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--linea-fuerte); flex: none;
+  display: grid; place-items: center; color: var(--fondo);
+}
+.eod-habito--hecho .eod-habito-marca { background: var(--ok); border-color: var(--ok); }
+.eod-habito-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eod-habito-valor { color: var(--texto-3); font-variant-numeric: tabular-nums; flex: none; }
+.eod-item-titulo { font-size: var(--t-cuerpo); font-weight: 500; }
+.eod-item-sub { font-size: var(--t-micro); color: var(--texto-3); margin-top: 2px; }
+
+.eod-lectura-espera { display: flex; align-items: center; gap: 10px; font-size: var(--t-secundario); color: var(--texto-2); margin-bottom: 10px; }
+.eod-lectura-error { color: var(--peligro); }
+.eod-lectura { display: flex; flex-direction: column; gap: 14px; }
+.eod-lectura--vieja { opacity: 0.6; }
+.eod-lectura-cabeza { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.eod-lectura-titular { font-size: var(--t-titulo); font-weight: 700; line-height: 1.25; }
+.eod-lectura-nota { flex: none; color: var(--texto-2); font-size: var(--t-secundario); }
+.eod-lectura-nota b { font-size: 28px; color: var(--texto); font-variant-numeric: tabular-nums; }
+.eod-parte-titulo { font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.08em; color: var(--acento-claro); font-weight: 600; }
+.eod-parte p { margin: 4px 0 0; font-size: var(--t-cuerpo); line-height: 1.55; color: var(--texto); }
+.eod-senales { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.eod-senal { border-left: 3px solid var(--ok); padding: 2px 0 2px 10px; font-size: var(--t-secundario); color: var(--texto-2); }
+.eod-senal--ojo { border-left-color: var(--aviso); }
+.eod-foco { background: rgba(0, 0, 0, 0.25); border-radius: var(--radio-campo); padding: 10px 12px; font-size: var(--t-cuerpo); font-weight: 600; }
+.eod-foco span { display: block; font-size: var(--t-micro); color: var(--texto-3); font-weight: 500; margin-bottom: 2px; }
+.eod-lectura-pie { font-size: var(--t-micro); color: var(--texto-3); }
+.app--escritorio .eod-habitos { grid-template-columns: 1fr 1fr 1fr; }
+
+/* el EOD de un día en el Calendario (§16.4) */
+.eod-dia { margin: 0 0 12px; padding: 0; }
+.eod-dia-cabeza { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; color: var(--texto); font: inherit; padding: 10px 14px; cursor: pointer; text-align: left; }
+.eod-dia-icono { color: var(--acento); flex: none; }
+.eod-dia-titulo { font-size: var(--t-secundario); font-weight: 600; flex: none; }
+.eod-dia-datos { flex: 1; min-width: 0; display: flex; gap: 10px; justify-content: flex-end; font-size: var(--t-micro); color: var(--texto-2); white-space: nowrap; overflow: hidden; }
+.eod-dia-datos b { color: var(--texto); }
+.eod-dia-flecha { color: var(--texto-3); display: flex; flex: none; }
+.eod-dia-cuerpo { display: flex; flex-direction: column; gap: 12px; padding: 0 14px 14px; }
+.eod-dia-cuerpo .seccion { margin: 0; }

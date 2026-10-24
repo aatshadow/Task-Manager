@@ -839,3 +839,22 @@ De **19:30** (la hora de «Planificar el mañana»; `AVISO_DESDE` en `src/datos/
 enseña bajo la cabecera del reto «**EOD sin rellenar** · falta sueño, peso, dientes y N preguntas» con
 «Rellenar» → pestaña EOD. Desaparece cuando no falta nada o cuando el día se cierra. `faltaEod()` es la única
 fórmula de «qué falta» (`AvisoEod.jsx`).
+
+### 16.3 · Recap y lectura IA (Alex, 24-10-2026)
+Pedido: «el recap de hábitos completados y demás, como meetings hechos, hábitos hechos, y una lectura de IA de
+lo que ha ocurrido, de dónde venimos y a dónde vamos».
+- **Recap** en la pantalla EOD: **Hábitos** del día (hechos/tocaban con barra; un `hacer`/`evitar` se marca desde
+  ahí, un `medir` se apunta con su valor) · **Reuniones hoy** (Wispr, §14.7) · **Claude hoy** (sesiones, horas,
+  tareas hechas/abiertas, de la bitácora §14) · Completadas y Creadas hoy.
+- **Lectura del día** (`hoy_eod.lectura` jsonb: titular, nota 0-10, hoy, de_donde_venimos, a_donde_vamos, señales
+  bien/ojo, foco_manana). La app la **pide** (`lectura_estado = 'pedido'`, botón Generar/Regenerar, y sola al
+  pulsar «Cerrar el día»); la escribe **`bitacora/eod_lectura.py --si-toca`** en el LaunchAgent de la bitácora
+  (cada 5 min, `claude -p --model opus` con la suscripción, ~45 s) y la deja en `listo` o `error`. Entrada: el día
+  (EOD, medidas, hábitos, tareas, reuniones, sesiones de Claude), los 14 días anteriores (hechas, hábitos,
+  medidas, EOD y titular de su lectura), hitos a 60 días, el reto, lo planificado para mañana y la misión.
+  A mano: `python3 bitacora/eod_lectura.py [AAAA-MM-DD]`. SQL: `sql/2026-10-24-eod-lectura.sql`.
+
+### 16.4 · El EOD en el Calendario (Alex, 24-10-2026)
+En **Día, Semana y Mes**, encima de la vista, el EOD del día elegido en una línea (nota de la lectura, sueño, peso,
+dientes, hábitos x/y) que se despliega con las respuestas y la lectura entera (se puede pedir para un día pasado).
+De sólo lectura; en el de hoy, «Abrir el EOD de hoy». Los días futuros no lo enseñan. `src/pantallas/Eod/EodDelDia.jsx`.

@@ -4,6 +4,7 @@ import './calendario.css'
 import Segmentos from '../../componentes/Segmentos.jsx'
 import CabeceraPeriodo from './CabeceraPeriodo.jsx'
 import VistaDia from './VistaDia.jsx'
+import EodDelDia from '../Eod/EodDelDia.jsx'
 import VistaSemana from './VistaSemana.jsx'
 import VistaMes from './VistaMes.jsx'
 import VistaAnio from './VistaAnio.jsx'
@@ -80,7 +81,7 @@ function etiquetas(vista, fecha, hoy) {
  * segmentos arriba, cabecera de período con flechas, y la vista. La fecha elegida es una
  * sola para todas: cambiar de vista no te pierde el día que estabas mirando.
  */
-export default function Calendario() {
+export default function Calendario({ onIrA } = {}) {
   const { tareas, hitos, hoy, nuevaTarea, cargando, error } = useDatos()
   const [vista, setVista] = useState(() => {
     try { return VISTAS.some((v) => v.valor === localStorage.getItem(CLAVE_VISTA)) ? localStorage.getItem(CLAVE_VISTA) : 'mes' }
@@ -139,6 +140,9 @@ export default function Calendario() {
         mostrarHoy={fecha !== hoy}
         alHoy={irAHoy}
       />
+
+      {/* el EOD del día elegido (§16.4): en Día, Semana y Mes */}
+      {['dia', 'semana', 'mes'].includes(vista) && <EodDelDia fecha={fecha} alAbrirEod={onIrA ? () => onIrA('eod') : null} />}
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div

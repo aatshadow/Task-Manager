@@ -3,6 +3,7 @@ import { Check, Moon, Scale, Pencil, Plus, X, Lock, Unlock } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Boton from '../../componentes/Boton.jsx'
 import FilaTarea from '../Tareas/FilaTarea.jsx'
+import { Lectura, HabitosDelDia, OtrosDelDia } from './Recap.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarCompletar } from '../../estado/usarGuardar.js'
 import { marcar } from '../../datos/habitos.js'
@@ -20,9 +21,9 @@ function quedaHasta(reinicio, ahora) {
 }
 
 /**
- * EOD (LOGICA §16): el cierre del día. Sueño, peso y dientes (marcas de sus hábitos), las
- * preguntas de Alex y el repaso de lo completado y lo creado hoy, para tocar lo que haga
- * falta. Vale para el día lógico: a la hora de reinicio (04:00) nace el de mañana.
+ * EOD (LOGICA §16): el cierre del día. La lectura IA (§16.3), sueño, peso y dientes (marcas de
+ * sus hábitos), las preguntas de Alex y el recap: hábitos, reuniones, Claude, lo completado y lo
+ * creado hoy, para tocar lo que haga falta. Vale para el día lógico: a la hora de reinicio (04:00) nace el de mañana.
  */
 export default function Eod() {
   const { hoy, ahora, ajustes, setAjustes, habitos, marcas, setMarcas, tareas, avisar } = useDatos()
@@ -37,6 +38,14 @@ export default function Eod() {
     cargarEod(hoy).then((e) => vivo && setEod(e)).catch((e) => { avisar(e.message, 'error'); if (vivo) setEod({ fecha: hoy, respuestas: {}, cerradoEn: null }) })
     return () => { vivo = false }
   }, [hoy, avisar])
+
+  // mientras el Mac escribe la lectura, se relee cada 20 s
+  const pedida = eod?.lecturaEstado === 'pedido'
+  useEffect(() => {
+    if (!pedida) return undefined
+    const t = setInterval(() => cargarEod(hoy).then(setEod).catch(() => {}), 20000)
+    return () => clearInterval(t)
+  }, [pedida, hoy])
 
   const guardar = async (cambios) => {
     const anterior = eod
@@ -88,8 +97,10 @@ export default function Eod() {
         </div>
         {eod && (cerrado
           ? <Boton variante="secundario" pequeno icono={<Unlock size={16} />} onClick={() => guardar({ cerradoEn: null })}>Reabrir</Boton>
-          : <Boton pequeno icono={<Lock size={16} />} onClick={() => guardar({ cerradoEn: new Date().toISOString() })}>Cerrar el día</Boton>)}
+          : <Boton pequeno icono={<Lock size={16} />} onClick={() => guardar({ cerradoEn: new Date().toISOString(), lecturaEstado: 'pedido' })}>Cerrar el día</Boton>)}
       </Tarjeta>
+
+      <Lectura eod={eod} alPedir={() => guardar({ lecturaEstado: 'pedido' })} />
 
       <section className="seccion">
         <div className="seccion-titulo">Cuerpo</div>
@@ -117,6 +128,9 @@ export default function Eod() {
         alResponder={(p, texto) => guardar({ respuestas: { ...(eod?.respuestas || {}), [p]: texto } })}
         alCambiarPreguntas={guardarPreguntas}
       />
+
+      <HabitosDelDia alMarcar={cambiarMarca} />
+      <OtrosDelDia />
 
       <section className="seccion">
         <div className="seccion-titulo">Completadas hoy · {completadas.length}</div>

@@ -12,7 +12,11 @@ const listo = () => {
   if (!isConfigured || !supabase) throw new ErrorHoy('Supabase no está configurado')
 }
 
-const aEod = (f) => ({ fecha: f.fecha, respuestas: f.respuestas || {}, cerradoEn: f.cerrado_en || null })
+const aEod = (f) => ({
+  fecha: f.fecha, respuestas: f.respuestas || {}, cerradoEn: f.cerrado_en || null,
+  // la lectura IA (§16.3): la pide la app, la escribe el Mac con `claude -p`
+  lectura: f.lectura || null, lecturaEstado: f.lectura_estado || null, lecturaEn: f.lectura_en || null, lecturaError: f.lectura_error || null,
+})
 
 /** El EOD de un día, o uno vacío si aún no hay fila. */
 export async function cargarEod(fecha) {
@@ -28,6 +32,7 @@ export async function guardarEod(fecha, cambios = {}) {
   const fila = { owner_id: user?.id, fecha, updated_at: new Date().toISOString() }
   if ('respuestas' in cambios) fila.respuestas = cambios.respuestas || {}
   if ('cerradoEn' in cambios) fila.cerrado_en = cambios.cerradoEn
+  if ('lecturaEstado' in cambios) fila.lectura_estado = cambios.lecturaEstado
   const r = await supabase.from('hoy_eod').upsert(fila, { onConflict: 'owner_id,fecha' }).select().single()
   return aEod(uno(r, 'no se pudo guardar el EOD'))
 }
