@@ -66,6 +66,10 @@ const aTarea = (f) => ({
   // solo portal
   prioridadPortal: f.prioridad_portal || null,
   fase: f.fase || null,
+  // de otro portal (EasyBiz…), asignada a una ficha mía: se escribe por hoy_tarea_fuera_cambiar
+  deFuera: !!f.de_fuera,
+  clienteNombre: f.cliente_nombre || null,
+  asignadaPor: f.asignada_por || null,
 })
 
 /** Todas mis tareas (personales + las de GrowthInfo que me tocan), de la vista. */
@@ -160,6 +164,17 @@ const aColumnasCapa = (c) => {
 }
 
 const tabla = (t) => (t.origen === 'portal' ? 'tasks' : 'hoy_tareas')
+
+/** Escribe columnas en la tarea. Una de otro portal no la deja la RLS: va por la función (sql/2026-10-25). */
+async function escribir(tarea, m, error) {
+  if (!tarea.deFuera) return ok(await supabase.from(tabla(tarea)).update(m).eq('id', tarea.id), error)
+  const { stage_id, pipeline_id, ...resto } = m // eslint-disable-line no-unused-vars
+  if (!Object.keys(resto).length) return
+  if (Object.keys(resto).some((k) => !COLUMNAS_FUERA.includes(k))) throw new ErrorHoy('en una tarea de otro portal sólo se cambia título, descripción, estado, fechas, prioridad y categoría')
+  const r = await supabase.rpc('hoy_tarea_fuera_cambiar', { p_id: tarea.id, p: resto })
+  if (r.error) throw new ErrorHoy(error, r.error)
+}
+const COLUMNAS_FUERA = ['title', 'description', 'status', 'completed', 'start_date', 'due_date', 'priority', 'category', 'position']
 const traducir = (t, cambios) => (t.origen === 'portal' ? aColumnasPortal(cambios) : aColumnasHoy(cambios))
 
 /** Última posición de una columna + 1 (en la tabla que toque). */
@@ -261,7 +276,7 @@ export async function actualizar(tarea, cambios = {}) {
   if (!tarea?.id) throw new ErrorHoy('falta la tarea')
   const m = traducir(tarea, cambios)
   if (!Object.keys(m).length) return tarea
-  ok(await supabase.from(tabla(tarea)).update(m).eq('id', tarea.id), 'no se pudo guardar el cambio')
+  await escribir(tarea, m, 'no se pudo guardar el cambio')
   return releer(tarea.id, tarea.origen)
 }
 
@@ -299,7 +314,7 @@ export async function mover(tarea, etapa, { posicion, estadoPedido = null } = {}
   const cambios = cambiosAlMover(etapa, estadoPedido)
   if (posicion != null) cambios.posicion = posicion
   const m = traducir(tarea, cambios)
-  ok(await supabase.from(tabla(tarea)).update(m).eq('id', tarea.id), 'no se pudo mover la tarea')
+  await escribir(tarea, m, 'no se pudo mover la tarea')
   const nueva = await releer(tarea.id, tarea.origen)
   // Se repite y acaba de pasar a hecha (por la puerta que sea: marca, hoja, kanban): nace la
   // siguiente (LOGICA §4.1). Si engendrar falla, la tarea ya está hecha: se avisa, no se deshace.

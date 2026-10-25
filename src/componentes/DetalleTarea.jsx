@@ -49,6 +49,8 @@ function Contenido({ tarea: t }) {
     nombreProyecto, nombrePersona, actualizarLocal, quitarLocal, recargar, avisar, cerrarTarea,
   } = useDatos()
   const esPortal = t.origen === 'portal'
+  /* Los comentarios de una de otro portal no los deja leer la RLS de GrowthInfo: se comentan en su portal. */
+  const conComentarios = esPortal && !t.deFuera
 
   // Borradores de los campos de texto: se escriben al soltar el foco (no en cada tecla).
   const [titulo, setTitulo] = useState(t.titulo)
@@ -202,13 +204,13 @@ function Contenido({ tarea: t }) {
   const [comentario, setComentario] = useState('')
   const [comentando, setComentando] = useState(false)
   useEffect(() => {
-    if (!esPortal) return
+    if (!conComentarios) return
     let vivo = true
     datosTareas.cargarComentarios(t.id)
       .then((cs) => { if (vivo) setComentarios(cs) })
       .catch((e) => { if (vivo) { setComentarios([]); avisar(e.message, 'error') } })
     return () => { vivo = false }
-  }, [esPortal, t.id, avisar])
+  }, [conComentarios, t.id, avisar])
   const enviarComentario = async (e) => {
     e?.preventDefault()
     const texto = comentario.trim()
@@ -225,7 +227,7 @@ function Contenido({ tarea: t }) {
     }
   }
 
-  const origenTexto = esPortal ? `GrowthInfo · ${clienteActual?.nombre || t.clientId}` : 'Personal'
+  const origenTexto = t.deFuera ? `${t.clienteNombre || 'Otro portal'}${t.asignadaPor ? ` · te la asignó ${t.asignadaPor}` : ''}` : esPortal ? `GrowthInfo · ${clienteActual?.nombre || t.clientId}` : 'Personal'
 
   return (
     <div className="detalle" aria-busy={ocupado || undefined}>
@@ -292,7 +294,15 @@ function Contenido({ tarea: t }) {
           onBlur={soltarDescripcion}
         />
 
-        {esPortal ? (
+        {t.deFuera ? (
+          <div className="campo">
+            <div className="campo-etiqueta">Portal</div>
+            <div className="detalle-solo-lectura">
+              <Chip color="var(--acento)">{t.clienteNombre || 'Otro portal'}</Chip>
+              <span className="t-terciario">{t.asignadaPor ? `te la asignó ${t.asignadaPor}` : 'asignada a ti'} · proyecto {proyectoActual?.nombre || 'sin enlazar'}</span>
+            </div>
+          </div>
+        ) : esPortal ? (
           <div className="campo">
             <div className="campo-etiqueta">Cliente</div>
             <div className="detalle-solo-lectura">
@@ -364,7 +374,7 @@ function Contenido({ tarea: t }) {
         />
       </div>
 
-      {esPortal && (
+      {conComentarios && (
         <section className="detalle-comentarios">
           <div className="seccion-titulo fila"><MessageSquare size={14} strokeWidth={1.75} /> Comentarios del portal</div>
           {comentarios === null ? (
