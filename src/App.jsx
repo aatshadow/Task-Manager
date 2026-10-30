@@ -3,9 +3,10 @@ import { motion } from 'framer-motion'
 import './estilos/ensamblaje.css'
 import './estilos/escritorio.css'
 import Cabecera from './componentes/Cabecera.jsx'
-import Nav, { PESTANAS } from './componentes/Nav.jsx'
+import { PESTANAS, ESPACIOS, espacioDe } from './componentes/Nav.jsx'
+import SubNav from './componentes/SubNav.jsx'
+import MenuRadial from './componentes/MenuRadial.jsx'
 import Rail from './componentes/Rail.jsx'
-import FAB from './componentes/FAB.jsx'
 import Aviso from './componentes/Aviso.jsx'
 import DetalleTarea from './componentes/DetalleTarea.jsx'
 import NuevaTarea from './componentes/NuevaTarea.jsx'
@@ -17,6 +18,8 @@ import Fitness from './pantallas/Fitness/Fitness.jsx'
 import Estadisticas from './pantallas/Estadisticas/Estadisticas.jsx'
 import Meetings from './pantallas/Meetings/Meetings.jsx'
 import Eod from './pantallas/Eod/Eod.jsx'
+import Finanzas from './pantallas/Finanzas/Finanzas.jsx'
+import PantallaFrentes from './pantallas/Frentes/Frentes.jsx'
 import Ajustes from './pantallas/Ajustes/Ajustes.jsx'
 import Acceso from './pantallas/Acceso/Acceso.jsx'
 import Panel from './pantallas/Panel/Panel.jsx'
@@ -24,20 +27,22 @@ import Muestrario from './dev/Muestrario.jsx'
 import { ProveedorDatos, useDatos } from './estado/useDatos.jsx'
 import { usarEscritorio } from './estado/usarEscritorio.js'
 import { resumenHoy } from './datos/estadisticas.js'
-import { diaDelReto } from './datos/retos.js'
 
-// Qué pinta cada pestaña y qué dice su cabecera. Ajustes no está en la nav: se llega
-// por el avatar y se vuelve con la flecha (o tocando cualquier pestaña).
+// Qué pinta cada sección. La cabecera la pone el ESPACIO (LOGICA §18.1): su nombre y su lema;
+// Hoy lleva el saludo. Ajustes se llega por el avatar o por el menú radial y se vuelve con la
+// flecha (o eligiendo cualquier espacio).
 const PANTALLAS = {
   hoy: { Pantalla: Hoy },
-  tareas: { Pantalla: Tareas, titulo: 'Tareas' },
-  calendario: { Pantalla: Calendario, titulo: 'Calendario' },
-  habitos: { Pantalla: Habitos, titulo: 'Hábitos' },
-  fitness: { Pantalla: Fitness, titulo: 'Fitness' },
-  estadisticas: { Pantalla: Estadisticas, titulo: 'Stats' },
-  meetings: { Pantalla: Meetings, titulo: 'Meetings' },
-  eod: { Pantalla: Eod, titulo: 'EOD', subtitulo: 'El cierre del día' },
-  ajustes: { Pantalla: Ajustes, titulo: 'Ajustes' },
+  eod: { Pantalla: Eod },
+  tareas: { Pantalla: Tareas },
+  calendario: { Pantalla: Calendario },
+  frentes: { Pantalla: PantallaFrentes },
+  meetings: { Pantalla: Meetings },
+  habitos: { Pantalla: Habitos },
+  fitness: { Pantalla: Fitness },
+  finanzas: { Pantalla: Finanzas },
+  estadisticas: { Pantalla: Estadisticas },
+  ajustes: { Pantalla: Ajustes, titulo: 'Ajustes', subtitulo: 'cómo funciona 2day.' },
 }
 
 // El hash: #panel es la ventana del widget (§14.8); #muestrario y #acceso sólo sirven en desarrollo.
@@ -83,13 +88,16 @@ function Raiz() {
 }
 
 function Armazon() {
-  const { tareas, hoy, cargando, yo, sesion, nuevaTarea, reto } = useDatos()
+  const { tareas, hoy, cargando, yo, sesion, nuevaTarea } = useDatos()
   const escritorio = usarEscritorio()
   const [pestana, setPestana] = useState('hoy')
   const [pestanaAnterior, setPestanaAnterior] = useState('hoy')
 
   const enAjustes = pestana === 'ajustes'
-  const { Pantalla, titulo, subtitulo } = PANTALLAS[pestana]
+  const { Pantalla } = PANTALLAS[pestana]
+  const espacio = espacioDe(pestana)
+  // la última sección abierta de cada espacio: volver a «Trabajo» te deja donde estabas
+  const [ultimas, setUltimas] = useState({})
 
   // «Hola Alex» + «N tareas pendientes» (LOGICA §5): el nombre sale de la ficha de equipo.
   // Pendientes = las de Hoy no hechas (la misma fórmula que el «En Hoy» de la rejilla, para
@@ -97,22 +105,29 @@ function Armazon() {
   const nombre = (yo?.nombre || sesion?.user?.email || '').split(/[\s@]/)[0]
   const pendientes = resumenHoy(tareas, hoy).enHoy
   const tituloHoy = nombre ? `Hola ${nombre}` : 'Hola'
-  // Con reto en marcha el subtítulo lleva el día: «Día 3 / 90 · 4 tareas pendientes».
-  const estadoReto = diaDelReto(reto, hoy)
-  const prefijoReto = reto && !estadoReto.antes && !estadoReto.terminado ? `Día ${estadoReto.dia} / ${estadoReto.total} · ` : ''
-  const subtituloHoy = cargando ? 'Cargando…' : `${prefijoReto}${pendientes === 1 ? '1 tarea pendiente' : `${pendientes} tareas pendientes`}`
+  // el día del reto ya lo enseña la cabecera del reto justo debajo: aquí sólo lo pendiente
+  const subtituloHoy = cargando ? 'cargando…' : `— ${pendientes === 1 ? 'una cosa pendiente' : `${pendientes} cosas pendientes`}.`
   const inicial = (nombre || 'A').slice(0, 1).toUpperCase()
 
   // Cambiar de pestaña vuelve arriba: el navegador conserva el scroll entre renders y una
   // pantalla corta tras una larga aparecía «vacía» (medido en las capturas del 16-09).
-  const abrirAjustes = () => { setPestanaAnterior(pestana); setPestana('ajustes'); window.scrollTo(0, 0) }
-  const irA = (clave) => { setPestana(clave); window.scrollTo(0, 0) }
+  const abrirAjustes = () => { if (pestana === 'ajustes') return; setPestanaAnterior(pestana); setPestana('ajustes'); window.scrollTo(0, 0) }
+  const irA = (clave) => {
+    setPestana(clave)
+    const e = espacioDe(clave)
+    if (e) setUltimas((u) => ({ ...u, [e.clave]: clave }))
+    window.scrollTo(0, 0)
+  }
+  const irAEspacio = (clave) => {
+    const e = ESPACIOS.find((x) => x.clave === clave)
+    if (e) irA(ultimas[clave] || e.secciones[0].clave)
+  }
 
   // Desde Hoy, lo capturado entra ya planificado para hoy; desde el resto va a Bandeja limpia.
   const capturar = () => nuevaTarea(pestana === 'hoy' ? { hoyPara: hoy } : {})
 
   /* ── atajos de teclado, sólo en escritorio (§10.0-9) ───────────────────── */
-  // `1`–`8` pestañas · `t` Hoy · `n` nueva tarea. Escape lo gestiona cada hoja (cierra el
+  // `1`–`9`/`0` secciones · `t` Hoy · `n` nueva tarea. Escape lo gestiona cada hoja (cierra el
   // panel), así que aquí no se toca. Nada de esto se dispara escribiendo en un campo.
   useEffect(() => {
     if (!escritorio) return undefined
@@ -120,7 +135,9 @@ function Armazon() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const en = e.target
       if (en && (en.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(en.tagName))) return
-      if (e.key >= '1' && e.key <= String(PESTANAS.length)) { irA(PESTANAS[Number(e.key) - 1].clave); return }
+      // `1`…`9` y `0` = las diez secciones en el orden de los espacios
+      const n = e.key === '0' ? 10 : Number(e.key)
+      if (n >= 1 && n <= PESTANAS.length) { irA(PESTANAS[n - 1].clave); return }
       if (e.key === 't' || e.key === 'T') { irA('hoy'); return }
       if (e.key === 'n' || e.key === 'N') { e.preventDefault(); capturar() }
     }
@@ -131,12 +148,13 @@ function Armazon() {
   const contenido = (
     <>
       <Cabecera
-        titulo={pestana === 'hoy' ? tituloHoy : titulo}
-        subtitulo={pestana === 'hoy' ? subtituloHoy : subtitulo}
+        titulo={pestana === 'hoy' ? tituloHoy : espacio ? espacio.etiqueta : PANTALLAS[pestana].titulo}
+        subtitulo={pestana === 'hoy' ? subtituloHoy : `— ${espacio ? espacio.lema : PANTALLAS[pestana].subtitulo}`}
         inicial={inicial}
         alAvatar={escritorio ? undefined : abrirAjustes}
         alAtras={!escritorio && enAjustes ? () => irA(pestanaAnterior) : undefined}
       />
+      {espacio && <SubNav secciones={espacio.secciones} activa={pestana} alCambiar={irA} />}
 
       {/* Solo animación de ENTRADA (key remonta la pantalla). Sin AnimatePresence a propósito:
           Tareas lleva su propio conmutador de pestañas y dos `mode="wait"` anidados dejaban la
@@ -179,8 +197,8 @@ function Armazon() {
   return (
     <div className="app">
       {contenido}
-      {!enAjustes && <FAB alPulsar={capturar} />}
-      <Nav activa={enAjustes ? null : pestana} alCambiar={irA} />
+      {/* el dock de vidrio con el menú radial sustituye a la barra de pestañas y al FAB (§18) */}
+      <MenuRadial activa={enAjustes ? null : pestana} alEspacio={irAEspacio} alNueva={capturar} alAjustes={abrirAjustes} />
       <DetalleTarea />
       <NuevaTarea />
     </div>

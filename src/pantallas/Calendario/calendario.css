@@ -309,7 +309,7 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
   right: 0;
   height: 1.5px;
   background: var(--acento-claro);
-  box-shadow: 0 0 10px rgba(255, 148, 72, 0.7);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
   z-index: 4;
   pointer-events: none;
 }
@@ -529,7 +529,7 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
   padding: 0 7px 0 6px;
   border-left: 2px solid var(--aviso);
   border-radius: 0 6px 6px 0;
-  background: rgba(232, 177, 58, 0.16);
+  background: rgba(217, 192, 138, 0.16);
   color: var(--aviso);
   font-size: var(--t-micro);
   font-weight: 600;
@@ -560,7 +560,7 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
 .gantt-capa { position: absolute; top: 0; bottom: 0; left: var(--gantt-nombre); width: calc(var(--gantt-dia) * var(--gantt-n)); pointer-events: none; z-index: 0; }
 .gantt-capa-finde { position: absolute; top: 0; bottom: 0; width: var(--gantt-dia); background: rgba(255, 255, 255, 0.025); }
 .gantt-raya { position: absolute; top: 0; bottom: 0; width: 2px; border-radius: 1px; }
-.gantt-raya--hito { background: var(--aviso); opacity: 0.75; box-shadow: 0 0 10px rgba(232, 177, 58, 0.35); }
+.gantt-raya--hito { background: var(--aviso); opacity: 0.75; box-shadow: 0 0 10px rgba(217, 192, 138, 0.35); }
 .gantt-raya--hecha { background: var(--texto-3); opacity: 0.5; box-shadow: none; }
 .gantt-raya--hoy { background: var(--acento); box-shadow: var(--resplandor-suave); z-index: 1; }
 
@@ -604,9 +604,9 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
 .gantt-nombre--frentes { color: var(--aviso); }
 .gantt-mas {
   margin-left: auto; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
-  background: rgba(232, 177, 58, 0.16); color: var(--aviso); border: 1px solid rgba(232, 177, 58, 0.35); cursor: pointer;
+  background: rgba(217, 192, 138, 0.16); color: var(--aviso); border: 1px solid rgba(217, 192, 138, 0.35); cursor: pointer;
 }
-.gantt-mas:hover { background: rgba(232, 177, 58, 0.28); }
+.gantt-mas:hover { background: rgba(217, 192, 138, 0.28); }
 .gantt-fila--frente { height: 26px; }
 .gantt-frente-nombre {
   border: 0; font: inherit; text-align: left; cursor: pointer; color: var(--texto-2);
@@ -618,9 +618,9 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
 .gantt-frente, .gantt-frente-rombo { cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .gantt-frente {
   position: absolute; top: 4px; bottom: 4px; z-index: 2; display: flex; align-items: center; padding: 0 8px;
-  border-radius: 7px; background: rgba(232, 177, 58, 0.22); box-shadow: inset 0 0 0 1px rgba(232, 177, 58, 0.6);
+  border-radius: 7px; background: rgba(217, 192, 138, 0.22); box-shadow: inset 0 0 0 1px rgba(217, 192, 138, 0.6);
 }
-.gantt-frente:hover { background: rgba(232, 177, 58, 0.32); }
+.gantt-frente:hover { background: rgba(217, 192, 138, 0.32); }
 .gantt-frente-texto { font-size: var(--t-micro); font-weight: 600; color: var(--aviso); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .gantt-frente-borde { position: absolute; top: 0; bottom: 0; width: 9px; cursor: ew-resize; z-index: 1; }
 .gantt-frente-borde--ini { left: -3px; }
@@ -629,7 +629,7 @@ body.arrastrando { cursor: grabbing; user-select: none; -webkit-user-select: non
 .gantt-frente:hover .gantt-frente-borde::after { opacity: 0.9; }
 .gantt-frente-rombo {
   position: absolute; top: 50%; z-index: 2; width: 14px; height: 14px; border-radius: 3px;
-  background: var(--aviso); box-shadow: 0 0 10px rgba(232, 177, 58, 0.45); transform: translateY(-50%) rotate(45deg);
+  background: var(--aviso); box-shadow: 0 0 10px rgba(217, 192, 138, 0.45); transform: translateY(-50%) rotate(45deg);
 }
 .gantt-fila--hecha .gantt-frente, .gantt-fila--hecha .gantt-frente-rombo { opacity: 0.4; filter: grayscale(1); }
 .gantt-fila--vuelo .gantt-frente, .gantt-fila--vuelo .gantt-frente-rombo { cursor: grabbing; filter: brightness(1.3); box-shadow: 0 0 0 2px var(--aviso), 0 6px 18px rgba(0, 0, 0, 0.45); }

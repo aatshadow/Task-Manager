@@ -8,7 +8,7 @@ import { useDatos } from '../../estado/useDatos.jsx'
 import * as catalogos from '../../datos/catalogos.js'
 import { usarGuardarCatalogo, usarCola, usarListaOptimista, moverEn, sincronizarPosiciones, EntradaInline, Color, MiniBoton, Orden } from './comun.jsx'
 
-const COLOR_NUEVO = '#ff6a1a'
+const COLOR_NUEVO = '#e6e6e6'
 
 /**
  * Un emoji compuesto (tono de piel, ZWJ como 👨‍💻, banderas) son varias unidades UTF-16:

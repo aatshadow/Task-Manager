@@ -65,7 +65,7 @@ export async function cargarHabitos({ incluirArchivados = false } = {}) {
 export async function crearHabito({ nombre, icono, color, cadencia = 'diario', dias = [], vecesSemana = 1, posicion,
   hora = null, grupo = '', tipo = 'hacer', unidad = '', objetivo = null, bloqueId = null, plan = {}, descripcion = '' }) {
   listo()
-  const fila = aColumnasHabito({ nombre, icono, color: color || '#ff6a1a', cadencia, dias, vecesSemana, hora, grupo, tipo, unidad, objetivo, bloqueId, plan, descripcion })
+  const fila = aColumnasHabito({ nombre, icono, color: color || '#e6e6e6', cadencia, dias, vecesSemana, hora, grupo, tipo, unidad, objetivo, bloqueId, plan, descripcion })
   if (!fila.nombre) throw new ErrorHoy('un hábito necesita nombre')
   if (posicion == null) {
     const f = filas(await supabase.from('hoy_habitos').select('posicion').order('posicion', { ascending: false }).limit(1))

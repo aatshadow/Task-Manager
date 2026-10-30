@@ -49,7 +49,7 @@
   font-weight: 600;
   color: var(--texto);
   background: var(--tarjeta-alta);
-  border: 2px solid var(--tarjeta);
+  border: 2px solid var(--tarjeta-solida);
   margin-left: -8px;
 }
 .hoy-avatar:first-child { margin-left: 0; }
@@ -265,3 +265,11 @@
 .hoy-aviso-dia.hoy-aviso-eod { border-color: var(--acento-apagado); }
 .hoy-aviso-eod .hoy-aviso-icono { color: var(--acento); }
 .hoy-aviso-eod .hoy-aviso-texto b { color: var(--texto); font-weight: 600; }
+
+/* los cuatro números en una fila compacta (LOGICA §18.1): antes eran una rejilla 2×2 que
+   ocupaba media pantalla antes de llegar a la lista */
+.hoy-numeros { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.hoy-numeros .tarjeta { padding: 12px 10px 11px; border-radius: 18px; }
+.hoy-numeros .numero { min-height: 0; gap: 4px; }
+.hoy-numeros .numero-valor { font-size: 24px; }
+.hoy-numeros .numero-etiqueta { font-size: var(--t-micro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

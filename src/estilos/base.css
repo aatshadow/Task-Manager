@@ -14,6 +14,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
+  /* la serif (§18) trae cifras «antiguas» por defecto: el 11 parecía «I I». En 2day, siempre alineadas */
+  font-variant-numeric: lining-nums;
 }
 
 /* el fondo en capas: halo cálido arriba y viñeta abajo, fijos aunque la página haga scroll
@@ -56,10 +58,10 @@ svg { display: block; }
 }
 
 /* escala de texto */
-.t-titulo { font-size: var(--t-titulo); font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
+.t-titulo { font-size: var(--t-titulo); font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
 .t-secundario { font-size: var(--t-secundario); color: var(--texto-2); }
 .t-terciario { font-size: var(--t-secundario); color: var(--texto-3); }
-.t-numero { font-size: var(--t-numero); font-weight: 600; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.t-numero { font-variant-numeric: lining-nums tabular-nums; font-size: calc(var(--t-numero) + 2px); font-weight: 650; letter-spacing: -0.035em; line-height: 1; }
 
 /* utilidades cortas para componer pantallas sin repetir CSS */
 .fila { display: flex; align-items: center; gap: 10px; }
@@ -67,7 +69,7 @@ svg { display: block; }
 .espacio { flex: 1; }
 .rejilla-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .seccion { margin-top: 28px; }
-.seccion-titulo { font-size: var(--t-secundario); color: var(--texto-2); margin-bottom: 12px; font-weight: 500; }
+.seccion-titulo { font-size: var(--t-secundario); color: var(--texto); margin-bottom: 12px; font-weight: 600; letter-spacing: -0.005em; }
 .oculto-visual { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -24,7 +24,7 @@
 .ov-anillo { position: relative; flex: 0 0 92px; width: 92px; height: 92px; display: grid; place-items: center; }
 .ov-anillo svg { position: absolute; inset: 0; }
 .ov-anillo-pista { fill: none; stroke: var(--linea-fuerte); stroke-width: 7; }
-.ov-anillo-lleno { fill: none; stroke: var(--acento); stroke-width: 7; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(255, 106, 26, 0.55)); }
+.ov-anillo-lleno { fill: none; stroke: var(--acento); stroke-width: 7; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.55)); }
 .ov-anillo-cifra { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1; margin-top: -8px; }
 .ov-anillo-nombre { position: absolute; bottom: 24px; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-3); }
 
@@ -81,8 +81,8 @@
   float: right; margin-left: 8px; padding: 1px 8px; border-radius: var(--radio-pildora);
   font-size: var(--t-micro); font-weight: 600; background: var(--linea-fuerte); color: var(--texto-2);
 }
-.ov-item--alto .ov-item-chip, .ov-item--alta .ov-item-chip { background: rgba(215, 38, 61, 0.2); color: #ff6b7d; }
-.ov-item--medio .ov-item-chip, .ov-item--media .ov-item-chip { background: rgba(232, 177, 58, 0.18); color: var(--aviso); }
+.ov-item--alto .ov-item-chip, .ov-item--alta .ov-item-chip { background: rgba(224, 103, 95, 0.2); color: #ef8a83; }
+.ov-item--medio .ov-item-chip, .ov-item--media .ov-item-chip { background: rgba(217, 192, 138, 0.18); color: var(--aviso); }
 .ov-item-chip--plazo { background: var(--acento-apagado); color: var(--acento-claro); }
 .ov-lista--numerada { counter-reset: ov; }
 .ov-lista--numerada .ov-item { padding-left: 40px; counter-increment: ov; }
@@ -118,7 +118,7 @@
 .ov-n1 { background: color-mix(in srgb, var(--acento) 28%, transparent); }
 .ov-n2 { background: color-mix(in srgb, var(--acento) 48%, transparent); }
 .ov-n3 { background: color-mix(in srgb, var(--acento) 72%, transparent); }
-.ov-n4 { background: var(--acento); box-shadow: 0 0 6px rgba(255, 106, 26, 0.5); }
+.ov-n4 { background: var(--acento); box-shadow: 0 0 6px rgba(255, 255, 255, 0.5); }
 .ov-mapa-celda--hoy { outline: 1.5px solid var(--texto); outline-offset: 1px; }
 .ov-mapa-pie { margin: 8px 0 0; font-size: var(--t-micro); color: var(--texto-2); }
 

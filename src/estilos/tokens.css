@@ -3,31 +3,35 @@
 :root {
   color-scheme: dark;
 
-  /* superficies. Más profundidad que el mockup literal (Alex, 16-09: «al fondo más
-     profundidad»): fondo más hundido, tarjeta más despegada, un borde fino y una luz
-     interior arriba que las levanta. El fondo lleva además un halo cálido y una viñeta
-     (ver base.css), que es lo que da la sensación de capas. */
-  --fondo: #0e0e10;
-  --fondo-halo: radial-gradient(90% 50% at 50% -12%, rgba(255, 106, 26, 0.16) 0%, rgba(255, 106, 26, 0) 60%);
-  --fondo-vineta: radial-gradient(120% 70% at 50% 110%, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 60%);
-  --tarjeta: #1b1b1e;
-  --tarjeta-alta: #242427;
-  --tarjeta-borde: rgba(255, 255, 255, 0.055);
+  /* superficies — MONOCROMO (LOGICA §18.1, Alex 30-10-2026: «quítale el oro», referencia: el pin
+     «Every feature we built has one job»). Negro puro, tarjetas de grafito con un degradado
+     vertical casi imperceptible, un canto de luz blanca arriba y halos blancos suaves. */
+  --fondo: #000000;
+  --fondo-halo: radial-gradient(70% 38% at 50% -8%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0) 65%);
+  --fondo-vineta: radial-gradient(120% 70% at 50% 115%, rgba(255, 255, 255, 0.025) 0%, rgba(0, 0, 0, 0) 55%);
+  --tarjeta: linear-gradient(180deg, #151515 0%, #0d0d0d 100%);
+  --tarjeta-solida: #0e0e0e;
+  --tarjeta-alta: rgba(255, 255, 255, 0.06);
+  --tarjeta-borde: rgba(255, 255, 255, 0.06);
+  --canto: linear-gradient(170deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.06) 25%, rgba(255, 255, 255, 0.03) 60%, rgba(255, 255, 255, 0.06) 100%);
   --tarjeta-luz: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --tarjeta-sombra: 0 10px 30px rgba(0, 0, 0, 0.35);
-  --nav: rgba(17, 17, 19, 0.92);
+  --tarjeta-sombra: 0 20px 40px rgba(0, 0, 0, 0.6);
+  --vidrio-blur: blur(24px) saturate(120%);
+  --nav: rgba(12, 12, 12, 0.6);
 
-  /* la destacada: degradado cálido con brillo naranja arriba-izquierda */
-  --degradado-calido: linear-gradient(135deg, #5a2f14 0%, #2e1c12 55%, #1b1b1e 100%);
-  --brillo-calido: radial-gradient(120% 80% at 0% 0%, rgba(255, 138, 61, 0.30) 0%, rgba(255, 138, 61, 0) 55%);
+  /* la destacada: grafito con un foco de luz blanca arriba (como «Designed for focus») */
+  --degradado-calido: radial-gradient(90% 70% at 50% -10%, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(180deg, #171717 0%, #0d0d0d 100%);
+  --brillo-calido: radial-gradient(60% 40% at 50% 0%, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 70%);
 
-  /* acento: un punto más neón que el mockup (Alex, 16-09), con resplandor en lo activo */
-  --acento: #ff6a1a;
-  --acento-claro: #ff9448;
-  --acento-apagado: rgba(255, 106, 26, 0.2);
-  --sobre-acento: #fff6ef;
-  --resplandor: 0 0 0 1px rgba(255, 138, 61, 0.25), 0 8px 28px rgba(255, 106, 26, 0.45), 0 0 48px rgba(255, 106, 26, 0.22);
-  --resplandor-suave: 0 0 18px rgba(255, 106, 26, 0.45);
+  /* acento: blanco. Lo activo brilla en blanco; sobre plata, texto negro */
+  --acento: #ededed;
+  --acento-claro: #ffffff;
+  --acento-oscuro: #8c8c8c;
+  --acento-apagado: rgba(255, 255, 255, 0.09);
+  --sobre-acento: #0a0a0a;
+  --oro: linear-gradient(180deg, #fafafa 0%, #d4d4d4 60%, #a6a6a6 100%);
+  --resplandor: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 10px 30px rgba(255, 255, 255, 0.10), 0 0 50px rgba(255, 255, 255, 0.06);
+  --resplandor-suave: 0 0 14px rgba(255, 255, 255, 0.45);
 
   /* texto y líneas */
   --texto: #f5f3ef;
@@ -37,26 +41,27 @@
   --linea-fuerte: rgba(255, 255, 255, 0.12);
 
   /* semánticos (pocos, y solo para estados) */
-  --ok: #3ec27a;
-  --peligro: #d7263d;
-  --aviso: #e8b13a;
+  --ok: #7fc79c;
+  --peligro: #e0675f;
+  --aviso: #d9c08a;
 
   /* las 7 fases del Protocolo (LOGICA §10.1): el color de un bloque sale de su fase */
-  --fase-calibracion: #9b8cff;
-  --fase-nutricion: #3ec27a;
-  --fase-cuerpo: #ff9448;
-  --fase-ofensiva: #ff6a1a;
-  --fase-reuniones: #4c8dff;
-  --fase-consolidacion: #e8b13a;
-  --fase-apagado: #8a8f98;
+  --fase-calibracion: #9a96b8;
+  --fase-nutricion: #86ad97;
+  --fase-cuerpo: #c4ab92;
+  --fase-ofensiva: #e0e0e0;
+  --fase-reuniones: #8fa5c6;
+  --fase-consolidacion: #c2b68e;
+  --fase-apagado: #6f7277;
 
   /* radios: el relieve lo da el degradado, no la sombra */
-  --radio-tarjeta: 24px;
+  --radio-tarjeta: 26px;
   --radio-pildora: 999px;
   --radio-campo: 14px;
   --sombra-minima: var(--tarjeta-luz), var(--tarjeta-sombra);
 
   /* tipografía */
+  --serif: 'Cormorant Garamond Variable', 'Cormorant Garamond', Georgia, serif;
   --fuente: 'Inter Tight Variable', 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --t-numero: 36px;
   --t-titulo: 22px;

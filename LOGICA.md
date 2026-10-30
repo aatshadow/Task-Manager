@@ -858,3 +858,126 @@ lo que ha ocurrido, de dónde venimos y a dónde vamos».
 En **Día, Semana y Mes**, encima de la vista, el EOD del día elegido en una línea (nota de la lectura, sueño, peso,
 dientes, hábitos x/y) que se despliega con las respuestas y la lectura entera (se puede pedir para un día pasado).
 De sólo lectura; en el de hoy, «Abrir el EOD de hoy». Los días futuros no lo enseñan. `src/pantallas/Eod/EodDelDia.jsx`.
+
+## 17 · Finanzas — el asesor financiero de 2day (Alex, 30-10-2026)
+
+Pedido: «conectar Mercury y Wise; recibir por Wise, pasar a Mercury y repartir por pockets; medir con exactitud
+gastos y transacciones; entrada manual; gastos previstos e ingresos previstos; dónde estamos y dónde vamos a estar
+si todo sigue igual; que cada día me diga cuánto me puedo gastar, qué es obligatorio, qué ahorro, qué invierto;
+suscripciones archivadas y conectadas; una pantalla de asesor que me organice lo de la regularización y demás».
+
+### 17.0 · Decisiones cerradas
+1. **Los datos viven en la Supabase de SYSTEMA** (`xvogrnykotqhcglgdvmy`, la de Alex, un solo usuario), tablas
+   `fin_*`. **No** en la de GrowthInfo: es de un socio y aquí van bancos, saldos y claves. Las tablas de CAPITAL de
+   SYSTEMA (`movimientos`, `posiciones`…) no se tocan: `fin_*` es otro escritor, con otro nombre (*a solas*).
+2. **El navegador nunca habla con esa base.** Todo pasa por `/api/finanzas` (Vercel), que comprueba la sesión de
+   2day contra la Supabase de GrowthInfo y que el email esté en `FIN_EMAILS` (por defecto `alex@growthinfo.io`), y
+   usa la service key de SYSTEMA. Las claves de Mercury y Wise viven sólo ahí.
+3. **El banco manda; la v1 sólo LEE.** Nada mueve dinero. Cada movimiento lleva su `externo_id` (idempotente) y
+   encima la capa de Alex (clase, categoría, negocio, nota, factura).
+4. **Moneda base EUR** (la Misión está en €). Cada movimiento guarda importe y moneda originales; el cambio sale del
+   BCE (frankfurter) cacheado un día en `fin_ajustes.tasas`.
+5. **Las transferencias Wise → Mercury son `interno`**: ni ingreso ni gasto. Se emparejan solas (mismo importe ±2 %,
+   ≤5 días) y la comisión queda como gasto aparte.
+6. **Seis clases por movimiento:** `ingreso · obligatorio · recortable · libre · inversion · interno`.
+7. **Lo previsto es una tabla** (`fin_previstos`): gastos e ingresos con fecha, importe (puede faltar: entonces la
+   app lo pide), recurrencia y `provisionado` (lo ya apartado). **Una suscripción es un previsto recurrente** con
+   `suscripcion = true`; no hay tabla aparte. Un movimiento del banco puede cerrar un previsto (`previsto_id`).
+8. **Las facturas se archivan** en el bucket privado `finanzas` de SYSTEMA y se enlazan al movimiento o al previsto
+   (`fin_documentos`).
+9. **La IA aconseja, no ejecuta.** Claude (`/api/finanzas`, misma clave que el Overview) escribe el **parte del
+   día** y responde al chat; nunca toca saldos.
+
+### 17.1 · «Hoy puedes gastar» — la única fórmula (`src/datos/finanzasCalculos.js`)
+Ventana móvil de 30 días, todo en EUR:
+```
+liquidez        = Σ saldos de las cuentas (banco + manuales)
+impuestos       = max(0, impuestos_pct × ingresos del año − impuestos pagados del año)
+colchón         = colchon_meses × gasto fijo mensual (recurrentes obligatorio+recortable + sueldo del dueño)
+comprometido30  = Σ gastos previstos que caen en los próximos 30 días (pendiente = importe − provisionado)
+reserva futura  = Σ gastos previstos más allá de 30 días: pendiente × 30 / días que faltan
+disponible30    = liquidez − impuestos − colchón − comprometido30 − reserva futura
+HOY PUEDES      = disponible30 / 30 − lo `libre` ya gastado hoy
+```
+Semáforo: **rojo** si disponible30 < 0 · **ámbar** si el ritmo real no llega al que pide la Misión · **verde** si no.
+Los ingresos previstos NO entran en el número (conservador): se enseñan como «si entra X, sube a Y».
+
+**Misión y proyección:** objetivo `principal` (la Misión, 520.424,26 € a 16-09-2027). Ritmo real = neto de los
+últimos 30 días sin `interno`; con menos de 14 días de banco, el ritmo sale de los previstos recurrentes. Tres
+escenarios hasta la fecha del objetivo: **sigue igual** · **conservador** (ingresos ×0,7) · **objetivo** (la recta
+que hace falta). Los previstos puntuales se restan/suman en su fecha.
+
+### 17.2 · Modelo (`sql/2026-10-30-finanzas.sql`, en SYSTEMA)
+`fin_ajustes` (fila única: moneda_base, sueldo_dueno, colchon_meses, impuestos_pct, tasas jsonb, sync jsonb) ·
+`fin_cuentas` (banco mercury|wise|manual, externo_id, nombre, moneda, tipo operativa|pocket|impuestos|colchon|ahorro|
+inversion, saldo, saldo_en, pct_reparto, activa) · `fin_movimientos` (cuenta_id, externo_id único, fecha, importe
+con signo, moneda, descripcion, contraparte, clase, categoria, negocio, origen banco|manual, emparejado_id,
+previsto_id, nota, estado) · `fin_previstos` (tipo gasto|ingreso, titulo, importe, moneda, fecha, recurrencia
+null|semanal|mensual|trimestral|anual, clase, categoria, negocio, suscripcion, provisionado, estado
+previsto|pagado|cancelado, nota) · `fin_objetivos` (titulo, importe, moneda, fecha, tipo caja|colchon|compra|
+inversion, principal, nota) · `fin_acciones` (el plan del asesor: area fiscal|residencia|bancos|finanzas|
+inversion, titulo, detalle, prioridad 1-3, fecha, importe_estimado, estado pendiente|en_curso|hecha, origen
+alex|asesor) · `fin_documentos` (movimiento_id|previsto_id, ruta, nombre, tipo) · `fin_partes` (fecha, parte
+jsonb, modelo) · `fin_chat` (rol, texto). RLS activada sin políticas: sólo la service key entra.
+
+**Semilla (sólo lo que está dicho, sin inventar importes):** la Misión; el colchón de 3 meses; Residencia Paraguay
+básica 3.500 € (ene-2027); Viaje a Paraguay y Regularización España **sin importe**; Mac mini rentamac 119 $/mes;
+y el plan de acción de `~/Constitution LLC/RESIDENCIA-FISCAL.md` (asesor de regularizaciones primero, 720/721 de
+2025, certificado de la НАП, cruce 2026→2027, registro de días, ITIN, D-U-N-S, fuera la dirección de Alicante,
+conectar bancos, fijar sueldo, abrir pockets).
+
+### 17.3 · `/api/finanzas` (POST `{accion, …}`)
+`cargar` → todo + tasas · `guardar {tabla, fila}` / `borrar {tabla, id}` (lista blanca de tablas y columnas) ·
+`sincronizar` (Mercury: `/api/v1/accounts` + `/account/{id}/transactions`; Wise: `/v2/profiles`,
+`/v4/profiles/{p}/balances`, `balance-statements`; upsert por `externo_id`, saldos, emparejar internos; sin
+token → dice qué falta) · `subir {nombre, tipo, base64, movimientoId|previstoId}` · `enlace {id}` (URL firmada
+10 min) · `parte` (la IA) · `preguntar {pregunta}` (chat). Entorno: `FIN_SUPABASE_URL`,
+`FIN_SUPABASE_SERVICE_KEY`, `FIN_EMAILS`, `MERCURY_API_TOKEN`, `WISE_API_TOKEN`, `ANTHROPIC_API_KEY`.
+
+### 17.4 · Pantalla (`src/pantallas/Finanzas/`) — cuatro vistas en segmentos
+- **Resumen:** HOY PUEDES GASTAR con semáforo y la cascada que lo explica · la Misión (caja, falta, € al día que
+  pide, ritmo real) · proyección en tres escenarios · cuentas y pockets con «Sincronizar» · próximos 30 días.
+- **Plan:** objetivos · gastos e ingresos previstos (con lo provisionado) · suscripciones (total al mes y al año,
+  próxima renovación) · ajustes (sueldo, colchón, % impuestos).
+- **Libro:** el histórico, filtrable (todo, ingresos, gastos, sin clasificar, internos), y «Apuntar» a mano. Ficha
+  de un movimiento: clase, categoría, negocio, nota, enlazar previsto, adjuntar factura.
+- **Asesor:** el parte del día de la IA (titular, puedes gastar, consejos gasta/ahorra/invierte/obligatorio/aviso,
+  lo que le falta saber) · **el plan de acción** por áreas (regularización, residencia, bancos y crédito,
+  finanzas, inversión), marcable, con lo que la IA proponga añadible de un toque · el chat («¿me lo puedo
+  permitir?»: impacto en días de Misión y de qué partida sale; > 2.000 €, con una noche de margen).
+
+## 18 · Estilo vidrio negro y oro + menú radial (Alex, 30-10-2026)
+
+Pedido: «cambiar el estilo de la app a algo así» (referencias: panel de vidrio sobre negro con canto de luz dorada,
+paneles flotantes de cristal con texto oro) · «ya hay demasiadas cosas debajo» · «un botón en el centro con tres
+rayas que abra las secciones, más interactivo, un menú radial glassmorphism ultra lujo».
+
+### 18.0 · Decisiones cerradas
+1. **Sustituye a §6 en color**, no en forma: se cambian los tokens (`src/estilos/tokens.css`), no las pantallas.
+   Fondo negro profundo con halo dorado; superficies de **vidrio** (blanco 3–7 % + `backdrop-filter` + canto de luz
+   en degradado blanco→oro); acento **oro champán** `#d6b36a` (claro `#f1dcaa`), texto sobre oro casi negro.
+2. **Tipografía:** Inter Tight se queda para el cuerpo; títulos de cabecera y números grandes en **Cormorant
+   Garamond** (serif de lujo); los títulos de sección en versalitas espaciadas.
+3. **Móvil: fuera la barra de 8 pestañas.** Abajo, un **dock de vidrio** con tres piezas: la sección actual
+   (toque → Hoy), el **botón central de tres rayas** y el «+» de captura. El botón central abre el **menú radial**:
+   el fondo se desenfoca y las secciones salen en dos arcos (dentro las cuatro de cada día: Hoy, Tareas,
+   Calendario, Finanzas; fuera Hábitos, Fitness, Stats, Meetings, EOD, Ajustes) con muelle y escalonado. Se puede
+   **tocar** o **mantener y deslizar** hasta la sección y soltar; el nombre de la que está debajo del dedo aparece
+   grande en el centro. Escape o tocar fuera cierra.
+4. **Escritorio:** el raíl se queda (con Finanzas); sólo cambia de piel.
+
+### 18.1 · Monocromo y los cinco espacios (Alex, 30-10-2026)
+Pedido, tras ver el oro desplegado: «buscaba algo más así» (pin «Every feature we built has one job — get things
+done»: negro, grafito, luz blanca) · «quítale el oro» · «hay muchas secciones que no has cambiado: estructura la
+app con sentido; imagínate que la vas a navegar».
+1. **Sin oro.** Negro puro, tarjetas de grafito (`#151515 → #0d0d0d`) con canto de luz blanca, halos blancos;
+   el acento es blanco y lo «primario» es plata. Títulos en **Inter Tight 700** apretado; el acento del pin —una
+   línea en **serif cursiva** con degradado blanco→gris— es el subtítulo de cada cabecera («— lo que mueve los
+   frentes.»). Números en sans. Fuera las versalitas espaciadas. Las fases y los semánticos, desaturados.
+2. **Cinco espacios, una pregunta cada uno** (`ESPACIOS` en `src/componentes/Nav.jsx`):
+   **Día** (Hoy · Cierre) · **Trabajo** (Tareas · Calendario · Frentes · Meetings) · **Cuerpo** (Hábitos ·
+   Fitness) · **Dinero** (Finanzas) · **Análisis** (Stats). El menú radial lleva un solo arco con los cinco y
+   Ajustes; dentro de cada espacio, sus secciones van en pestañas de texto con una raya blanca (`SubNav`). Volver
+   a un espacio abre la última sección que se usó en él. La cabecera es la del espacio (Hoy conserva el saludo).
+3. **Hoy se aligera:** los cuatro números en una fila; los **Frentes salen de Hoy** a Trabajo → Frentes. EOD se
+   llama **Cierre**. Escritorio: el raíl agrupa las secciones por espacio; atajos `1`…`9`, `0`.

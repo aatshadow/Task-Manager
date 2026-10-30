@@ -27,8 +27,9 @@ function apiLocal() {
 
 // :5400 fijo (la casa reserva un puerto por app: SYSTEMA 5200, Black Phoenix 5300).
 export default defineConfig(({ mode }) => {
-  // las VITE_* del .env también le hacen falta a la función local para validar la sesión
-  Object.assign(process.env, { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env })
+  // las VITE_* del .env le hacen falta a la función local para validar la sesión, y las FIN_*/MERCURY_/WISE_
+  // a /api/finanzas (LOGICA §17); en Vercel van en las variables del proyecto
+  Object.assign(process.env, { ...loadEnv(mode, process.cwd(), ['VITE_', 'FIN_', 'MERCURY_', 'WISE_', 'ANTHROPIC_']), ...process.env })
   return {
     plugins: [react(), apiLocal()],
     server: { port: 5400, strictPort: true, host: true },

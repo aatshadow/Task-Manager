@@ -27,7 +27,8 @@ const secretos = leerEnv(join(homedir(), '.core-secrets', 'hoy-test.env'))
 const espera = (ms) => new Promise((r) => setTimeout(r, ms))
 
 mkdirSync(SALIDA, { recursive: true })
-const browser = await chromium.launch()
+// si el limpiador se llevó el Chromium de Playwright, vale el Chrome del sistema
+const browser = await chromium.launch().catch(() => chromium.launch({ channel: 'chrome' }))
 const ctx = await browser.newContext({ viewport: { width: ANCHO, height: ALTO }, deviceScaleFactor: 2, locale: 'es-ES', timezoneId: 'Europe/Sofia' })
 const pag = await ctx.newPage()
 pag.on('pageerror', (e) => console.log('  ✗ error en página:', e.message))
@@ -49,10 +50,10 @@ if (await pag.$('input[type="email"]')) {
 //   · la pantalla de login ya tiene texto y no dice «Cargando», así que mirar sólo el
 //     texto daba por buena la foto nada más pulsar Entrar;
 //   · entre renders hay instantes sueltos sin «Cargando» aunque siga cargando.
-// Por eso: armazón montado (la nav) + DOS lecturas limpias seguidas.
+// Por eso: armazón montado (la nav, o el dock en móvil desde §18) + DOS lecturas limpias seguidas.
 let limpias = 0
 for (let i = 0; i < 100; i += 1) {
-  const listo = await pag.evaluate(() => !!document.querySelector('nav[aria-label="Principal"], .panel') && !(document.body.innerText || '').includes('Cargando')).catch(() => false)
+  const listo = await pag.evaluate(() => !!document.querySelector('nav[aria-label="Principal"], .dock, .panel') && !(document.body.innerText || '').includes('Cargando')).catch(() => false)
   limpias = listo ? limpias + 1 : 0
   if (limpias >= 2) break
   await espera(400)
@@ -60,15 +61,28 @@ for (let i = 0; i < 100; i += 1) {
 }
 await espera(Number(arg('espera', 1200)))
 if (PESTANA !== 'hoy') {
-  const etiquetas = { tareas: 'Tareas', calendario: 'Calendario', habitos: 'Hábitos', fitness: 'Fitness', estadisticas: 'Stats', meetings: 'Meetings', eod: 'EOD' }
-  if (PESTANA === 'ajustes') await pag.click('[aria-label="Ajustes"]')
+  // móvil (§18.1): menú radial → espacio → pestaña de texto de la sección
+  const espacios = { hoy: 'Día', eod: 'Día', tareas: 'Trabajo', calendario: 'Trabajo', frentes: 'Trabajo', meetings: 'Trabajo', habitos: 'Cuerpo', fitness: 'Cuerpo', finanzas: 'Dinero', estadisticas: 'Análisis', ajustes: 'Ajustes' }
+  const etiquetas = { eod: 'Cierre', tareas: 'Tareas', calendario: 'Calendario', frentes: 'Frentes', meetings: 'Meetings', habitos: 'Hábitos', fitness: 'Fitness', estadisticas: 'Stats', finanzas: 'Finanzas' }
+  if (await pag.$('.dock')) {
+    await pag.click('.dock-centro')
+    await espera(600)
+    await pag.click(`.radial-item[aria-label="${espacios[PESTANA]}"]`)
+    await espera(700)
+    const pestanaTexto = await pag.$(`.subnav-item:text-is("${etiquetas[PESTANA]}")`)
+    if (pestanaTexto) await pestanaTexto.click()
+  } else if (PESTANA === 'ajustes') await pag.click('[aria-label="Ajustes"]')
   else await pag.click(`nav[aria-label="Principal"] >> text=${etiquetas[PESTANA]}`)
   await espera(1500)
+  // Finanzas pide todo a /api/finanzas: se espera a que deje de «leer las cuentas»
+  for (let i = 0; i < 40 && (await pag.evaluate(() => (document.body.innerText || '').includes('Leyendo tus cuentas'))); i++) await espera(400)
 }
 const sub = arg('sub', '')
 // `--sub` admite varios pasos: «Claude>Sesiones» toca uno detrás de otro.
 for (const paso of sub ? sub.split('>') : []) { await pag.click(`text=${paso}`); await espera(1200) }
-const ruta = `${SALIDA}/${PESTANA}${sub ? '-' + sub.toLowerCase().replace(/>/g, '-') : ''}-${ANCHO}.png`
+// `--menu`: la foto con el menú radial abierto (§18)
+if (flag('menu')) { await pag.click('.dock-centro'); await espera(900) }
+const ruta = `${SALIDA}/${flag('menu') ? 'menu-' : ''}${PESTANA}${sub ? '-' + sub.toLowerCase().replace(/>/g, '-') : ''}-${ANCHO}.png`
 await pag.screenshot({ path: ruta, fullPage: flag('pagina') })
 console.log(`  ✓ ${ruta}`)
 await browser.close()

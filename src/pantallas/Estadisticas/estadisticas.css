@@ -23,7 +23,7 @@
 
 /* marcas: líneas de 2px, puntos ≥ 8px con anillo de superficie */
 .st-linea { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.st-punto { stroke: var(--tarjeta); stroke-width: 2; }
+.st-punto { stroke: var(--tarjeta-solida); stroke-width: 2; }
 .st-hueco-activo { fill: var(--linea); }
 .st-sin-dato { stroke: var(--linea-fuerte); stroke-width: 2; stroke-linecap: round; }
 

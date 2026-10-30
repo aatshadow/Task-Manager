@@ -11,7 +11,6 @@ import HojaPlanificar from './HojaPlanificar.jsx'
 import HabitosHoy from './HabitosHoy.jsx'
 import CabeceraReto from './Reto.jsx'
 import Ahora from './Ahora.jsx'
-import Frentes from './Frentes.jsx'
 import AvisoEod from './AvisoEod.jsx'
 import { useDatos } from '../../estado/useDatos.jsx'
 import { usarGuardar, usarCompletar } from '../../estado/usarGuardar.js'
@@ -233,7 +232,7 @@ export default function Hoy({ onIrA } = {}) {
           : <span className="hoy-cabeza-icono" aria-hidden="true"><CalendarDays size={22} strokeWidth={1.75} /></span>}
       </div>
 
-      <div className="rejilla-2">
+      <div className="rejilla-2 hoy-numeros">
         {/* sin datos (arrancando o fallo de carga) los números no fingen un día limpio a 0 */}
         <NumeroGrande valor={arrancando || sinCargar ? '–' : numeros.hechasHoy} etiqueta="Hechas hoy" />
         <NumeroGrande valor={arrancando || sinCargar ? '–' : numeros.enHoy} etiqueta="En Hoy" />
@@ -309,7 +308,7 @@ export default function Hoy({ onIrA } = {}) {
 
       <div className="hoy-col">
         <HabitosHoy bloqueActualId={bloque?.id || null} />
-        <Frentes />
+        {/* los Frentes se mudaron a Trabajo → Frentes (LOGICA §18.1) */}
       </div>
 
       <HojaPlanificar abierta={planificando} alCerrar={() => setPlanificando(false)} alPlanificar={planificar} />
