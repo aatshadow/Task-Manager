@@ -973,7 +973,7 @@ token → dice qué falta) · `subir {nombre, tipo, base64, movimientoId|previst
 
 ### 17.8 · Whop como caja y bancos
 
-- `sincronizarWhop()`: el saldo del ledger de la empresa (balance + pendiente + reserva) es una cuenta `banco = 'whop'`. Cada pago `paid` entra **neto de comisiones**, con el bruto y el IVA en el concepto. Los retiros (`/payouts`) salen como traspaso y se emparejan con su entrada en Wise o Mercury. Variables: `WHOP_API_KEY` y `WHOP_COMPANY_ID` (Black Phoenix Group, `biz_scDrfxWPWYl6e5`). La clave de Izibizz no puede leer su ledger.
+- `sincronizarWhop()`: el saldo del ledger de la empresa (balance + pendiente + reserva) es una cuenta `banco = 'whop'`. Cada pago `paid` entra **neto de comisiones**, con el bruto y el IVA en el concepto. Los retiros (`/payouts`) salen como traspaso y se emparejan con su entrada en Wise o Mercury. Variables: `WHOP_API_KEY` y `WHOP_COMPANY_ID`. **El Whop es el de Izibizz** (`biz_I16jSAzkuLSLkk`; Alex, 30-10: «me refiero al de Izibizz»); el de Black Phoenix se quitó. Su clave lee los pagos, pero no el ledger ni los retiros. Mientras no tenga esos permisos, el saldo se ESTIMA con los movimientos (la cuenta se llama «Whop EUR (estimado)») y la sincronización lo avisa.
 
 ### 17.9 · Efectivo, cobros esperados, fondo de maniobra y ritmo (Alex, 30-10-2026)
 

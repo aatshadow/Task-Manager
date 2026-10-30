@@ -191,7 +191,7 @@ async function sincronizarWise(db, desde) {
   return { banco: 'wise', ok: true, cuentas, nuevos, avisos }
 }
 
-// Whop (Black Phoenix Group): el saldo del ledger es tesorería (caja y bancos, §17.8). Cada pago
+// Whop (Izibizz): el saldo del ledger es tesorería (caja y bancos, §17.8). Cada pago
 // cobrado entra NETO de comisiones (en el concepto va el bruto y el IVA); cada retiro a un banco
 // sale como traspaso interno y se empareja con su entrada en Wise o Mercury.
 async function sincronizarWhop(db, desde) {
@@ -199,7 +199,14 @@ async function sincronizarWhop(db, desde) {
   const empresa = process.env.WHOP_COMPANY_ID
   if (!token || !empresa) return { banco: 'whop', ok: false, error: 'Falta WHOP_API_KEY y WHOP_COMPANY_ID (Whop → Developer → API key de la empresa)' }
   const raiz = 'https://api.whop.com/api/v1'
-  const ledger = await pedir(`${raiz}/ledger_accounts/${empresa}`, token)
+  const avisos = []
+  // si la clave no tiene permiso para leer el ledger, el saldo se estima con lo cobrado menos lo retirado
+  let ledger
+  try { ledger = await pedir(`${raiz}/ledger_accounts/${empresa}`, token) } catch (e) {
+    if (e.status !== 403) throw e
+    ledger = { id: empresa, balances: [], estimado: true }
+    avisos.push('Whop: la clave no puede leer el saldo (permiso de ledger); se estima con los cobros. Dale ese permiso en Whop → Developer.')
+  }
   const cuentasPorMoneda = {}
   for (const b of ledger.balances || []) {
     const moneda = String(b.currency || 'usd').toUpperCase()
@@ -239,7 +246,12 @@ async function sincronizarWhop(db, desde) {
     const devuelto = dinero(p.refunded_amount)
     if (devuelto > 0) filas.push({ cuenta_id: cuenta.id, externo_id: `whop:${p.id}:devolucion`, origen: 'banco', fecha, moneda, estado: 'hecho', importe: -devuelto, descripcion: `Devolución Whop · ${producto}`, contraparte: p.user?.name || null })
   }
-  for (const r of await todos(`payouts?account_id=${empresa}`)) {
+  let retiros = []
+  try { retiros = await todos(`payouts?account_id=${empresa}`) } catch (e) {
+    if (e.status !== 403) throw e
+    avisos.push('Whop: la clave no puede leer los retiros (permiso payout:withdrawal:read); si sacas dinero de Whop no saldrá aquí.')
+  }
+  for (const r of retiros) {
     const fecha = (r.created_at || r.paid_at || '').slice(0, 10)
     if (!fecha || fecha < desde || ['failed', 'canceled', 'cancelled'].includes(r.status)) continue
     const moneda = String(r.currency || r.amount?.currency || 'usd').toUpperCase()
@@ -247,7 +259,14 @@ async function sincronizarWhop(db, desde) {
     filas.push({ cuenta_id: cuenta.id, externo_id: `whop:${r.id}`, origen: 'banco', fecha, moneda, estado: r.status === 'paid' || r.status === 'completed' ? 'hecho' : 'pendiente', importe: -Math.abs(dinero(r.amount ?? r.total)), descripcion: 'Retiro de Whop a banco', contraparte: 'Whop' })
   }
   const nuevos = await guardarMovimientos(db, filas)
-  return { banco: 'whop', ok: true, cuentas: Object.keys(cuentasPorMoneda).length, nuevos }
+  if (ledger.estimado) {
+    // saldo estimado = todo lo movido en cada cuenta de Whop (cobros netos − devoluciones − retiros)
+    for (const [moneda, cuenta] of Object.entries(cuentasPorMoneda)) {
+      const movs = datos(await db.from('fin_movimientos').select('importe').eq('cuenta_id', cuenta.id), 'whop')
+      await db.from('fin_cuentas').update({ saldo: movs.reduce((s, m) => s + Number(m.importe), 0), saldo_en: new Date().toISOString(), nombre: `Whop ${moneda} (estimado)` }).eq('id', cuenta.id)
+    }
+  }
+  return { banco: 'whop', ok: true, cuentas: Object.keys(cuentasPorMoneda).length, nuevos, avisos }
 }
 
 async function sincronizar(db) {
