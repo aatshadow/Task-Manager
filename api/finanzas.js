@@ -630,16 +630,20 @@ async function parte(db, res) {
   const t = await cargarTodo(db)
   const client = new Anthropic()
   try {
-    const r = await client.messages.parse({
+    // en streaming y con margen, como el Overview: con poco presupuesto el razonamiento cortaba el JSON
+    const r = await client.messages.stream({
       model: MODELO,
-      max_tokens: 12000,
+      max_tokens: 32000,
       output_config: { effort: 'high', format: zodOutputFormat(Parte) },
       system: SISTEMA_PARTE,
       messages: [{ role: 'user', content: `ESTADO DE LAS FINANZAS (${t.hoy}):\n${JSON.stringify(contexto(t))}` }],
-    })
+    }).finalMessage()
     if (r.stop_reason === 'refusal') return res.status(502).json({ error: 'Claude declinó escribir el parte' })
-    if (!r.parsed_output) return res.status(502).json({ error: 'El parte llegó incompleto; vuelve a intentarlo' })
-    const fila = datos(await db.from('fin_partes').insert({ fecha: t.hoy, parte: r.parsed_output, modelo: r.model }).select().single(), 'guardar parte')
+    let parteHoy
+    try { parteHoy = Parte.parse(JSON.parse(r.content.filter(b => b.type === 'text').map(b => b.text).join(''))) } catch {
+      return res.status(502).json({ error: r.stop_reason === 'max_tokens' ? 'El parte llegó cortado; vuelve a intentarlo' : 'El parte llegó con una forma rara; vuelve a intentarlo' })
+    }
+    const fila = datos(await db.from('fin_partes').insert({ fecha: t.hoy, parte: parteHoy, modelo: r.model }).select().single(), 'guardar parte')
     return res.status(200).json({ parte: fila })
   } catch (e) { return errorAnthropic(res, e) }
 }

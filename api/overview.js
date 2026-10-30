@@ -86,16 +86,22 @@ export default async function handler(req, res) {
 
   const client = new Anthropic()
   try {
-    const r = await client.messages.parse({
+    // En streaming y con margen: con 16k y esfuerzo alto, el razonamiento se comía el presupuesto y
+    // la ficha (≈ 8k caracteres de JSON) llegaba cortada («Unterminated string», 30-10-2026).
+    const stream = client.messages.stream({
       model: MODELO,
-      max_tokens: 16000,
-      output_config: { effort: 'high', format: zodOutputFormat(Ficha) },
+      max_tokens: 32000,
+      output_config: { effort: 'medium', format: zodOutputFormat(Ficha) },
       system: SISTEMA,
       messages: [{ role: 'user', content: contenido }],
     })
+    const r = await stream.finalMessage()
     if (r.stop_reason === 'refusal') return res.status(502).json({ error: 'Claude declinó generar la ficha' })
-    if (r.stop_reason === 'max_tokens' || !r.parsed_output) return res.status(502).json({ error: 'La ficha llegó incompleta; vuelve a intentarlo' })
-    return res.status(200).json({ modelo: r.model, ficha: r.parsed_output })
+    if (r.stop_reason === 'max_tokens') return res.status(502).json({ error: 'La ficha llegó cortada (sin espacio); vuelve a intentarlo' })
+    const texto = r.content.filter(b => b.type === 'text').map(b => b.text).join('')
+    let ficha
+    try { ficha = Ficha.parse(JSON.parse(texto)) } catch { return res.status(502).json({ error: 'La ficha llegó con una forma rara; vuelve a intentarlo' }) }
+    return res.status(200).json({ modelo: r.model, ficha })
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return res.status(429).json({ error: 'Claude está saturado; prueba en un minuto' })
     if (e instanceof Anthropic.AuthenticationError) return res.status(502).json({ error: 'La clave de Anthropic del servidor no vale' })
