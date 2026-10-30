@@ -163,10 +163,15 @@ async function sincronizarWise(db, desde) {
       try {
         const q = new URLSearchParams({ currency: moneda, intervalStart: `${desde}T00:00:00.000Z`, intervalEnd: new Date().toISOString(), type: 'COMPACT' })
         const ext = await pedir(`${raiz}/v1/profiles/${p.id}/balance-statements/${b.id}/statement.json?${q}`, token)
+        // una conversión lleva la MISMA referencia en los dos saldos (sale de EUR, entra en USD),
+        // y una referencia puede repetirse dentro del extracto: el id va por saldo y por aparición
+        const vistas = new Map()
         nuevos += await guardarMovimientos(db, (ext.transactions || []).map(t => {
           const importe = t.amount?.value ?? 0
+          const n = (vistas.get(t.referenceNumber) || 0) + 1
+          vistas.set(t.referenceNumber, n)
           return {
-            cuenta_id: cuenta.id, externo_id: `wise:${t.referenceNumber}`, origen: 'banco',
+            cuenta_id: cuenta.id, externo_id: `wise:${b.id}:${t.referenceNumber}${n > 1 ? `:${n}` : ''}`, origen: 'banco',
             fecha: (t.date || '').slice(0, 10), importe, moneda,
             descripcion: t.details?.description || t.details?.type || null,
             contraparte: t.details?.senderName || t.details?.recipient?.name || t.details?.merchant?.name || null,
