@@ -13,6 +13,7 @@ import Libro from './Libro.jsx'
 import Asesor from './Asesor.jsx'
 import HojaEditar from './HojaEditar.jsx'
 import HojaClasificar from './HojaClasificar.jsx'
+import HojaEfectivo from './HojaEfectivo.jsx'
 import './finanzas.css'
 
 const VISTAS = [
@@ -36,6 +37,7 @@ export default function Finanzas() {
   const [editando, setEditando] = useState(null) // { tipo, fila }
   const [clasificando, setClasificando] = useState(null) // { id, cola }
   const [filtroLibro, setFiltroLibro] = useState('todo')
+  const [efectivo, setEfectivo] = useState(false)
 
   const recargar = useCallback(async () => {
     try { const nuevo = await fin.cargar(); setD(nuevo); setError(null); return nuevo } catch (e) { setError(e.message); return null }
@@ -54,7 +56,7 @@ export default function Finanzas() {
     try { await fin.borrar(tabla, id); avisar('Borrado'); await recargar(); return true } catch (e) { avisar(e.message, 'error'); return false }
   }, [avisar, recargar])
 
-  const editar = (tipo, fila = {}) => setEditando({ tipo, fila })
+  const editar = (tipo, fila = {}) => { setEfectivo(false); setEditando({ tipo, fila }) }
   // sin id: la cola entera, del más reciente al más viejo; con id: sólo ese
   const clasificar = (id) => {
     const primero = id || d?.movimientos.find(porClasificar)?.id
@@ -77,7 +79,7 @@ export default function Finanzas() {
   }
   if (!d) return <div className="pantalla"><div className="fz-cargando">Leyendo tus cuentas…</div></div>
 
-  const comun = { d, calc, op, crearOpcion, guardar, borrar, editar, recargar, avisar, clasificar, irALibro }
+  const comun = { abrirEfectivo: () => setEfectivo(true), d, calc, op, crearOpcion, guardar, borrar, editar, recargar, avisar, clasificar, irALibro }
   return (
     <div className="pantalla fz">
       <Segmentos opciones={VISTAS} valor={vista} alCambiar={setVista} className="fz-vistas" />
@@ -86,6 +88,7 @@ export default function Finanzas() {
       {vista === 'plan' && <Plan {...comun} />}
       {vista === 'libro' && <Libro {...comun} filtro={filtroLibro} setFiltro={setFiltroLibro} />}
       {vista === 'asesor' && <Asesor {...comun} />}
+      {efectivo && <HojaEfectivo caja={d.cuentas.find(c => c.tipo === 'efectivo')} d={d} alCerrar={() => setEfectivo(false)} editar={editar} recargar={recargar} avisar={avisar} />}
       <HojaClasificar clasificando={clasificando} d={d} op={op} crearOpcion={crearOpcion} alCerrar={() => setClasificando(null)} recargar={recargar} avisar={avisar} alSiguiente={(id) => setClasificando(c => ({ ...c, id }))} />
       <HojaEditar editando={editando} d={d} op={op} crearOpcion={crearOpcion} alCerrar={() => setEditando(null)} guardar={guardar} borrar={borrar} avisar={avisar} recargar={recargar} />
     </div>

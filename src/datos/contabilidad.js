@@ -60,21 +60,30 @@ const nombreDe = (cuenta, cuentas) => {
 /** La subcuenta de tesorería de una cuenta: 570.x si es efectivo, 572.x si es banco o Whop. */
 const tesoreriaDe = (c) => `${c?.tipo === 'efectivo' ? '570' : '572'}.${c?.id?.slice(0, 4) || 'man'}`
 
-/** La contrapartida de un movimiento: de dónde viene o a dónde va el dinero. */
-export function contrapartida(m) {
+/**
+ * La contrapartida de un movimiento: de dónde viene o a dónde va el dinero. `deudaDe(m)` da la
+ * cuenta de la deuda que paga (170 o 520) si el cargo cuelga de las cuotas de una partida.
+ */
+export function contrapartida(m, deudaDe = () => null) {
   if (!m.clase || !m.categoria) return '555'
+  // lo que falta o sobra al contar la caja es del socio (sin justificante no es gasto de la empresa)
+  if (m.categoria === 'Arqueo de caja') return '551'
+  if (m.categoria === 'Pago de deuda') return deudaDe(m) || '520'
   if (m.clase === 'interno') return m.categoria === 'Aportación' ? '118' : '5790'
   if (m.importe > 0) return INGRESO[m.categoria] || '759'
   // lo personal pagado con dinero de la empresa es una retirada del socio, no un gasto
-  if (m.negocio === 'Personal' && m.categoria !== 'Pago de deuda') return '551'
+  if (m.negocio === 'Personal') return '551'
   if (m.clase === 'inversion' && m.categoria === 'Inversión') return '250'
   return GASTO[m.categoria] || '6299'
 }
 
 /** El libro diario completo, en orden: apertura, partidas, un asiento por movimiento y los ajustes. */
-export function libroDiario({ cuentas = [], movimientos = [], partidas = [], ajustes = {}, hoy }) {
+export function libroDiario({ cuentas = [], movimientos = [], partidas = [], previstos = [], ajustes = {}, hoy }) {
   const tasas = ajustes.tasas?.valores || {}
   const porId = Object.fromEntries(cuentas.map(c => [c.id, c]))
+  const cuentaPartida = Object.fromEntries(partidas.map(p => [p.id, p.cuenta]))
+  const partidaDe = Object.fromEntries(previstos.filter(p => p.partida_id).map(p => [p.id, p.partida_id]))
+  const deudaDe = (m) => cuentaPartida[partidaDe[m.previsto_id]] || null
   const subcuentas = {}
   for (const c of cuentas) subcuentas[tesoreriaDe(c)] = { nombre: c.nombre }
   const vivos = movimientos.filter(m => m.estado !== 'cancelado' && m.fecha <= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.created_at).localeCompare(String(b.created_at)))
@@ -116,7 +125,7 @@ export function libroDiario({ cuentas = [], movimientos = [], partidas = [], aju
   for (const m of vivos) {
     const v = Math.abs(eur(m.importe, m.moneda))
     const tes = tesoreriaDe(porId[m.cuenta_id])
-    const contra = contrapartida(m)
+    const contra = contrapartida(m, deudaDe)
     const concepto = m.contraparte || m.descripcion || 'Movimiento'
     anadir(m.fecha, concepto, m.importe > 0
       ? [{ cuenta: tes, debe: v }, { cuenta: contra, haber: v }]

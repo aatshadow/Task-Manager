@@ -51,7 +51,8 @@ export function BarrasFlujo({ tramos: meses }) {
   const tope = rayas[rayas.length - 1]
   const y = (v) => M.arr + (AL - M.arr - M.aba) * (1 - v / tope)
   const ancho = (AN - M.izq - M.der) / meses.length
-  const w = Math.min(22, (ancho - 8) / 2)
+  // por días hay hasta 60 tramos: el hueco y las barras encogen, pero nunca por debajo de un trazo
+  const w = Math.max(1.2, Math.min(22, (ancho - Math.min(8, ancho * 0.3)) / 2))
   // con muchos tramos no caben todas las fechas: una de cada `salto`
   const salto = Math.ceil(meses.length / 7)
   const m = activo != null ? meses[activo] : null

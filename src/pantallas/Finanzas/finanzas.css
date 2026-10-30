@@ -317,3 +317,16 @@
 .ct-tabla .ct-nombre { white-space: normal; overflow: visible; line-height: 1.3; }
 .ct-tabla-titulos { padding: 4px 2px 6px; font-size: 11px; color: var(--texto-3); border-bottom: 1px solid var(--linea-fuerte); }
 .ct-ecuacion strong { font-size: 16px; }
+
+/* ── cobros esperados y caja (§17.9) ────────────────────────────────────── */
+.fz-certeza { font-weight: 600; }
+.fz-certeza--confirmado { color: var(--acento-claro); }
+.fz-certeza--probable { color: var(--texto-2); }
+.fz-certeza--posible { color: var(--texto-3); font-style: italic; }
+.fz-vacio-boton { display: block; width: 100%; text-align: left; line-height: 1.45; }
+.fz-ritmo { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, 1fr)); gap: 8px 6px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.fz-ritmo > span { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fz-ritmo > span:nth-child(4n + 1) { text-align: left; color: var(--texto-2); }
+.fz-ritmo .fz-ritmo-cab { font-size: var(--t-micro); color: var(--texto-3); }
+.fz-ritmo strong { font-weight: 600; }
+.fz-agrupar { transform: scale(0.86); transform-origin: right center; }

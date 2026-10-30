@@ -516,7 +516,8 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--safe-abajo) + 14px);
+  /* pegada abajo (Alex 30-10): en el iPhone usa sólo parte de la zona segura, sin pisar la raya de inicio */
+  bottom: max(10px, calc(var(--safe-abajo) * 0.45 + 4px));
   z-index: 50;
   display: flex;
   justify-content: center;

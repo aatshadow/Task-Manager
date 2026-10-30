@@ -10,7 +10,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
-import { resumen, suscripciones, emparejarInternos, aBase, CLASES, porClasificar, casaRegla, patronDe, sentidoDe, opcionesDe, importeOriginal, sumarPaso, RECURRENCIAS } from '../src/datos/finanzasCalculos.js'
+import { resumen, suscripciones, emparejarInternos, aBase, CLASES, porClasificar, casaRegla, patronDe, sentidoDe, opcionesDe, importeOriginal, sumarPaso, RECURRENCIAS, ocurrencias, diasEntre, sumarDias } from '../src/datos/finanzasCalculos.js'
 
 export const config = { maxDuration: 300 }
 
@@ -28,9 +28,9 @@ const ESCRIBIBLE = {
   fin_ajustes: ['sueldo_dueno', 'colchon_meses', 'impuestos_pct', 'moneda_base', 'listas'],
   fin_cuentas: ['nombre', 'moneda', 'tipo', 'saldo', 'pct_reparto', 'activa', 'orden', 'banco'],
   fin_movimientos: ['cuenta_id', 'fecha', 'importe', 'moneda', 'descripcion', 'contraparte', 'clase', 'categoria', 'negocio', 'estado', 'previsto_id', 'nota'],
-  fin_previstos: ['patron', 'tipo', 'titulo', 'importe', 'moneda', 'fecha', 'recurrencia', 'clase', 'categoria', 'negocio', 'suscripcion', 'provisionado', 'estado', 'nota'],
+  fin_previstos: ['certeza', 'hasta', 'patron', 'tipo', 'titulo', 'importe', 'moneda', 'fecha', 'recurrencia', 'clase', 'categoria', 'negocio', 'suscripcion', 'provisionado', 'estado', 'nota'],
   fin_objetivos: ['titulo', 'importe', 'moneda', 'fecha', 'tipo', 'principal', 'nota'],
-  fin_partidas: ['lado', 'plazo', 'cuenta', 'nombre', 'valor', 'valor_origen', 'moneda', 'fecha', 'vencimiento', 'fuente', 'nota', 'activa', 'orden'],
+  fin_partidas: ['cuota', 'cuota_recurrencia', 'primera_cuota', 'lado', 'plazo', 'cuenta', 'nombre', 'valor', 'valor_origen', 'moneda', 'fecha', 'vencimiento', 'fuente', 'nota', 'activa', 'orden'],
   fin_acciones: ['area', 'titulo', 'detalle', 'prioridad', 'fecha', 'importe_estimado', 'estado', 'origen', 'orden'],
 }
 const BORRABLE = ['fin_partidas', 'fin_reglas', 'fin_cuentas', 'fin_movimientos', 'fin_previstos', 'fin_objetivos', 'fin_acciones', 'fin_documentos']
@@ -268,7 +268,10 @@ async function sincronizar(db) {
   // lo nuevo se clasifica solo: primero las reglas de Alex, luego la IA
   let clasificacion = null
   try { clasificacion = await clasificar(db) } catch (e) { clasificacion = { error: e.message } }
-  const sync = { en: new Date().toISOString(), resultados, internos: pares.length, clasificacion }
+  let caja = null
+  let cobros = 0
+  try { caja = await cuadrarCaja(db); cobros = await casarCobros(db) } catch (e) { caja = { error: e.message } }
+  const sync = { en: new Date().toISOString(), resultados, internos: pares.length, clasificacion, caja, cobros }
   await db.from('fin_ajustes').update({ sync }).eq('id', 1)
   return sync
 }
@@ -279,6 +282,114 @@ Empresa: LLC de EE. UU. (Black Phoenix Group LLC, disregarded entity). Cobra por
 Residencia fiscal: Bulgaria en 2026 (10 %), Paraguay desde 2027 (no pasará >183 días en ningún país). PENDIENTE Y PRIORITARIO: regularizar España (2025 y anteriores sin declarar): ir por delante cuesta recargos ≤15 %; si lo detecta Hacienda, sanciones del 50–150 %.
 La Misión: 520.424,26 € en la caja de la empresa el 16-09-2027.
 Diseño humano: Proyector, autoridad emocional: las decisiones grandes (> 2.000 €) con al menos una noche de margen; lo pequeño, rápido.`
+
+/* ── la caja física (§17.9) ──────────────────────────────────────────────── */
+// Desde que existe la cuenta de efectivo, cada retirada en cajero es un traspaso banco → caja:
+// el cargo del banco queda como interno y en la caja entra lo retirado; la comisión del cajero
+// sale de la caja como gasto. El saldo de la caja es la suma de sus movimientos.
+async function cuadrarCaja(db) {
+  const caja = datos(await db.from('fin_cuentas').select('*').eq('tipo', 'efectivo').order('created_at').limit(1), 'caja')[0]
+  if (!caja) return null
+  const desde = String(caja.created_at).slice(0, 10)
+  const retiradas = datos(await db.from('fin_movimientos').select('*').neq('cuenta_id', caja.id).lt('importe', 0).gte('fecha', desde)
+    .in('categoria', ['Efectivo', 'Retirada a caja']).is('emparejado_id', null), 'retiradas')
+  for (const m of retiradas) {
+    const total = Math.abs(Number(m.importe))
+    const orig = importeOriginal(m)
+    const retirado = orig.moneda === m.moneda && orig.importe <= total ? orig.importe : total
+    await db.from('fin_movimientos').update({ clase: 'interno', categoria: 'Retirada a caja', negocio: null, sugerencia: null }).eq('id', m.id)
+    const espejo = datos(await db.from('fin_movimientos').insert({
+      cuenta_id: caja.id, externo_id: `caja:${m.id}`, origen: 'manual', fecha: m.fecha, importe: total, moneda: m.moneda,
+      descripcion: 'Retirada en cajero', contraparte: m.contraparte, clase: 'interno', categoria: 'Retirada a caja', clasificado_por: 'regla', emparejado_id: m.id,
+    }).select().single(), 'entrada en caja')
+    await db.from('fin_movimientos').update({ emparejado_id: espejo.id }).eq('id', m.id)
+    const comision = Math.round((total - retirado) * 100) / 100
+    if (comision > 0) {
+      await db.from('fin_movimientos').insert({
+        cuenta_id: caja.id, externo_id: `caja:${m.id}:comision`, origen: 'manual', fecha: m.fecha, importe: -comision, moneda: m.moneda,
+        descripcion: 'Comisión del cajero', contraparte: m.contraparte, clase: 'obligatorio', categoria: 'Comisiones', clasificado_por: 'regla',
+      })
+    }
+  }
+  const movs = datos(await db.from('fin_movimientos').select('importe, moneda, estado').eq('cuenta_id', caja.id), 'caja')
+  const ajustes = datos(await db.from('fin_ajustes').select('tasas').eq('id', 1).maybeSingle(), 'ajustes')
+  const saldo = Math.round(movs.filter(m => m.estado !== 'cancelado').reduce((s, m) => s + aBase(m.importe, m.moneda, ajustes?.tasas?.valores), 0) * 100) / 100
+  await db.from('fin_cuentas').update({ saldo, saldo_en: new Date().toISOString() }).eq('id', caja.id)
+  return { retiradas: retiradas.length, saldo }
+}
+
+/** Arqueo: Alex cuenta lo que lleva encima; la diferencia con lo apuntado va a la 551 (es suya). */
+async function arqueo(db, contado, hoy) {
+  const n = Number(contado)
+  if (!Number.isFinite(n) || n < 0) throw new Error('Dime cuánto efectivo tienes (un número)')
+  const antes = await cuadrarCaja(db)
+  if (!antes) throw new Error('No hay cuenta de efectivo')
+  const caja = datos(await db.from('fin_cuentas').select('id').eq('tipo', 'efectivo').order('created_at').limit(1), 'caja')[0]
+  const diferencia = Math.round((n - antes.saldo) * 100) / 100
+  if (Math.abs(diferencia) >= 0.01) {
+    await db.from('fin_movimientos').insert({
+      cuenta_id: caja.id, origen: 'manual', fecha: hoy, importe: diferencia, moneda: 'EUR',
+      descripcion: diferencia < 0 ? 'Arqueo: efectivo gastado sin apuntar' : 'Arqueo: efectivo que no estaba apuntado',
+      clase: diferencia < 0 ? 'libre' : 'interno', categoria: 'Arqueo de caja', negocio: 'Personal', clasificado_por: 'alex',
+    })
+  }
+  const despues = await cuadrarCaja(db)
+  return { diferencia, saldo: despues.saldo }
+}
+
+/* ── deudas con calendario (§17.9) ───────────────────────────────────────── */
+// Una deuda con cuota (o con vencimiento) tiene su previsto: así entra en los pagos, en el día,
+// en la autonomía y en el fondo de maniobra. Las cuotas se acaban (`hasta`) cuando cubren la deuda.
+async function calendarioDeuda(db, p) {
+  if (!p || p.lado !== 'pasivo') return
+  const ya = datos(await db.from('fin_previstos').select('*').eq('partida_id', p.id), 'cuotas')
+  let fila = null
+  if (Number(p.cuota) > 0 && p.primera_cuota) {
+    const rec = p.cuota_recurrencia || 'mensual'
+    const n = Math.max(1, Math.ceil(Number(p.valor) / Number(p.cuota)))
+    let hasta = p.primera_cuota
+    for (let i = 1; i < n; i++) hasta = sumarPaso(hasta, rec)
+    fila = { tipo: 'gasto', titulo: `Cuota · ${p.nombre}`, importe: Number(p.cuota), moneda: p.moneda, fecha: p.primera_cuota, recurrencia: rec, hasta, clase: 'obligatorio', categoria: 'Pago de deuda', partida_id: p.id, estado: 'previsto', provisionado: 0, suscripcion: false }
+  } else if (p.vencimiento) {
+    fila = { tipo: 'gasto', titulo: `Vence · ${p.nombre}`, importe: Number(p.valor), moneda: p.moneda, fecha: p.vencimiento, recurrencia: null, hasta: null, clase: 'obligatorio', categoria: 'Pago de deuda', partida_id: p.id, estado: 'previsto', provisionado: 0, suscripcion: false }
+  }
+  if (!fila) { if (ya.length) await db.from('fin_previstos').delete().eq('partida_id', p.id); return }
+  if (ya[0]) await db.from('fin_previstos').update(fila).eq('id', ya[0].id)
+  else await db.from('fin_previstos').insert(fila)
+  for (const x of ya.slice(1)) await db.from('fin_previstos').delete().eq('id', x.id)
+}
+
+/* ── cobros que llegan (§17.9) ───────────────────────────────────────────── */
+// Cada entrada del banco busca su cobro esperado: mismo importe (±3 %, en EUR) y cerca de una de
+// sus fechas (±20 días), o con el nombre del cliente en la contraparte. Uno puntual pasa a cobrado;
+// uno recurrente adelanta su próxima fecha.
+async function casarCobros(db) {
+  const [prev, movs, aj] = await Promise.all([
+    db.from('fin_previstos').select('*').eq('tipo', 'ingreso').eq('estado', 'previsto').then(r => datos(r, 'cobros')),
+    db.from('fin_movimientos').select('*').gt('importe', 0).is('previsto_id', null).neq('clase', 'interno').order('fecha').limit(500).then(r => datos(r, 'entradas')),
+    db.from('fin_ajustes').select('tasas').eq('id', 1).maybeSingle().then(r => datos(r, 'ajustes')),
+  ])
+  const tasas = aj?.tasas?.valores
+  let casados = 0
+  for (const m of movs) {
+    const eur = aBase(m.importe, m.moneda, tasas)
+    const texto = `${m.contraparte || ''} ${m.descripcion || ''}`.toLowerCase()
+    const p = prev.find(x => {
+      if (x.importe == null || x.estado !== 'previsto') return false
+      const fechas = x.recurrencia ? ocurrencias(x, sumarDias(m.fecha, -20), sumarDias(m.fecha, 20)) : [x.fecha]
+      const cerca = fechas.some(f => f && Math.abs(diasEntre(f, m.fecha)) <= 20)
+      const mismo = Math.abs(aBase(x.importe, x.moneda, tasas) - eur) <= eur * 0.03
+      const nombre = x.titulo.toLowerCase().split(/[^a-záéíóúñ0-9]+/).some(w => w.length >= 4 && texto.includes(w))
+      return (mismo && cerca) || (nombre && mismo)
+    })
+    if (!p) continue
+    await db.from('fin_movimientos').update({ previsto_id: p.id }).eq('id', m.id)
+    if (p.recurrencia) { const sig = sumarPaso(m.fecha, p.recurrencia); await db.from('fin_previstos').update({ fecha: sig }).eq('id', p.id); p.fecha = sig }
+    else { await db.from('fin_previstos').update({ estado: 'pagado' }).eq('id', p.id); p.estado = 'pagado' }
+    casados++
+  }
+  return casados
+}
 
 /* ── clasificar solo (LOGICA §17.5) ──────────────────────────────────────── */
 // Orden: 1) las reglas que Alex ha enseñado («siempre igual») 2) la IA, con lo que Alex ya
@@ -575,7 +686,11 @@ export default async function handler(req, res) {
         const q = fila?.id
           ? db.from(tabla).update(limpia).eq('id', fila.id)
           : db.from(tabla).insert(tabla === 'fin_movimientos' ? { ...limpia, origen: 'manual' } : limpia)
-        return res.status(200).json({ fila: datos(await q.select().single(), `guardar en ${tabla}`) })
+        const guardada = datos(await q.select().single(), `guardar en ${tabla}`)
+        // lo que cuelga de lo guardado: la caja (si se tocó un movimiento) y las cuotas de una deuda
+        if (tabla === 'fin_movimientos') await cuadrarCaja(db)
+        if (tabla === 'fin_partidas') await calendarioDeuda(db, guardada)
+        return res.status(200).json({ fila: guardada })
       }
 
       case 'borrar': {
@@ -585,17 +700,27 @@ export default async function handler(req, res) {
           if (d?.ruta) await db.storage.from(BUCKET).remove([d.ruta])
         }
         datos(await db.from(tabla).delete().eq('id', id), `borrar de ${tabla}`)
+        if (tabla === 'fin_movimientos') await cuadrarCaja(db)
         return res.status(200).json({ ok: true })
       }
 
       case 'sincronizar':
         return res.status(200).json(await sincronizar(db))
 
-      case 'clasificar':
-        return res.status(200).json(await clasificar(db))
+      case 'clasificar': {
+        const r = await clasificar(db)
+        await cuadrarCaja(db)
+        return res.status(200).json(r)
+      }
 
-      case 'clasificarUno':
-        return res.status(200).json(await clasificarUno(db, req.body))
+      case 'clasificarUno': {
+        const r = await clasificarUno(db, req.body)
+        await cuadrarCaja(db)
+        return res.status(200).json(r)
+      }
+
+      case 'arqueo':
+        return res.status(200).json(await arqueo(db, req.body.contado, hoyEn()))
 
       case 'suscripcion':
         return res.status(200).json(await marcarSuscripcion(db, req.body))

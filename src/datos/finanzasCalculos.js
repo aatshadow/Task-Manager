@@ -29,9 +29,15 @@ export const AREAS = [
   { valor: 'inversion', etiqueta: 'Inversión' },
 ]
 // Las categorías con las que se clasifica (a mano, por regla o por la IA) y se dibuja el panel.
-export const CATEGORIAS_GASTO = ['Software', 'IA', 'Infraestructura', 'Publicidad', 'Equipo', 'Comisiones', 'Impuestos', 'Asesoría', 'Residencia', 'Viajes', 'Vivienda', 'Comida', 'Transporte', 'Salud', 'Ocio', 'Formación', 'Efectivo', 'Sueldo', 'Inversión', 'Otros']
+export const CATEGORIAS_GASTO = ['Software', 'IA', 'Infraestructura', 'Publicidad', 'Equipo', 'Comisiones', 'Impuestos', 'Asesoría', 'Residencia', 'Viajes', 'Vivienda', 'Comida', 'Transporte', 'Salud', 'Ocio', 'Formación', 'Efectivo', 'Sueldo', 'Inversión', 'Pago de deuda', 'Otros']
 export const CATEGORIAS_INGRESO = ['Clientes', 'Afiliados', 'Reembolsos', 'Intereses', 'Aportación', 'Otros']
-export const CATEGORIAS = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO, 'Transferencia interna'])]
+export const CATEGORIAS = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO, 'Transferencia interna', 'Retirada a caja', 'Arqueo de caja'])]
+// cuánto pesa un cobro esperado según su certeza (§17.9): lo confirmado cuenta para el día
+export const CERTEZAS = [
+  { valor: 'confirmado', etiqueta: 'Confirmado' },
+  { valor: 'probable', etiqueta: 'Probable' },
+  { valor: 'posible', etiqueta: 'Posible' },
+]
 export const NEGOCIOS = ['CORE', 'EasyBiz', 'Izibizz', 'ScaleInfo', 'GrowthInfo', 'Black Phoenix', 'Personal']
 
 const MES_EN_DIAS = 30.44
@@ -73,9 +79,10 @@ export function ocurrencias(p, desde, hasta) {
   if (!p.recurrencia) return p.fecha <= hasta ? [p.fecha < desde ? desde : p.fecha] : []
   const fuera = []
   let f = p.fecha
-  // lo recurrente atrasado no se acumula: la próxima es la primera >= desde
+  // lo recurrente atrasado no se acumula: la próxima es la primera >= desde; y para en `p.hasta`
+  const tope = p.hasta && p.hasta < hasta ? p.hasta : hasta
   for (let i = 0; f < desde && i < 2000; i++) f = sumarPaso(f, p.recurrencia)
-  for (let i = 0; f <= hasta && i < 400; i++) { fuera.push(f); f = sumarPaso(f, p.recurrencia) }
+  for (let i = 0; f <= tope && i < 400; i++) { fuera.push(f); f = sumarPaso(f, p.recurrencia) }
   return fuera
 }
 
@@ -101,13 +108,15 @@ const pendienteDe = (p, tasas) => Math.max(0, aBase(p.importe, p.moneda, tasas) 
  * día hasta 5 años: cada previsto en sus fechas y el sueldo del dueño repartido por días. Si la
  * caja no baja nunca, es sostenible. `extraHoy` = un pago que se haría hoy (para el «y si pago…»).
  */
-export function autonomia({ previstos = [], ajustes = {}, hoy }, liquidez, extraHoy = 0) {
+export function autonomia({ previstos = [], ajustes = {}, hoy }, liquidez, extraHoy = 0, certezas = ['confirmado']) {
   const tasas = ajustes.tasas?.valores || {}
   const HORIZONTE = 1826
   const fin = sumarDias(hoy, HORIZONTE)
   const porFecha = new Map()
   for (const p of previstos) {
     if (p.estado !== 'previsto' || p.importe == null || p.importe === '') continue
+    // los cobros sólo cuentan con la certeza pedida; los pagos, siempre
+    if (p.tipo === 'ingreso' && !certezas.includes(p.certeza || 'confirmado')) continue
     const v = (p.tipo === 'ingreso' ? 1 : -1) * aBase(p.importe, p.moneda, tasas)
     for (const f of ocurrencias(p, hoy, fin)) porFecha.set(f, (porFecha.get(f) || 0) + v)
   }
@@ -137,6 +146,7 @@ export function resumen({ cuentas = [], movimientos = [], previstos = [], objeti
 
   const proximos = []
   let comprometido = 0
+  let cobrosSeguros = 0
   const sinImporte = []
   for (const p of previstos) {
     if (p.estado !== 'previsto' || !p.fecha) continue
@@ -144,6 +154,7 @@ export function resumen({ cuentas = [], movimientos = [], previstos = [], objeti
     for (const f of ocurrencias(p, hoy, fin)) {
       const base = aBase(p.importe, p.moneda, tasas)
       if (p.tipo === 'gasto') comprometido += base
+      else if ((p.certeza || 'confirmado') === 'confirmado') cobrosSeguros += base
       proximos.push({ ...p, cae: f, base })
     }
   }
@@ -152,18 +163,42 @@ export function resumen({ cuentas = [], movimientos = [], previstos = [], objeti
   comprometido += sueldo
   proximos.sort((a, b) => a.cae.localeCompare(b.cae))
 
-  const disponible = liquidez - comprometido
+  // lo de hoy sale de la caja, menos lo que hay que pagar y más lo que entra SEGURO en 30 días
+  const disponible = liquidez - comprometido + cobrosSeguros
   const gastadoHoy = vivos.filter(m => m.fecha === hoy && m.clase === 'libre' && m.importe < 0)
     .reduce((s, m) => s - aBase(m.importe, m.moneda, tasas), 0)
   const porDia = disponible / VENTANA
   const hoyPuedes = porDia - gastadoHoy
-  const ingresosPrevistos = proximos.filter(p => p.tipo === 'ingreso').reduce((s, p) => s + p.base, 0)
+  const ingresosPrevistos = proximos.filter(p => p.tipo === 'ingreso' && (p.certeza || 'confirmado') !== 'confirmado').reduce((s, p) => s + p.base, 0)
 
   // autonomía con lo previsto; y, de contraste, con el gasto real de los últimos 30 días
   const aut = autonomia({ previstos, ajustes, hoy }, liquidez)
-  const deudaCorta = partidas.filter(p => p.activa !== false && p.lado === 'pasivo' && p.plazo === 'corriente')
+  // con las cuotas o el vencimiento ya puestos, la deuda está en los previstos; si no, el «y si la pago hoy»
+  const deudaSinFecha = partidas.filter(p => p.activa !== false && p.lado === 'pasivo' && p.plazo === 'corriente' && !previstos.some(x => x.partida_id === p.id && x.estado === 'previsto'))
     .reduce((s, p) => s + aBase(p.valor, p.moneda, tasas), 0)
-  const autConDeuda = deudaCorta > 0 ? autonomia({ previstos, ajustes, hoy }, liquidez, deudaCorta) : null
+  const autConDeuda = deudaSinFecha > 0 ? autonomia({ previstos, ajustes, hoy }, liquidez, deudaSinFecha) : null
+  const hayProbables = previstos.some(p => p.tipo === 'ingreso' && p.estado === 'previsto' && p.certeza === 'probable')
+  const autProbables = hayProbables ? autonomia({ previstos, ajustes, hoy }, liquidez, 0, ['confirmado', 'probable']) : null
+
+  // fondo de maniobra (§17.9): caja y bancos + cobros confirmados a un año − deudas a corto y pagos de deuda a un año
+  const anio = sumarDias(hoy, 365)
+  const cobrosAnio = previstos.filter(p => p.tipo === 'ingreso' && (p.certeza || 'confirmado') === 'confirmado' && p.importe != null)
+    .reduce((s, p) => s + ocurrencias(p, hoy, anio).length * aBase(p.importe, p.moneda, tasas), 0)
+  const deudasCorto = partidas.filter(p => p.activa !== false && p.lado === 'pasivo')
+    .map(p => {
+      const cuotas = previstos.filter(x => x.partida_id === p.id && x.estado === 'previsto' && x.importe != null)
+      const enAnio = cuotas.reduce((s, x) => s + ocurrencias(x, hoy, anio).length * aBase(x.importe, x.moneda, tasas), 0)
+      // lo que queda = la deuda menos lo ya pagado por el banco contra sus cuotas
+      const ids = new Set(previstos.filter(x => x.partida_id === p.id).map(x => x.id))
+      const pagado = vivos.filter(m => ids.has(m.previsto_id) && m.importe < 0).reduce((s, m) => s - aBase(m.importe, m.moneda, tasas), 0)
+      const pendiente = Math.max(0, aBase(p.valor, p.moneda, tasas) - pagado)
+      // a corto: lo que vence en 12 meses según su calendario; sin calendario, toda si es corriente
+      const corto = cuotas.length ? Math.min(pendiente, enAnio) : p.plazo === 'corriente' ? pendiente : 0
+      const proxima = cuotas.map(x => ocurrencias(x, hoy, sumarDias(hoy, 3650))[0]).filter(Boolean).sort()[0] || null
+      return { ...p, pendiente, pagado, corto, proxima, plan: cuotas[0] }
+    })
+  const pasivoCorto = deudasCorto.reduce((s, p) => s + p.corto, 0)
+  const fondoManiobra = { caja: liquidez, cobros: cobrosAnio, deudas: pasivoCorto, total: liquidez + cobrosAnio - pasivoCorto, lista: deudasCorto }
   const r = ritmo({ movimientos: vivos, previstos, ajustes, hoy, tasas })
   const quemaReal = (r.gastosDia - r.ingresosDia) * MES_EN_DIAS
   const autReal = r.fuente === 'banco' && quemaReal > 0 ? Math.max(0, liquidez) / quemaReal : null
@@ -176,7 +211,7 @@ export function resumen({ cuentas = [], movimientos = [], previstos = [], objeti
     hoy, liquidez, comprometido, sueldo, disponible, porDia, gastadoHoy, hoyPuedes,
     ingresosPrevistos, conIngresos: (disponible + ingresosPrevistos) / VENTANA,
     fijoMes, proximos, sinImporte, semaforo, mision,
-    autonomia: aut, autonomiaConDeuda: autConDeuda, deudaCorta, autonomiaReal: autReal, quemaReal: r.fuente === 'banco' ? quemaReal : null,
+    autonomia: aut, autonomiaConDeuda: autConDeuda, deudaCorta: deudaSinFecha, autonomiaProbables: autProbables, cobrosSeguros, fondoManiobra, autonomiaReal: autReal, quemaReal: r.fuente === 'banco' ? quemaReal : null,
     sinDatos: cuentas.length === 0,
   }
 }
@@ -325,7 +360,7 @@ function agrupar(lista, clave, vacio = 'Sin clasificar') {
  * Todo lo que dibuja el panel, para el periodo [desde, hoy]. Los internos (Wise → Mercury) y lo
  * cancelado no cuentan: ni entra ni sale dinero. Cada movimiento lleva `eur` (en positivo).
  */
-export function panel({ cuentas = [], movimientos = [], ajustes = {}, hoy }, desde) {
+export function panel({ cuentas = [], movimientos = [], ajustes = {}, hoy }, desde, tramo = 'auto') {
   const tasas = ajustes.tasas?.valores || {}
   const vivos = movimientos.filter(m => m.estado !== 'cancelado')
   const reales = vivos.filter(m => m.clase !== 'interno')
@@ -339,9 +374,16 @@ export function panel({ cuentas = [], movimientos = [], ajustes = {}, hoy }, des
   // flujo: por semanas (lunes a domingo) si el periodo cabe en 3 meses; si no, por meses (máx. 12)
   const primero = enPeriodo.reduce((min, m) => (m.fecha < min ? m.fecha : min), hoy)
   const arranque = desde && desde > primero ? desde : primero
-  const porSemana = diasEntre(arranque, hoy) <= 92
+  const largo = diasEntre(arranque, hoy)
+  const modo = tramo === 'auto' ? (largo <= 92 ? 'semana' : 'mes') : tramo
+  const porSemana = modo === 'semana'
   const tramos = []
-  if (porSemana) {
+  if (modo === 'dia') {
+    for (let f = sumarDias(hoy, -Math.min(largo, 59)); f <= hoy; f = sumarDias(f, 1)) {
+      const [, mm, dd] = f.split('-').map(Number)
+      tramos.push({ clave: f, hasta: f, etiqueta: `${dd} ${MESES[mm - 1]}`, titulo: new Date(`${f}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' }) })
+    }
+  } else if (porSemana) {
     let f = sumarDias(arranque, -((aFecha(arranque).getUTCDay() + 6) % 7)) // el lunes de esa semana
     for (; f <= hoy; f = sumarDias(f, 7)) {
       const [, mm, dd] = f.split('-').map(Number)
@@ -353,7 +395,7 @@ export function panel({ cuentas = [], movimientos = [], ajustes = {}, hoy }, des
       tramos.push({ clave: `${clave}-01`, hasta: `${clave}-31`, etiqueta: `${MESES[mm - 1]}${mm === 1 || tramos.length === 0 ? ` ${String(a).slice(2)}` : ''}`, titulo: `${MESES[mm - 1]} ${a}` })
     }
   }
-  const flujo = tramos.slice(-12).map(t => {
+  const flujo = tramos.slice(modo === 'dia' ? -60 : -12).map(t => {
     const del = enPeriodo.filter(m => m.fecha >= t.clave && m.fecha <= t.hasta)
     return { ...t, entra: del.filter(m => m.importe > 0).reduce((s, m) => s + m.eur, 0), sale: del.filter(m => m.importe < 0).reduce((s, m) => s + m.eur, 0) }
   })
@@ -376,7 +418,9 @@ export function panel({ cuentas = [], movimientos = [], ajustes = {}, hoy }, des
   return {
     entra, sale, neto: entra - sale, ahorro: entra > 0 ? (entra - sale) / entra : null, gastoDia: sale / dias,
     n: enPeriodo.length, sinClasificar: enPeriodo.filter(porClasificar).length,
-    flujo, porSemana, serie,
+    flujo, modo, serie,
+    // el ritmo del periodo: lo que entra, sale y queda de media al día, a la semana y al mes
+    ritmo: { dias, dia: { entra: entra / dias, sale: sale / dias }, semana: { entra: entra / dias * 7, sale: sale / dias * 7 }, mes: { entra: entra / dias * MES_EN_DIAS, sale: sale / dias * MES_EN_DIAS } },
     categorias: agrupar(salidas, m => m.categoria),
     clases: agrupar(salidas, m => CLASES.find(c => c.valor === m.clase)?.etiqueta),
     clientes: agrupar(entradas, m => m.contraparte || m.descripcion).slice(0, 8),

@@ -136,7 +136,7 @@ export default function MenuRadial({ activa, alEspacio, alNueva, alAjustes }) {
             transition={{ duration: 0.22 }}
             onClick={cerrar}
           >
-            <div className="radial-titulo" style={{ bottom: `calc(var(--safe-abajo) + 52px + ${geo.exterior + 78}px)` }}>
+            <div className="radial-titulo" style={{ bottom: `calc(max(10px, calc(var(--safe-abajo) * 0.45 + 4px)) + 38px + ${geo.exterior + 78}px)` }}>
               <span className="radial-titulo-pre">{encima ? 'Ir a' : 'Estás en'}</span>
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span

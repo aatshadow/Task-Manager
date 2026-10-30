@@ -4,7 +4,7 @@ import Hoja from '../../componentes/Hoja.jsx'
 import Campo from '../../componentes/Campo.jsx'
 import Selector from '../../componentes/Selector.jsx'
 import Boton from '../../componentes/Boton.jsx'
-import { CLASES, RECURRENCIAS, AREAS } from '../../datos/finanzasCalculos.js'
+import { CLASES, RECURRENCIAS, AREAS, CERTEZAS } from '../../datos/finanzasCalculos.js'
 import { subirDocumento, enlaceDocumento, marcarSuscripcion } from '../../datos/finanzas.js'
 
 /**
@@ -42,11 +42,13 @@ const TIPOS = {
     tabla: 'fin_previstos', titulo: (f) => (f.id ? f.titulo : f.suscripcion ? 'Nueva suscripción' : f.tipo === 'ingreso' ? 'Ingreso previsto' : 'Gasto previsto'), documentos: 'previstoId',
     campos: (f) => [
       { clave: 'tipo', etiqueta: 'Tipo', tipo: 'chips', opciones: SENTIDO },
-      { clave: 'titulo', etiqueta: 'Qué', tipo: 'texto' },
+      { clave: 'titulo', etiqueta: f.tipo === 'ingreso' ? 'Qué cobro (cliente o concepto)' : 'Qué', tipo: 'texto' },
       { clave: 'importe', etiqueta: 'Importe (vacío si aún no lo sabes)', tipo: 'numero' },
       { clave: 'moneda', etiqueta: 'Moneda', tipo: 'chips', opciones: MONEDAS },
       { clave: 'fecha', etiqueta: 'Fecha (o la próxima, si se repite)', tipo: 'fecha' },
+      f.tipo === 'ingreso' && { clave: 'certeza', etiqueta: 'Certeza (sólo lo confirmado cuenta para el día)', tipo: 'chips', opciones: CERTEZAS },
       { clave: 'recurrencia', etiqueta: 'Se repite (ninguno = una vez)', tipo: 'chips', opciones: RECURRENCIAS, vacio: true },
+      f.recurrencia && { clave: 'hasta', etiqueta: 'Hasta (vacío = sin fin)', tipo: 'fecha' },
       { clave: 'clase', etiqueta: 'Clase', tipo: 'chips', opciones: CLASES },
       { clave: 'suscripcion', etiqueta: 'Es una suscripción', tipo: 'si' },
       { clave: 'provisionado', etiqueta: 'Ya apartado', tipo: 'numero' },
@@ -104,7 +106,10 @@ const TIPOS = {
       { clave: 'cuenta', etiqueta: 'Cuenta contable', tipo: 'chips', opciones: f.lado === 'pasivo'
         ? [{ valor: '170', etiqueta: '170 Deudas a l/p' }, { valor: '520', etiqueta: '520 Deudas a c/p' }]
         : [{ valor: '217', etiqueta: '217 Equipos informáticos' }, { valor: '250', etiqueta: '250 Inversiones financieras' }] },
-      f.lado === 'pasivo' && { clave: 'vencimiento', etiqueta: 'Vence (si tiene fecha)', tipo: 'fecha' },
+      f.lado === 'pasivo' && { clave: 'cuota', etiqueta: 'Cuota (si se paga a plazos)', tipo: 'numero' },
+      f.lado === 'pasivo' && Number(f.cuota) > 0 && { clave: 'cuota_recurrencia', etiqueta: 'Cada', tipo: 'chips', opciones: RECURRENCIAS.filter(r => r.valor) },
+      f.lado === 'pasivo' && Number(f.cuota) > 0 && { clave: 'primera_cuota', etiqueta: 'Próxima cuota', tipo: 'fecha' },
+      f.lado === 'pasivo' && !(Number(f.cuota) > 0) && { clave: 'vencimiento', etiqueta: 'Vence (se paga entera ese día)', tipo: 'fecha' },
       { clave: 'fecha', etiqueta: 'En el balance desde', tipo: 'fecha' },
       { clave: 'fuente', etiqueta: f.lado === 'pasivo' ? 'Con quién / condiciones' : 'De dónde sale la valoración', tipo: 'area' },
       { clave: 'nota', etiqueta: 'Nota', tipo: 'area' },
@@ -118,7 +123,7 @@ const TIPOS = {
   },
 }
 
-const NUMERICOS = ['valor', 'importe', 'provisionado', 'saldo', 'pct_reparto', 'importe_estimado', 'sueldo_dueno', 'colchon_meses', 'impuestos_pct']
+const NUMERICOS = ['cuota', 'valor', 'importe', 'provisionado', 'saldo', 'pct_reparto', 'importe_estimado', 'sueldo_dueno', 'colchon_meses', 'impuestos_pct']
 
 function inicial(tipo, fila) {
   const f = { ...fila }
@@ -126,11 +131,11 @@ function inicial(tipo, fila) {
     f._sentido = Number(f.importe) > 0 ? 'ingreso' : 'gasto'
     f._importe = f.importe != null ? String(Math.abs(f.importe)) : ''
   }
-  if (tipo === 'previsto') Object.assign(f, { tipo: f.tipo || 'gasto', moneda: f.moneda || 'EUR', clase: f.clase || 'obligatorio', estado: f.estado || 'previsto', recurrencia: f.recurrencia || '' })
+  if (tipo === 'previsto') Object.assign(f, { certeza: f.certeza || 'confirmado', tipo: f.tipo || 'gasto', moneda: f.moneda || 'EUR', clase: f.clase || 'obligatorio', estado: f.estado || 'previsto', recurrencia: f.recurrencia || '' })
   if (tipo === 'cuenta') Object.assign(f, { tipo: f.tipo || 'operativa', moneda: f.moneda || 'EUR', activa: f.activa ?? true })
   if (tipo === 'objetivo') Object.assign(f, { tipo: f.tipo || 'caja', moneda: f.moneda || 'EUR' })
   if (tipo === 'accion') Object.assign(f, { estado: f.estado || 'pendiente' })
-  if (tipo === 'partida') Object.assign(f, { moneda: f.moneda || 'EUR', plazo: f.plazo || 'no_corriente', cuenta: f.cuenta || (f.lado === 'pasivo' ? '170' : '217') })
+  if (tipo === 'partida') Object.assign(f, { cuota_recurrencia: f.cuota_recurrencia || 'mensual', moneda: f.moneda || 'EUR', plazo: f.plazo || 'no_corriente', cuenta: f.cuenta || (f.lado === 'pasivo' ? '170' : '217') })
   for (const k of NUMERICOS) if (f[k] != null) f[k] = String(f[k])
   return f
 }

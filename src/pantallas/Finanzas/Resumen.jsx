@@ -1,15 +1,15 @@
 import { useState } from 'react'
-import { RefreshCw, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Sparkles, Repeat } from 'lucide-react'
+import { RefreshCw, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Sparkles, Repeat, Banknote } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Boton from '../../componentes/Boton.jsx'
-import { aBase, formatear, diasEntre, porClasificar, CLASES, suscripciones, ocurrencias, sumarDias } from '../../datos/finanzasCalculos.js'
+import { aBase, formatear, diasEntre, porClasificar, CLASES, CERTEZAS, suscripciones, ocurrencias, sumarDias } from '../../datos/finanzasCalculos.js'
 import { sincronizar, clasificar as pedirClasificacion } from '../../datos/finanzas.js'
 import Proyeccion from './Proyeccion.jsx'
 
 const SEMAFORO = { verde: 'En verde', ambar: 'Vas por detrás de la Misión', rojo: 'En rojo: hoy no hay margen' }
 const fechaCorta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 
-export default function Resumen({ d, calc, editar, recargar, avisar, clasificar, irALibro }) {
+export default function Resumen({ d, calc, editar, recargar, avisar, clasificar, irALibro, abrirEfectivo }) {
   const { r, p } = calc
   const tasas = d.ajustes.tasas?.valores
   const [sincronizando, setSincronizando] = useState(false)
@@ -48,7 +48,14 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
   const cascada = [
     { etiqueta: 'Caja y bancos', valor: r.liquidez },
     { etiqueta: 'Pagos previstos próximos 30 días', valor: -r.comprometido },
+    ...(r.cobrosSeguros ? [{ etiqueta: 'Cobros confirmados próximos 30 días', valor: r.cobrosSeguros }] : []),
   ]
+  const fm = r.fondoManiobra
+  const caja = d.cuentas.find(c => c.tipo === 'efectivo')
+  const cobros = d.previstos.filter(x => x.tipo === 'ingreso' && x.estado === 'previsto')
+    .map(x => ({ ...x, proximo: ocurrencias(x, d.hoy, sumarDias(d.hoy, 3650))[0] || x.fecha }))
+    .sort((a, b) => (a.proximo || '9').localeCompare(b.proximo || '9'))
+  const nuevoCobro = () => editar('previsto', { tipo: 'ingreso', clase: 'ingreso', categoria: 'Clientes', certeza: 'probable', fecha: d.hoy })
   const aut = r.autonomia
   const meses = (a) => (a.sostenible ? 'sostenible' : `${a.meses.toLocaleString('es-ES', { maximumFractionDigits: a.meses < 10 ? 1 : 0 })} ${a.meses >= 0.95 && a.meses < 1.05 ? 'mes' : 'meses'}`)
   const sync = d.ajustes.sync
@@ -74,7 +81,7 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
             <span>{formatear(r.disponible)}</span>
           </div>
           {r.ingresosPrevistos > 0 && (
-            <div className="fz-cascada-nota">Si entran los {formatear(r.ingresosPrevistos)} previstos, sube a {formatear(Math.max(0, r.conIngresos))}/día.</div>
+            <div className="fz-cascada-nota">Si entran también los {formatear(r.ingresosPrevistos)} probables o posibles, sube a {formatear(Math.max(0, r.conIngresos))}/día.</div>
           )}
         </div>
         <div className="fz-autonomia">
@@ -85,11 +92,14 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
               ? 'Con lo previsto, la caja no llega a cero en los próximos 5 años.'
               : `Con la caja de hoy y lo previsto (gastos, ingresos${r.sueldo ? ' y tu sueldo' : ''}), llega a cero el ${new Date(`${aut.cae}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.`}
           </div>
+          {r.autonomiaProbables && (
+            <div className="fz-cascada-nota">Contando también los cobros probables: {meses(r.autonomiaProbables)}.</div>
+          )}
           {r.autonomiaConDeuda && (
             <div className="fz-cascada-nota">
               {r.autonomiaConDeuda.dias === 0
-                ? `La deuda a corto plazo (${formatear(r.deudaCorta)}) no se puede pagar entera con la caja de hoy.`
-                : `Si pagas hoy la deuda a corto plazo (${formatear(r.deudaCorta)}): ${meses(r.autonomiaConDeuda)}.`}
+                ? `La deuda a corto plazo sin fecha (${formatear(r.deudaCorta)}) no se puede pagar entera con la caja de hoy. Ponle cuotas o vencimiento en el fondo de maniobra.`
+                : `Si pagas hoy la deuda a corto plazo sin fecha (${formatear(r.deudaCorta)}): ${meses(r.autonomiaConDeuda)}.`}
             </div>
           )}
           {r.quemaReal != null && (
@@ -116,6 +126,69 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
           <div><strong>Previstos sin importe:</strong> {r.sinImporte.map(x => x.titulo).join(' · ')}. Ponles cifra para que cuenten.</div>
         </Tarjeta>
       )}
+
+      {caja && Number(caja.saldo) > 0 && (
+        <Tarjeta className="fz-aviso fz-aviso--accion" onClick={abrirEfectivo}>
+          <Banknote size={18} strokeWidth={1.7} />
+          <div><strong>{formatear(caja.saldo, { decimales: 2 })} en efectivo sin destino.</strong> Cuando lo gastes, apunta en qué para que salga en el Panel.</div>
+        </Tarjeta>
+      )}
+
+      <section className="seccion">
+        <h2 className="seccion-titulo">Fondo de maniobra</h2>
+        <Tarjeta>
+          <div className="fz-mision-cifras">
+            <div>
+              <div className={`fz-numero-medio${fm.total < 0 ? ' fz-menos' : ''}`}>{formatear(fm.total, { signo: true })}</div>
+              <div className="t-terciario">lo que queda al cubrir las deudas de los próximos 12 meses</div>
+            </div>
+          </div>
+          <div className="fz-cascada">
+            <div className="fz-cascada-fila"><span>Caja y bancos</span><span>{formatear(fm.caja)}</span></div>
+            <div className="fz-cascada-fila"><span>Cobros confirmados a 12 meses</span><span>{formatear(fm.cobros)}</span></div>
+            <div className="fz-cascada-fila"><span>Deudas que vencen en 12 meses</span><span className="fz-menos">{formatear(-fm.deudas)}</span></div>
+          </div>
+          {fm.lista.map(p => (
+            <button key={p.id} type="button" className="fz-fila" onClick={() => editar('partida', d.partidas.find(x => x.id === p.id))}>
+              <span className="fz-fila-texto">
+                <span>{p.nombre}</span>
+                <span className="t-terciario">
+                  {p.plan?.recurrencia ? `Cuota ${formatear(p.plan.importe, { moneda: p.plan.moneda })} ${p.plan.recurrencia === 'mensual' ? 'al mes' : p.plan.recurrencia} · próxima ${p.proxima ? fechaCorta(p.proxima) : '—'}`
+                    : p.vencimiento ? `Vence el ${fechaCorta(p.vencimiento)}` : <span className="fz-falta">sin fecha de pago: tócala y ponle cuotas o vencimiento</span>}
+                  {p.pagado > 0 ? ` · pagado ${formatear(p.pagado)}` : ''}
+                </span>
+              </span>
+              <span className="fz-fila-importe">{formatear(p.pendiente)}<span className="t-terciario">{p.corto ? `${formatear(p.corto)} a 12 meses` : 'nada a 12 meses'}</span></span>
+            </button>
+          ))}
+        </Tarjeta>
+      </section>
+
+      <section className="seccion">
+        <div className="fz-seccion-cabeza">
+          <h2 className="seccion-titulo">Cobros esperados</h2>
+          <Boton variante="secundario" pequeno icono={<Plus size={15} />} onClick={nuevoCobro}>Cobro</Boton>
+        </div>
+        <Tarjeta compacta>
+          {cobros.length === 0 && (
+            <button type="button" className="fz-vacio-linea t-terciario fz-vacio-boton" onClick={nuevoCobro}>
+              Apunta lo que esperas cobrar: cliente, importe, fecha y certeza. Lo confirmado suma a lo que puedes gastar hoy; lo probable sale aparte en la autonomía. Cuando llega el pago, 2day lo casa solo.
+            </button>
+          )}
+          {cobros.map(x => (
+            <button key={x.id} type="button" className="fz-fila" onClick={() => editar('previsto', x)}>
+              <span className="fz-fila-texto">
+                <span>{x.titulo}</span>
+                <span className="t-terciario">
+                  <span className={`fz-certeza fz-certeza--${x.certeza || 'confirmado'}`}>{CERTEZAS.find(c => c.valor === (x.certeza || 'confirmado'))?.etiqueta}</span>
+                  {x.proximo ? ` · ${fechaCorta(x.proximo)} · en ${diasEntre(d.hoy, x.proximo)} días` : ''}{x.recurrencia ? ` · ${x.recurrencia}` : ''}
+                </span>
+              </span>
+              <span className="fz-fila-importe fz-mas">{x.importe == null ? <span className="fz-falta">sin importe</span> : formatear(x.importe, { moneda: x.moneda })}</span>
+            </button>
+          ))}
+        </Tarjeta>
+      </section>
 
       {pendientes.length > 0 && (
         <section className="seccion">
@@ -183,7 +256,7 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
         <Tarjeta compacta>
           {d.cuentas.length === 0 && <div className="t-terciario fz-vacio-linea">Sin cuentas todavía.</div>}
           {d.cuentas.map(c => (
-            <button key={c.id} type="button" className="fz-fila" onClick={() => editar('cuenta', c)}>
+            <button key={c.id} type="button" className="fz-fila" onClick={() => (c.tipo === 'efectivo' ? abrirEfectivo() : editar('cuenta', c))}>
               <span className={`fz-banco fz-banco--${c.banco}`}>{c.tipo === 'efectivo' ? '€' : c.banco === 'manual' ? 'M' : c.banco === 'whop' ? 'Wh' : c.banco[0].toUpperCase()}</span>
               <span className="fz-fila-texto">
                 <span>{c.nombre}</span>

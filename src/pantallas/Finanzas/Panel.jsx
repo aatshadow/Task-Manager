@@ -28,7 +28,17 @@ function desdeDe(periodo, hoy) {
 export default function Panel({ d, clasificar, editar }) {
   const [periodo, setPeriodo] = useState(() => { try { return localStorage.getItem('fin-periodo') || '30' } catch { return '30' } })
   const elegir = (p) => { setPeriodo(p); try { localStorage.setItem('fin-periodo', p) } catch { /* sin almacenamiento */ } }
-  const x = useMemo(() => panel(d, desdeDe(periodo, d.hoy)), [d, periodo])
+  const [agrupar, setAgrupar] = useState('auto')
+  const x = useMemo(() => panel(d, desdeDe(periodo, d.hoy), agrupar), [d, periodo, agrupar])
+  const filaRitmo = (etiqueta, k, clase) => (
+    <>
+      <span>{etiqueta}</span>
+      {['dia', 'semana', 'mes'].map(p => {
+        const v = k === 'neto' ? x.ritmo[p].entra - x.ritmo[p].sale : x.ritmo[p][k]
+        return <span key={p}><strong className={clase && clase(v)}>{formatear(v, { signo: k === 'neto', decimales: p === 'dia' && Math.abs(v) < 100 ? 2 : 0 })}</strong></span>
+      })}
+    </>
+  )
   // tocar un movimiento: si le falta clase, a clasificarlo; si no, a su ficha
   const abrir = (m) => {
     const fila = d.movimientos.find(y => y.id === m.id) || m
@@ -63,7 +73,23 @@ export default function Panel({ d, clasificar, editar }) {
       )}
 
       <section className="seccion">
-        <h2 className="seccion-titulo">Entra y sale{x.porSemana ? ' por semana' : ' por mes'}</h2>
+        <h2 className="seccion-titulo">Cuánto ganas y gastas</h2>
+        <Tarjeta compacta>
+          <div className="fz-ritmo">
+            <span className="fz-ritmo-cab">De media</span><span className="fz-ritmo-cab">al día</span><span className="fz-ritmo-cab">a la semana</span><span className="fz-ritmo-cab">al mes</span>
+            {filaRitmo('Entra', 'entra', () => 'fz-mas')}
+            {filaRitmo('Sale', 'sale')}
+            {filaRitmo('Queda', 'neto', v => (v < 0 ? 'fz-menos' : 'fz-mas'))}
+          </div>
+          <div className="t-terciario fz-nota">Medias sobre los {x.ritmo.dias} días del periodo, sin traspasos internos.</div>
+        </Tarjeta>
+      </section>
+
+      <section className="seccion">
+        <div className="fz-seccion-cabeza">
+          <h2 className="seccion-titulo">Entra y sale por {x.modo === 'dia' ? 'día' : x.modo}</h2>
+          <Segmentos opciones={[{ valor: 'dia', etiqueta: 'Día' }, { valor: 'semana', etiqueta: 'Semana' }, { valor: 'mes', etiqueta: 'Mes' }]} valor={x.modo} alCambiar={setAgrupar} className="fz-agrupar" />
+        </div>
         <Tarjeta>
           <BarrasFlujo tramos={x.flujo} />
           <Leyenda items={[{ etiqueta: 'Entró', clase: 'fz-g-entra' }, { etiqueta: 'Salió', clase: 'fz-g-sale' }]} />

@@ -975,6 +975,15 @@ token → dice qué falta) · `subir {nombre, tipo, base64, movimientoId|previst
 
 - `sincronizarWhop()`: el saldo del ledger de la empresa (balance + pendiente + reserva) es una cuenta `banco = 'whop'`. Cada pago `paid` entra **neto de comisiones**, con el bruto y el IVA en el concepto. Los retiros (`/payouts`) salen como traspaso y se emparejan con su entrada en Wise o Mercury. Variables: `WHOP_API_KEY` y `WHOP_COMPANY_ID` (Black Phoenix Group, `biz_scDrfxWPWYl6e5`). La clave de Izibizz no puede leer su ledger.
 
+### 17.9 · Efectivo, cobros esperados, fondo de maniobra y ritmo (Alex, 30-10-2026)
+
+- **Efectivo**: es una cuenta `tipo = 'efectivo'` (570), creada el 30-10. **Desde esa fecha**, un cargo de banco con categoría «Efectivo» se convierte en traspaso (`cuadrarCaja()`): el cargo queda interno («Retirada a caja»), en la caja entra lo retirado y la comisión del cajero sale de la caja como gasto (626). Los gastos en efectivo se apuntan en la caja con su categoría, así que salen en el Panel. El **arqueo** cuadra lo apuntado con lo que Alex lleva encima: la diferencia es «Arqueo de caja» contra la 551 (lo que falta cuenta como gasto libre y personal; lo que sobra entra en la caja). El saldo de la caja es la suma de sus movimientos. Las retiradas anteriores al 30-10 se quedan como retiradas del socio.
+- **Cobros esperados** = previstos de ingreso con `certeza`: confirmado, probable o posible. Lo **confirmado** a 30 días suma al disponible («hoy puedes»); la autonomía cuenta lo confirmado y da aparte la cifra con los probables. Lo posible no cuenta en nada. `casarCobros()` busca el cobro de cada entrada del banco (±3 % de importe y ±20 días, o el nombre del cliente). Uno puntual pasa a pagado; uno recurrente adelanta su próxima fecha. En Resumen salen con «+ Cobro».
+- **Deudas con calendario**: una partida de pasivo puede llevar cuota + periodicidad + próxima cuota, o una fecha de vencimiento. `calendarioDeuda()` mantiene su previsto (categoría «Pago de deuda», `partida_id`, `hasta` = la última cuota), así que la deuda entra en los pagos, en el día y en la autonomía. Un pago por banco contra ese previsto va al debe de la cuenta de su deuda (170 o 520).
+- **Fondo de maniobra en Resumen** = caja y bancos + cobros confirmados a 12 meses − deudas que vencen en 12 meses (por su calendario; sin calendario, toda la corriente). Lleva la lista de deudas con lo pendiente, lo pagado y la próxima cuota.
+- **Panel**: tabla «Cuánto ganas y gastas», con lo que entra, sale y queda de media al día, a la semana y al mes del periodo. El gráfico de entra y sale se agrupa por día, semana o mes.
+- SQL: `sql/2026-10-30-caja-y-cobros.sql`.
+
 ## 18 · Estilo vidrio negro y oro + menú radial (Alex, 30-10-2026)
 
 Pedido: «cambiar el estilo de la app a algo así» (referencias: panel de vidrio sobre negro con canto de luz dorada,
