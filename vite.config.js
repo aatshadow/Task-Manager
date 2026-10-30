@@ -29,7 +29,7 @@ function apiLocal() {
 export default defineConfig(({ mode }) => {
   // las VITE_* del .env le hacen falta a la función local para validar la sesión, y las FIN_*/MERCURY_/WISE_
   // a /api/finanzas (LOGICA §17); en Vercel van en las variables del proyecto
-  Object.assign(process.env, { ...loadEnv(mode, process.cwd(), ['VITE_', 'FIN_', 'MERCURY_', 'WISE_', 'ANTHROPIC_']), ...process.env })
+  Object.assign(process.env, { ...loadEnv(mode, process.cwd(), ['VITE_', 'FIN_', 'MERCURY_', 'WISE_', 'WHOP_', 'ANTHROPIC_']), ...process.env })
   return {
     plugins: [react(), apiLocal()],
     server: { port: 5400, strictPort: true, host: true },

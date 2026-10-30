@@ -96,48 +96,55 @@ export function suscripciones(previstos, tasas) {
 const pendienteDe = (p, tasas) => Math.max(0, aBase(p.importe, p.moneda, tasas) - aBase(p.provisionado, p.moneda, tasas))
 
 /**
- * El resumen del día. Devuelve la cascada entera para poder explicarla línea a línea.
+ * Meses de autonomía (§17.1, Alex 30-10-2026): con el dinero de hoy (caja y bancos) y los
+ * gastos e ingresos PREVISTOS, cuánto aguanta la caja antes de llegar a cero. Se simula día a
+ * día hasta 5 años: cada previsto en sus fechas y el sueldo del dueño repartido por días. Si la
+ * caja no baja nunca, es sostenible. `extraHoy` = un pago que se haría hoy (para el «y si pago…»).
  */
-export function resumen({ cuentas = [], movimientos = [], previstos = [], objetivos = [], ajustes = {}, hoy }) {
+export function autonomia({ previstos = [], ajustes = {}, hoy }, liquidez, extraHoy = 0) {
+  const tasas = ajustes.tasas?.valores || {}
+  const HORIZONTE = 1826
+  const fin = sumarDias(hoy, HORIZONTE)
+  const porFecha = new Map()
+  for (const p of previstos) {
+    if (p.estado !== 'previsto' || p.importe == null || p.importe === '') continue
+    const v = (p.tipo === 'ingreso' ? 1 : -1) * aBase(p.importe, p.moneda, tasas)
+    for (const f of ocurrencias(p, hoy, fin)) porFecha.set(f, (porFecha.get(f) || 0) + v)
+  }
+  const sueldoDia = (Number(ajustes.sueldo_dueno) || 0) / MES_EN_DIAS
+  let saldo = liquidez - extraHoy
+  let minimo = saldo
+  for (let d = 0; d <= HORIZONTE; d++) {
+    saldo += (porFecha.get(sumarDias(hoy, d)) || 0) - sueldoDia
+    minimo = Math.min(minimo, saldo)
+    if (saldo < 0) return { meses: d / MES_EN_DIAS, dias: d, cae: sumarDias(hoy, d), sostenible: false }
+  }
+  return { meses: null, dias: null, cae: null, sostenible: true, minimo }
+}
+
+/**
+ * El resumen del día. Devuelve la cascada entera para poder explicarla línea a línea:
+ * caja y bancos − lo comprometido en 30 días = disponible; ÷ 30 = lo de hoy.
+ */
+export function resumen({ cuentas = [], movimientos = [], previstos = [], objetivos = [], partidas = [], ajustes = {}, hoy }) {
   const tasas = ajustes.tasas?.valores || {}
   const fin = sumarDias(hoy, VENTANA)
-  const anio = hoy.slice(0, 4)
   const vivos = movimientos.filter(m => m.estado !== 'cancelado')
 
+  // caja y bancos: todas las cuentas activas (Wise, Mercury, Whop, efectivo y manuales)
   const liquidez = cuentas.filter(c => c.activa !== false).reduce((s, c) => s + aBase(c.saldo, c.moneda, tasas), 0)
-
-  const delAnio = vivos.filter(m => m.fecha?.startsWith(anio))
-  const ingresosAnio = delAnio.filter(m => m.clase === 'ingreso').reduce((s, m) => s + aBase(m.importe, m.moneda, tasas), 0)
-  const impuestosPagados = delAnio.filter(m => (m.categoria || '').toLowerCase() === 'impuestos' && m.importe < 0)
-    .reduce((s, m) => s - aBase(m.importe, m.moneda, tasas), 0)
-  const impuestos = Math.max(0, (Number(ajustes.impuestos_pct) || 0) / 100 * ingresosAnio - impuestosPagados)
-
   const fijoMes = gastoFijoMensual(previstos, ajustes, tasas)
-  const objColchon = objetivos.find(o => o.tipo === 'colchon')
-  const colchon = objColchon?.importe ? aBase(objColchon.importe, objColchon.moneda, tasas) : (Number(ajustes.colchon_meses) || 0) * fijoMes
 
-  // lo comprometido en 30 días y la parte de lo lejano que toca apartar en esta ventana
   const proximos = []
   let comprometido = 0
-  let reservaFutura = 0
   const sinImporte = []
   for (const p of previstos) {
     if (p.estado !== 'previsto' || !p.fecha) continue
     if (p.importe == null || p.importe === '') { if (p.tipo === 'gasto') sinImporte.push(p); continue }
-    if (p.tipo !== 'gasto') {
-      for (const f of ocurrencias(p, hoy, fin)) proximos.push({ ...p, cae: f, base: aBase(p.importe, p.moneda, tasas) })
-      continue
-    }
-    const fechas = ocurrencias(p, hoy, fin)
-    if (fechas.length) {
-      fechas.forEach((f, i) => {
-        // lo provisionado sólo descuenta la primera ocurrencia
-        const base = i === 0 ? pendienteDe(p, tasas) : aBase(p.importe, p.moneda, tasas)
-        comprometido += base
-        proximos.push({ ...p, cae: f, base })
-      })
-    } else if (!p.recurrencia && p.fecha > fin) {
-      reservaFutura += pendienteDe(p, tasas) * VENTANA / Math.max(VENTANA, diasEntre(hoy, p.fecha))
+    for (const f of ocurrencias(p, hoy, fin)) {
+      const base = aBase(p.importe, p.moneda, tasas)
+      if (p.tipo === 'gasto') comprometido += base
+      proximos.push({ ...p, cae: f, base })
     }
   }
   // el sueldo del dueño es un gasto obligatorio del mes que viene, aunque no sea un previsto
@@ -145,20 +152,31 @@ export function resumen({ cuentas = [], movimientos = [], previstos = [], objeti
   comprometido += sueldo
   proximos.sort((a, b) => a.cae.localeCompare(b.cae))
 
-  const disponible = liquidez - impuestos - colchon - comprometido - reservaFutura
+  const disponible = liquidez - comprometido
   const gastadoHoy = vivos.filter(m => m.fecha === hoy && m.clase === 'libre' && m.importe < 0)
     .reduce((s, m) => s - aBase(m.importe, m.moneda, tasas), 0)
   const porDia = disponible / VENTANA
   const hoyPuedes = porDia - gastadoHoy
   const ingresosPrevistos = proximos.filter(p => p.tipo === 'ingreso').reduce((s, p) => s + p.base, 0)
 
+  // autonomía con lo previsto; y, de contraste, con el gasto real de los últimos 30 días
+  const aut = autonomia({ previstos, ajustes, hoy }, liquidez)
+  const deudaCorta = partidas.filter(p => p.activa !== false && p.lado === 'pasivo' && p.plazo === 'corriente')
+    .reduce((s, p) => s + aBase(p.valor, p.moneda, tasas), 0)
+  const autConDeuda = deudaCorta > 0 ? autonomia({ previstos, ajustes, hoy }, liquidez, deudaCorta) : null
+  const r = ritmo({ movimientos: vivos, previstos, ajustes, hoy, tasas })
+  const quemaReal = (r.gastosDia - r.ingresosDia) * MES_EN_DIAS
+  const autReal = r.fuente === 'banco' && quemaReal > 0 ? Math.max(0, liquidez) / quemaReal : null
+
   const mision = misionDe({ objetivos, movimientos: vivos, previstos, ajustes, hoy, liquidez, tasas })
-  const semaforo = disponible < 0 ? 'rojo' : (mision && mision.ritmoReal < mision.necesarioDia ? 'ambar' : 'verde')
+  const semaforo = disponible < 0 || (!aut.sostenible && aut.meses < 1) ? 'rojo'
+    : (!aut.sostenible && aut.meses < 3) || (mision && mision.ritmoReal < mision.necesarioDia) ? 'ambar' : 'verde'
 
   return {
-    hoy, liquidez, impuestos, colchon, comprometido, reservaFutura, sueldo, disponible, porDia, gastadoHoy, hoyPuedes,
+    hoy, liquidez, comprometido, sueldo, disponible, porDia, gastadoHoy, hoyPuedes,
     ingresosPrevistos, conIngresos: (disponible + ingresosPrevistos) / VENTANA,
     fijoMes, proximos, sinImporte, semaforo, mision,
+    autonomia: aut, autonomiaConDeuda: autConDeuda, deudaCorta, autonomiaReal: autReal, quemaReal: r.fuente === 'banco' ? quemaReal : null,
     sinDatos: cuentas.length === 0,
   }
 }
@@ -230,18 +248,19 @@ export function proyeccion({ cuentas = [], movimientos = [], previstos = [], obj
 }
 
 /**
- * Empareja transferencias internas Wise → Mercury: salida de Wise y entrada en Mercury con el
+ * Empareja transferencias internas (Whop → Wise/Mercury, Wise → Mercury): una salida y una entrada en otro banco con el
  * mismo importe (±2 %, misma moneda) y ≤ 5 días entre una y otra. Devuelve pares [salida, entrada].
  */
 export function emparejarInternos(movimientos, cuentas) {
   const banco = Object.fromEntries(cuentas.map(c => [c.id, c.banco]))
   const libres = movimientos.filter(m => !m.emparejado_id && m.origen === 'banco')
-  const salidas = libres.filter(m => banco[m.cuenta_id] === 'wise' && m.importe < 0)
-  const entradas = libres.filter(m => banco[m.cuenta_id] === 'mercury' && m.importe > 0)
+  // Whop → Wise o Mercury (los retiros), y Wise → Mercury
+  const salidas = libres.filter(m => ['wise', 'whop'].includes(banco[m.cuenta_id]) && m.importe < 0)
+  const entradas = libres.filter(m => ['mercury', 'wise'].includes(banco[m.cuenta_id]) && m.importe > 0)
   const usadas = new Set()
   const pares = []
   for (const s of salidas) {
-    const e = entradas.find(x => !usadas.has(x.id) && x.moneda === s.moneda
+    const e = entradas.find(x => !usadas.has(x.id) && banco[x.cuenta_id] !== banco[s.cuenta_id] && x.moneda === s.moneda
       && Math.abs(x.importe + s.importe) <= Math.abs(s.importe) * 0.02
       && Math.abs(diasEntre(s.fecha, x.fecha)) <= 5 && x.fecha >= sumarDias(s.fecha, -1))
     if (e) { usadas.add(e.id); pares.push([s, e]) }

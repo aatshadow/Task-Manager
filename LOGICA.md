@@ -907,6 +907,8 @@ Los ingresos previstos NO entran en el número (conservador): se enseñan como �
 escenarios hasta la fecha del objetivo: **sigue igual** · **conservador** (ingresos ×0,7) · **objetivo** (la recta
 que hace falta). Los previstos puntuales se restan/suman en su fecha.
 
+**Cambio 30-10-2026 (Alex): fuera los impuestos, el colchón y la reserva de lo lejano.** Ahora disponible = caja y bancos − pagos previstos en 30 días (+ sueldo), y hoy puedes = disponible ÷ 30 − lo libre de hoy. Además, la **autonomía en meses** (`autonomia()`) simula día a día, hasta 5 años, la caja de hoy con los gastos e ingresos previstos y el sueldo, y devuelve cuándo llega a cero o «sostenible». Debajo salen dos contrastes: si se pagara hoy la deuda a corto plazo, y al ritmo real del banco de los últimos 30 días. Semáforo: rojo si el disponible es < 0 o la autonomía < 1 mes; ámbar si < 3 meses o se va por detrás de la Misión.
+
 ### 17.2 · Modelo (`sql/2026-10-30-finanzas.sql`, en SYSTEMA)
 `fin_ajustes` (fila única: moneda_base, sueldo_dueno, colchon_meses, impuestos_pct, tasas jsonb, sync jsonb) ·
 `fin_cuentas` (banco mercury|wise|manual, externo_id, nombre, moneda, tipo operativa|pocket|impuestos|colchon|ahorro|
@@ -960,6 +962,18 @@ token → dice qué falta) · `subir {nombre, tipo, base64, movimientoId|previst
 - **Suscripción** = previsto recurrente con `suscripcion = true` y `patron` (el texto que reconoce sus cargos). La marca la IA (`suscripcion` y `recurrencia` en su propuesta), una regla con `suscripcion`, Alex al clasificar o el botón «Es una suscripción» de la ficha. `suscribir()` busca una que ya exista (por patrón, título o importe ±2 %) y le engancha el cargo (`previsto_id`), o crea una con el importe en la moneda original del cargo y el próximo cobro a un periodo de él.
 - **En Resumen**: «Próximos pagos · 30 días» incluye las suscripciones, y la sección «Suscripciones» las gestiona: total al mes y al año, próximo cobro, nº de cargos y el último. Se dan de baja marcándolas como canceladas. Ya no salen en Plan. Como son gasto fijo, entran en el colchón.
 - SQL: `sql/2026-10-30-finanzas-suscripciones.sql`.
+
+### 17.7 · Contabilidad: partida doble, balance y resultados (Alex, 30-10-2026: «cada movimiento es un apunte contable, como profesionales»)
+
+- **Nueva sección «Contabilidad» en Dinero** (`Contabilidad.jsx` + `src/datos/contabilidad.js`, puro). Tiene tres vistas: Balance · Resultados · Libro diario. Tocar una cuenta abre su **mayor** (apuntes con saldo acumulado).
+- **Cada movimiento es un asiento** de dos líneas: tesorería (570.x efectivo, 572.x bancos, Whop incluido) contra su contrapartida (`contrapartida()`). La contrapartida es: un gasto 6xx según categoría (6291 software/IA/infra, 6292 viajes, 626 comisiones, 627 publicidad, 623 profesionales, 631 tributos, 640 sueldos…); un ingreso 7xx (705 clientes, 759 diversos, 769 financieros); 118 aportaciones; 5790 traspasos internos y reembolsos; 555 si está sin clasificar. **Lo de negocio «Personal» va a la 551 (retiradas del socio)**: no es gasto, y resta en el patrimonio (es una LLC disregarded, owner's draw).
+- **Apertura**: el saldo de cada cuenta el día antes del primer movimiento, contra 100 Capital. **Partidas** (`fin_partidas`: inmovilizado a valor de mercado y deudas): entran contra 100 en su fecha. Si un activo baja de valor, se registra 681 contra 2817. Si una deuda se rebaja a mano, se regulariza contra 100. Una deuda se paga por el banco con la categoría «Pago de deuda» (520).
+- El **balance** se construye desde el diario, así que Activo = Pasivo + PN siempre (`cuadra`). Ratios: caja y bancos, fondo de maniobra y endeudamiento. **Resultados** del ejercicio: ingresos 7 − gastos 6. EUR al cambio del BCE de hoy.
+- Semilla: iPhone 18 Pro Max 1.100 € y MacBook Air M4 950 € (217, valor de segunda mano a 30-10-2026 con su fuente en la partida), deuda a l/p 25.000 € (170) y a c/p 1.700 € (520).
+
+### 17.8 · Whop como caja y bancos
+
+- `sincronizarWhop()`: el saldo del ledger de la empresa (balance + pendiente + reserva) es una cuenta `banco = 'whop'`. Cada pago `paid` entra **neto de comisiones**, con el bruto y el IVA en el concepto. Los retiros (`/payouts`) salen como traspaso y se emparejan con su entrada en Wise o Mercury. Variables: `WHOP_API_KEY` y `WHOP_COMPANY_ID` (Black Phoenix Group, `biz_scDrfxWPWYl6e5`). La clave de Izibizz no puede leer su ledger.
 
 ## 18 · Estilo vidrio negro y oro + menú radial (Alex, 30-10-2026)
 

@@ -74,7 +74,7 @@ const TIPOS = {
       const banco = f.banco && f.banco !== 'manual'
       return [
         { clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto' },
-        { clave: 'tipo', etiqueta: 'Para qué es', tipo: 'chips', opciones: ['operativa', 'pocket', 'impuestos', 'colchon', 'ahorro', 'inversion'].map(v => ({ valor: v, etiqueta: v[0].toUpperCase() + v.slice(1) })) },
+        { clave: 'tipo', etiqueta: 'Para qué es', tipo: 'chips', opciones: [['operativa', 'Operativa'], ['efectivo', 'Efectivo (caja)'], ['pocket', 'Pocket'], ['ahorro', 'Ahorro'], ['inversion', 'Inversión']].map(([valor, etiqueta]) => ({ valor, etiqueta })) },
         { clave: 'saldo', etiqueta: banco ? 'Saldo (lo trae el banco)' : 'Saldo', tipo: 'numero', soloLectura: banco },
         !banco && { clave: 'moneda', etiqueta: 'Moneda', tipo: 'chips', opciones: MONEDAS },
         { clave: 'pct_reparto', etiqueta: '% del reparto que va aquí', tipo: 'numero' },
@@ -94,17 +94,31 @@ const TIPOS = {
       { clave: 'importe_estimado', etiqueta: 'Coste estimado (€)', tipo: 'numero' },
     ],
   },
+  partida: {
+    tabla: 'fin_partidas', titulo: (f) => (f.id ? f.nombre : f.lado === 'pasivo' ? 'Nueva deuda' : 'Nuevo activo'),
+    campos: (f) => [
+      { clave: 'nombre', etiqueta: 'Qué es', tipo: 'texto' },
+      { clave: 'valor', etiqueta: f.lado === 'pasivo' ? 'Lo que queda por pagar' : 'Valor de mercado hoy', tipo: 'numero' },
+      { clave: 'moneda', etiqueta: 'Moneda', tipo: 'chips', opciones: MONEDAS },
+      { clave: 'plazo', etiqueta: 'Plazo', tipo: 'chips', opciones: [{ valor: 'no_corriente', etiqueta: f.lado === 'pasivo' ? 'Largo plazo (> 1 año)' : 'No corriente (> 1 año)' }, { valor: 'corriente', etiqueta: f.lado === 'pasivo' ? 'Corto plazo (< 1 año)' : 'Corriente' }] },
+      { clave: 'cuenta', etiqueta: 'Cuenta contable', tipo: 'chips', opciones: f.lado === 'pasivo'
+        ? [{ valor: '170', etiqueta: '170 Deudas a l/p' }, { valor: '520', etiqueta: '520 Deudas a c/p' }]
+        : [{ valor: '217', etiqueta: '217 Equipos informáticos' }, { valor: '250', etiqueta: '250 Inversiones financieras' }] },
+      f.lado === 'pasivo' && { clave: 'vencimiento', etiqueta: 'Vence (si tiene fecha)', tipo: 'fecha' },
+      { clave: 'fecha', etiqueta: 'En el balance desde', tipo: 'fecha' },
+      { clave: 'fuente', etiqueta: f.lado === 'pasivo' ? 'Con quién / condiciones' : 'De dónde sale la valoración', tipo: 'area' },
+      { clave: 'nota', etiqueta: 'Nota', tipo: 'area' },
+    ],
+  },
   ajustes: {
     tabla: 'fin_ajustes', titulo: () => 'Reglas del dinero', sinBorrar: true,
     campos: () => [
       { clave: 'sueldo_dueno', etiqueta: 'Sueldo del dueño (€/mes)', tipo: 'numero' },
-      { clave: 'colchon_meses', etiqueta: 'Colchón (meses de gasto fijo)', tipo: 'numero' },
-      { clave: 'impuestos_pct', etiqueta: '% de cada ingreso para impuestos', tipo: 'numero' },
     ],
   },
 }
 
-const NUMERICOS = ['importe', 'provisionado', 'saldo', 'pct_reparto', 'importe_estimado', 'sueldo_dueno', 'colchon_meses', 'impuestos_pct']
+const NUMERICOS = ['valor', 'importe', 'provisionado', 'saldo', 'pct_reparto', 'importe_estimado', 'sueldo_dueno', 'colchon_meses', 'impuestos_pct']
 
 function inicial(tipo, fila) {
   const f = { ...fila }
@@ -116,6 +130,7 @@ function inicial(tipo, fila) {
   if (tipo === 'cuenta') Object.assign(f, { tipo: f.tipo || 'operativa', moneda: f.moneda || 'EUR', activa: f.activa ?? true })
   if (tipo === 'objetivo') Object.assign(f, { tipo: f.tipo || 'caja', moneda: f.moneda || 'EUR' })
   if (tipo === 'accion') Object.assign(f, { estado: f.estado || 'pendiente' })
+  if (tipo === 'partida') Object.assign(f, { moneda: f.moneda || 'EUR', plazo: f.plazo || 'no_corriente', cuenta: f.cuenta || (f.lado === 'pasivo' ? '170' : '217') })
   for (const k of NUMERICOS) if (f[k] != null) f[k] = String(f[k])
   return f
 }
@@ -153,7 +168,7 @@ export default function HojaEditar({ editando, d, op, crearOpcion, alCerrar, gua
 
   const alGuardar = async () => {
     if (campos.some(c => c.clave === 'titulo') && !String(f.titulo || '').trim()) return avisar('Ponle un título', 'error')
-    if (tipo === 'cuenta' && !String(f.nombre || '').trim()) return avisar('Ponle un nombre', 'error')
+    if (['cuenta', 'partida'].includes(tipo) && !String(f.nombre || '').trim()) return avisar('Ponle un nombre', 'error')
     setGuardando(true)
     const okk = await guardar(def.tabla, aFila(tipo, f))
     setGuardando(false)

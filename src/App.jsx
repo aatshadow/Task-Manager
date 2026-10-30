@@ -19,6 +19,7 @@ import Estadisticas from './pantallas/Estadisticas/Estadisticas.jsx'
 import Meetings from './pantallas/Meetings/Meetings.jsx'
 import Eod from './pantallas/Eod/Eod.jsx'
 import Finanzas from './pantallas/Finanzas/Finanzas.jsx'
+import Contabilidad from './pantallas/Finanzas/Contabilidad.jsx'
 import PantallaFrentes from './pantallas/Frentes/Frentes.jsx'
 import Ajustes from './pantallas/Ajustes/Ajustes.jsx'
 import Acceso from './pantallas/Acceso/Acceso.jsx'
@@ -41,6 +42,7 @@ const PANTALLAS = {
   habitos: { Pantalla: Habitos },
   fitness: { Pantalla: Fitness },
   finanzas: { Pantalla: Finanzas },
+  contabilidad: { Pantalla: Contabilidad },
   estadisticas: { Pantalla: Estadisticas },
   ajustes: { Pantalla: Ajustes, titulo: 'Ajustes', subtitulo: 'cómo funciona 2day.' },
 }
@@ -135,7 +137,7 @@ function Armazon() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const en = e.target
       if (en && (en.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(en.tagName))) return
-      // `1`…`9` y `0` = las diez secciones en el orden de los espacios
+      // `1`…`9` y `0` = las diez primeras secciones en el orden de los espacios
       const n = e.key === '0' ? 10 : Number(e.key)
       if (n >= 1 && n <= PESTANAS.length) { irA(PESTANAS[n - 1].clave); return }
       if (e.key === 't' || e.key === 'T') { irA('hoy'); return }

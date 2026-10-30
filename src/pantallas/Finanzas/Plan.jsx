@@ -53,7 +53,7 @@ export default function Plan({ d, calc, editar }) {
         <Cabeza titulo="Objetivos" etiqueta="Añadir objetivo" alAnadir={() => editar('objetivo')} />
         <div className="fz-lista-tarjetas">
           {d.objetivos.map(o => {
-            const meta = o.tipo === 'colchon' && !o.importe ? calc.r.colchon : aBase(o.importe, o.moneda, tasas)
+            const meta = o.importe ? aBase(o.importe, o.moneda, tasas) : 0
             const pct = meta > 0 ? Math.min(1, calc.r.liquidez / meta) : 0
             return (
               <Tarjeta key={o.id} compacta variante={o.principal ? 'calida' : 'normal'} onClick={() => editar('objetivo', o)}>
@@ -61,7 +61,7 @@ export default function Plan({ d, calc, editar }) {
                   <Target size={18} strokeWidth={1.6} className="fz-oro" />
                   <div className="fz-fila-texto">
                     <span>{o.titulo}{o.principal ? ' · principal' : ''}</span>
-                    <span className="t-terciario">{o.fecha ? fecha(o.fecha) : o.tipo === 'colchon' ? `${d.ajustes.colchon_meses} meses de gasto fijo` : 'sin fecha'}</span>
+                    <span className="t-terciario">{o.fecha ? fecha(o.fecha) : 'sin fecha'}</span>
                   </div>
                   <span className="fz-numero-medio">{meta ? formatear(meta) : '—'}</span>
                 </div>
@@ -94,8 +94,8 @@ export default function Plan({ d, calc, editar }) {
         <Tarjeta compacta onClick={() => editar('ajustes', d.ajustes)}>
           <div className="fz-rejilla">
             <div><span className="t-terciario">Sueldo del dueño</span><strong>{Number(d.ajustes.sueldo_dueno) ? formatear(d.ajustes.sueldo_dueno) : 'sin fijar'}</strong></div>
-            <div><span className="t-terciario">Colchón</span><strong>{d.ajustes.colchon_meses} meses</strong></div>
-            <div><span className="t-terciario">Impuestos</span><strong>{d.ajustes.impuestos_pct} %</strong></div>
+            <div><span className="t-terciario">Gasto fijo</span><strong>{formatear(calc.r.fijoMes)}/mes</strong></div>
+            <div><span className="t-terciario">Autonomía</span><strong>{calc.r.autonomia.sostenible ? 'sostenible' : `${calc.r.autonomia.meses.toLocaleString('es-ES', { maximumFractionDigits: 1 })} meses`}</strong></div>
           </div>
           <div className="t-terciario fz-nota">Gasto fijo: {formatear(calc.r.fijoMes)}/mes (recurrentes obligatorios y recortables + sueldo).</div>
         </Tarjeta>

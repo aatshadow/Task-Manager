@@ -1,16 +1,16 @@
 import { motion } from 'framer-motion'
 import {
   Home, ListChecks, CalendarDays, Repeat, Dumbbell, BarChart3, Mic, MoonStar, Landmark, Flag,
-  Sun, Briefcase, HeartPulse, Wallet, LineChart,
+  Sun, Briefcase, HeartPulse, Wallet, LineChart, Scale,
 } from 'lucide-react'
 
 /**
  * La estructura de 2day (LOGICA §18.1, Alex 30-10-2026: «estructura la app con sentido»).
- * Diez secciones repartidas en CINCO ESPACIOS, cada uno con una sola pregunta:
+ * Once secciones repartidas en CINCO ESPACIOS, cada uno con una sola pregunta:
  *   Día        ¿qué toca hoy y cómo lo cierro?      Hoy · Cierre
  *   Trabajo    ¿qué muevo y cuándo?                 Tareas · Calendario · Frentes · Meetings
  *   Cuerpo     ¿cómo está el cuerpo?                Hábitos · Fitness
- *   Dinero     ¿cuánto tengo y qué hago con él?     Finanzas
+ *   Dinero     ¿cuánto tengo y qué hago con él?     Finanzas · Contabilidad
  *   Análisis   ¿qué dicen mis números?              Stats
  * El menú radial y el raíl navegan por espacios; dentro de cada uno, sus secciones van en
  * pestañas de texto bajo la cabecera. Las claves de sección son las de App (PANTALLAS).
@@ -25,6 +25,7 @@ export const PESTANAS = [
   { clave: 'habitos', etiqueta: 'Hábitos', Icono: Repeat, espacio: 'cuerpo' },
   { clave: 'fitness', etiqueta: 'Fitness', Icono: Dumbbell, espacio: 'cuerpo' },    // LOGICA §11
   { clave: 'finanzas', etiqueta: 'Finanzas', Icono: Landmark, espacio: 'dinero' },  // LOGICA §17
+  { clave: 'contabilidad', etiqueta: 'Contabilidad', Icono: Scale, espacio: 'dinero' }, // LOGICA §17.7
   { clave: 'estadisticas', etiqueta: 'Stats', Icono: BarChart3, espacio: 'analisis' },
 ]
 

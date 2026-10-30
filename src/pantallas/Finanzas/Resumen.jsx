@@ -46,12 +46,11 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
   }
 
   const cascada = [
-    { etiqueta: 'Liquidez (todas las cuentas)', valor: r.liquidez },
-    { etiqueta: `Impuestos (${d.ajustes.impuestos_pct} % de lo cobrado)`, valor: -r.impuestos },
-    { etiqueta: `Colchón (${d.ajustes.colchon_meses} meses de fijos)`, valor: -r.colchon },
-    { etiqueta: 'Comprometido próximos 30 días', valor: -r.comprometido },
-    { etiqueta: 'Apartar para lo previsto lejano', valor: -r.reservaFutura },
+    { etiqueta: 'Caja y bancos', valor: r.liquidez },
+    { etiqueta: 'Pagos previstos próximos 30 días', valor: -r.comprometido },
   ]
+  const aut = r.autonomia
+  const meses = (a) => (a.sostenible ? 'sostenible' : `${a.meses.toLocaleString('es-ES', { maximumFractionDigits: a.meses < 10 ? 1 : 0 })} ${a.meses >= 0.95 && a.meses < 1.05 ? 'mes' : 'meses'}`)
   const sync = d.ajustes.sync
 
   return (
@@ -76,6 +75,29 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
           </div>
           {r.ingresosPrevistos > 0 && (
             <div className="fz-cascada-nota">Si entran los {formatear(r.ingresosPrevistos)} previstos, sube a {formatear(Math.max(0, r.conIngresos))}/día.</div>
+          )}
+        </div>
+        <div className="fz-autonomia">
+          <div className="fz-micro">Autonomía</div>
+          <div className="fz-autonomia-numero">{aut.sostenible ? '∞' : aut.meses.toLocaleString('es-ES', { maximumFractionDigits: aut.meses < 10 ? 1 : 0 })}<span>{aut.sostenible ? 'sostenible' : aut.meses >= 0.95 && aut.meses < 1.05 ? 'mes' : 'meses'}</span></div>
+          <div className="fz-cascada-nota">
+            {aut.sostenible
+              ? 'Con lo previsto, la caja no llega a cero en los próximos 5 años.'
+              : `Con la caja de hoy y lo previsto (gastos, ingresos${r.sueldo ? ' y tu sueldo' : ''}), llega a cero el ${new Date(`${aut.cae}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.`}
+          </div>
+          {r.autonomiaConDeuda && (
+            <div className="fz-cascada-nota">
+              {r.autonomiaConDeuda.dias === 0
+                ? `La deuda a corto plazo (${formatear(r.deudaCorta)}) no se puede pagar entera con la caja de hoy.`
+                : `Si pagas hoy la deuda a corto plazo (${formatear(r.deudaCorta)}): ${meses(r.autonomiaConDeuda)}.`}
+            </div>
+          )}
+          {r.quemaReal != null && (
+            <div className="fz-cascada-nota">
+              {r.quemaReal > 0
+                ? `Al ritmo real de los últimos 30 días (${formatear(r.quemaReal)}/mes netos de salida): ${r.autonomiaReal.toLocaleString('es-ES', { maximumFractionDigits: 1 })} meses.`
+                : `Al ritmo real de los últimos 30 días la caja crece ${formatear(-r.quemaReal)}/mes.`}
+            </div>
           )}
         </div>
       </Tarjeta>
@@ -152,7 +174,7 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
 
       <section className="seccion">
         <div className="fz-seccion-cabeza">
-          <h2 className="seccion-titulo">Cuentas y pockets</h2>
+          <h2 className="seccion-titulo">Caja y bancos</h2>
           <div className="fila">
             <Boton variante="secundario" pequeno icono={<Plus size={16} />} onClick={() => editar('cuenta')}>Cuenta</Boton>
             <Boton variante="secundario" pequeno cargando={sincronizando} icono={<RefreshCw size={15} />} onClick={alSincronizar}>Sincronizar</Boton>
@@ -162,7 +184,7 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
           {d.cuentas.length === 0 && <div className="t-terciario fz-vacio-linea">Sin cuentas todavía.</div>}
           {d.cuentas.map(c => (
             <button key={c.id} type="button" className="fz-fila" onClick={() => editar('cuenta', c)}>
-              <span className={`fz-banco fz-banco--${c.banco}`}>{c.banco === 'manual' ? 'M' : c.banco[0].toUpperCase()}</span>
+              <span className={`fz-banco fz-banco--${c.banco}`}>{c.tipo === 'efectivo' ? '€' : c.banco === 'manual' ? 'M' : c.banco === 'whop' ? 'Wh' : c.banco[0].toUpperCase()}</span>
               <span className="fz-fila-texto">
                 <span>{c.nombre}</span>
                 <span className="t-terciario">{c.tipo}{c.pct_reparto ? ` · ${c.pct_reparto} %` : ''}</span>
@@ -176,6 +198,7 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
           <div className="fz-sync">
             {!d.bancos.mercury && <span>Mercury sin conectar</span>}
             {!d.bancos.wise && <span>Wise sin conectar</span>}
+            {!d.bancos.whop && <span>Whop sin conectar</span>}
             {sync?.en && <span>Última sincronización: {new Date(sync.en).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
             {sync?.resultados?.flatMap(x => [x.error, ...(x.avisos || [])]).filter(Boolean).map(t => <span key={t} className="fz-menos">{t}</span>)}
             {d.ajustes.tasas?.fuente === 'aproximada' && <span>Tipo de cambio aproximado (sin conexión con el BCE)</span>}

@@ -30,9 +30,10 @@ const ESCRIBIBLE = {
   fin_movimientos: ['cuenta_id', 'fecha', 'importe', 'moneda', 'descripcion', 'contraparte', 'clase', 'categoria', 'negocio', 'estado', 'previsto_id', 'nota'],
   fin_previstos: ['patron', 'tipo', 'titulo', 'importe', 'moneda', 'fecha', 'recurrencia', 'clase', 'categoria', 'negocio', 'suscripcion', 'provisionado', 'estado', 'nota'],
   fin_objetivos: ['titulo', 'importe', 'moneda', 'fecha', 'tipo', 'principal', 'nota'],
+  fin_partidas: ['lado', 'plazo', 'cuenta', 'nombre', 'valor', 'valor_origen', 'moneda', 'fecha', 'vencimiento', 'fuente', 'nota', 'activa', 'orden'],
   fin_acciones: ['area', 'titulo', 'detalle', 'prioridad', 'fecha', 'importe_estimado', 'estado', 'origen', 'orden'],
 }
-const BORRABLE = ['fin_reglas', 'fin_cuentas', 'fin_movimientos', 'fin_previstos', 'fin_objetivos', 'fin_acciones', 'fin_documentos']
+const BORRABLE = ['fin_partidas', 'fin_reglas', 'fin_cuentas', 'fin_movimientos', 'fin_previstos', 'fin_objetivos', 'fin_acciones', 'fin_documentos']
 
 async function usuarioDe(token) {
   if (!SUPABASE_URL || !SUPABASE_ANON || !token) return null
@@ -61,7 +62,7 @@ async function tasas(db, ajustes) {
 }
 
 async function cargarTodo(db) {
-  const [aj, cuentas, movimientos, previstos, objetivos, acciones, documentos, partes, chat, reglas] = await Promise.all([
+  const [aj, cuentas, movimientos, previstos, objetivos, acciones, documentos, partes, chat, reglas, partidas] = await Promise.all([
     db.from('fin_ajustes').select('*').eq('id', 1).maybeSingle(),
     db.from('fin_cuentas').select('*').order('orden').order('created_at'),
     db.from('fin_movimientos').select('*').order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(2000),
@@ -72,6 +73,7 @@ async function cargarTodo(db) {
     db.from('fin_partes').select('*').order('created_at', { ascending: false }).limit(10),
     db.from('fin_chat').select('*').order('created_at', { ascending: false }).limit(60),
     db.from('fin_reglas').select('*').order('created_at', { ascending: false }),
+    db.from('fin_partidas').select('*').order('lado').order('orden'),
   ])
   const ajustes = datos(aj, 'ajustes') || { id: 1 }
   ajustes.tasas = await tasas(db, ajustes)
@@ -86,7 +88,8 @@ async function cargarTodo(db) {
     partes: datos(partes, 'partes'),
     chat: datos(chat, 'chat').reverse(),
     reglas: datos(reglas, 'reglas'),
-    bancos: { mercury: !!process.env.MERCURY_API_TOKEN, wise: !!process.env.WISE_API_TOKEN, ia: !!process.env.ANTHROPIC_API_KEY },
+    partidas: datos(partidas, 'partidas'),
+    bancos: { mercury: !!process.env.MERCURY_API_TOKEN, wise: !!process.env.WISE_API_TOKEN, whop: !!process.env.WHOP_API_KEY, ia: !!process.env.ANTHROPIC_API_KEY },
     hoy: hoyEn(),
   }
 }
@@ -188,11 +191,70 @@ async function sincronizarWise(db, desde) {
   return { banco: 'wise', ok: true, cuentas, nuevos, avisos }
 }
 
+// Whop (Black Phoenix Group): el saldo del ledger es tesorería (caja y bancos, §17.8). Cada pago
+// cobrado entra NETO de comisiones (en el concepto va el bruto y el IVA); cada retiro a un banco
+// sale como traspaso interno y se empareja con su entrada en Wise o Mercury.
+async function sincronizarWhop(db, desde) {
+  const token = process.env.WHOP_API_KEY
+  const empresa = process.env.WHOP_COMPANY_ID
+  if (!token || !empresa) return { banco: 'whop', ok: false, error: 'Falta WHOP_API_KEY y WHOP_COMPANY_ID (Whop → Developer → API key de la empresa)' }
+  const raiz = 'https://api.whop.com/api/v1'
+  const ledger = await pedir(`${raiz}/ledger_accounts/${empresa}`, token)
+  const cuentasPorMoneda = {}
+  for (const b of ledger.balances || []) {
+    const moneda = String(b.currency || 'usd').toUpperCase()
+    cuentasPorMoneda[moneda] = await guardarCuenta(db, {
+      banco: 'whop', externo_id: `whop:${ledger.id}:${moneda}`, nombre: `Whop ${moneda}`, moneda,
+      saldo: (Number(b.balance) || 0) + (Number(b.pending_balance) || 0) + (Number(b.reserve_balance) || 0), saldo_en: new Date().toISOString(),
+    })
+  }
+  const cuentaDe = async (moneda) => cuentasPorMoneda[moneda] || (cuentasPorMoneda[moneda] = await guardarCuenta(db, {
+    banco: 'whop', externo_id: `whop:${ledger.id}:${moneda}`, nombre: `Whop ${moneda}`, moneda, saldo: 0, saldo_en: new Date().toISOString(),
+  }))
+  const todos = async (ruta) => {
+    const fuera = []
+    let despues = null
+    for (let i = 0; i < 50; i++) {
+      const j = await pedir(`${raiz}/${ruta}&first=100${despues ? `&after=${encodeURIComponent(despues)}` : ''}`, token)
+      fuera.push(...(j.data || []))
+      if (!j.page_info?.has_next_page || !j.page_info?.end_cursor) break
+      despues = j.page_info.end_cursor
+    }
+    return fuera
+  }
+  const dinero = (x) => (x && typeof x === 'object' ? Number(x.amount) || 0 : Number(x) || 0)
+  const filas = []
+  for (const p of await todos(`payments?account_id=${empresa}`)) {
+    const fecha = (p.paid_at || p.created_at || '').slice(0, 10)
+    if (p.status !== 'paid' || fecha < desde) continue
+    const moneda = String(p.currency || 'usd').toUpperCase()
+    const cuenta = await cuentaDe(moneda)
+    const producto = p.line_items?.[0]?.product_title || 'Whop'
+    filas.push({
+      cuenta_id: cuenta.id, externo_id: `whop:${p.id}`, origen: 'banco', fecha, moneda, estado: 'hecho',
+      importe: dinero(p.amount_after_fees),
+      descripcion: `Cobro Whop · ${producto} · bruto ${dinero(p.total)} ${moneda}${dinero(p.tax_amount) ? `, IVA ${dinero(p.tax_amount)}` : ''}, neto de comisiones`,
+      contraparte: p.user?.name || p.user?.username || null,
+    })
+    const devuelto = dinero(p.refunded_amount)
+    if (devuelto > 0) filas.push({ cuenta_id: cuenta.id, externo_id: `whop:${p.id}:devolucion`, origen: 'banco', fecha, moneda, estado: 'hecho', importe: -devuelto, descripcion: `Devolución Whop · ${producto}`, contraparte: p.user?.name || null })
+  }
+  for (const r of await todos(`payouts?account_id=${empresa}`)) {
+    const fecha = (r.created_at || r.paid_at || '').slice(0, 10)
+    if (!fecha || fecha < desde || ['failed', 'canceled', 'cancelled'].includes(r.status)) continue
+    const moneda = String(r.currency || r.amount?.currency || 'usd').toUpperCase()
+    const cuenta = await cuentaDe(moneda)
+    filas.push({ cuenta_id: cuenta.id, externo_id: `whop:${r.id}`, origen: 'banco', fecha, moneda, estado: r.status === 'paid' || r.status === 'completed' ? 'hecho' : 'pendiente', importe: -Math.abs(dinero(r.amount ?? r.total)), descripcion: 'Retiro de Whop a banco', contraparte: 'Whop' })
+  }
+  const nuevos = await guardarMovimientos(db, filas)
+  return { banco: 'whop', ok: true, cuentas: Object.keys(cuentasPorMoneda).length, nuevos }
+}
+
 async function sincronizar(db) {
   const desde = new Date(Date.now() - 180 * 864e5).toISOString().slice(0, 10)
   const resultados = []
-  for (const f of [sincronizarMercury, sincronizarWise]) {
-    try { resultados.push(await f(db, desde)) } catch (e) { resultados.push({ banco: f === sincronizarMercury ? 'mercury' : 'wise', ok: false, error: e.message }) }
+  for (const [banco, f] of [['mercury', sincronizarMercury], ['wise', sincronizarWise], ['whop', sincronizarWhop]]) {
+    try { resultados.push(await f(db, desde)) } catch (e) { resultados.push({ banco, ok: false, error: e.message }) }
   }
   // transferencias Wise → Mercury: ni ingreso ni gasto
   const cuentas = datos(await db.from('fin_cuentas').select('id, banco'), 'cuentas')
@@ -417,7 +479,8 @@ function contexto(t) {
     resumen: { ...r, proximos: r.proximos.slice(0, 20).map(p => ({ titulo: p.titulo, tipo: p.tipo, cae: p.cae, eur: Math.round(p.base) })), sinImporte: r.sinImporte.map(p => p.titulo) },
     bancos_conectados: t.bancos,
     cuentas: t.cuentas.map(c => ({ nombre: c.nombre, banco: c.banco, tipo: c.tipo, moneda: c.moneda, saldo: c.saldo, eur: Math.round(aBase(c.saldo, c.moneda, tasasV)) })),
-    ajustes: { sueldo_dueno: t.ajustes.sueldo_dueno, colchon_meses: t.ajustes.colchon_meses, impuestos_pct: t.ajustes.impuestos_pct, tasas: t.ajustes.tasas?.fuente },
+    ajustes: { sueldo_dueno: t.ajustes.sueldo_dueno, tasas: t.ajustes.tasas?.fuente },
+    balance: t.partidas.map(p => ({ nombre: p.nombre, lado: p.lado, plazo: p.plazo, cuenta: p.cuenta, valor: p.valor, moneda: p.moneda, vencimiento: p.vencimiento })),
     objetivos: t.objetivos.map(o => ({ titulo: o.titulo, importe: o.importe, fecha: o.fecha, tipo: o.tipo, principal: o.principal })),
     previstos: t.previstos.filter(p => p.estado === 'previsto').map(p => ({ titulo: p.titulo, tipo: p.tipo, importe: p.importe, moneda: p.moneda, fecha: p.fecha, recurrencia: p.recurrencia, clase: p.clase, provisionado: p.provisionado, suscripcion: p.suscripcion })),
     suscripciones: { mensual_eur: Math.round(s.mensual), anual_eur: Math.round(s.anual) },
@@ -504,6 +567,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ fila: datos(await db.from('fin_ajustes').update({ ...limpia, updated_at: new Date().toISOString() }).eq('id', 1).select().single(), 'ajustes') })
         }
         if (tabla === 'fin_cuentas' && !fila?.id) limpia.banco = 'manual'
+        if (tabla === 'fin_partidas' && !fila?.id && limpia.valor_origen == null) limpia.valor_origen = limpia.valor
         if (tabla === 'fin_cuentas' && 'saldo' in limpia) limpia.saldo_en = new Date().toISOString()
         // lo que Alex clasifica a mano es ley: ni las reglas ni la IA lo vuelven a tocar
         if (tabla === 'fin_movimientos' && ('clase' in limpia || 'categoria' in limpia)) Object.assign(limpia, { clasificado_por: 'alex', sugerencia: null })

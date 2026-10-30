@@ -62,8 +62,8 @@ for (let i = 0; i < 100; i += 1) {
 await espera(Number(arg('espera', 1200)))
 if (PESTANA !== 'hoy') {
   // móvil (§18.1): menú radial → espacio → pestaña de texto de la sección
-  const espacios = { hoy: 'Día', eod: 'Día', tareas: 'Trabajo', calendario: 'Trabajo', frentes: 'Trabajo', meetings: 'Trabajo', habitos: 'Cuerpo', fitness: 'Cuerpo', finanzas: 'Dinero', estadisticas: 'Análisis', ajustes: 'Ajustes' }
-  const etiquetas = { eod: 'Cierre', tareas: 'Tareas', calendario: 'Calendario', frentes: 'Frentes', meetings: 'Meetings', habitos: 'Hábitos', fitness: 'Fitness', estadisticas: 'Stats', finanzas: 'Finanzas' }
+  const espacios = { hoy: 'Día', eod: 'Día', tareas: 'Trabajo', calendario: 'Trabajo', frentes: 'Trabajo', meetings: 'Trabajo', habitos: 'Cuerpo', fitness: 'Cuerpo', finanzas: 'Dinero', contabilidad: 'Dinero', estadisticas: 'Análisis', ajustes: 'Ajustes' }
+  const etiquetas = { eod: 'Cierre', tareas: 'Tareas', calendario: 'Calendario', frentes: 'Frentes', meetings: 'Meetings', habitos: 'Hábitos', fitness: 'Fitness', estadisticas: 'Stats', finanzas: 'Finanzas', contabilidad: 'Contabilidad' }
   if (await pag.$('.dock')) {
     await pag.click('.dock-centro')
     await espera(600)
@@ -75,7 +75,7 @@ if (PESTANA !== 'hoy') {
   else await pag.click(`nav[aria-label="Principal"] >> text=${etiquetas[PESTANA]}`)
   await espera(1500)
   // Finanzas pide todo a /api/finanzas: se espera a que deje de «leer las cuentas»
-  for (let i = 0; i < 40 && (await pag.evaluate(() => (document.body.innerText || '').includes('Leyendo tus cuentas'))); i++) await espera(400)
+  for (let i = 0; i < 40 && (await pag.evaluate(() => (document.body.innerText || '').includes('Leyendo tus cuentas') || (document.body.innerText || '').includes('Cuadrando el balance'))); i++) await espera(400)
 }
 const sub = arg('sub', '')
 // `--sub` admite varios pasos: «Claude>Sesiones» toca uno detrás de otro.
