@@ -43,7 +43,7 @@ const aFecha = (iso) => new Date(`${iso}T12:00:00Z`)
 const aISO = (d) => d.toISOString().slice(0, 10)
 export const sumarDias = (iso, n) => { const d = aFecha(iso); d.setUTCDate(d.getUTCDate() + n); return aISO(d) }
 export const diasEntre = (a, b) => Math.round((aFecha(b) - aFecha(a)) / 86400000)
-function sumarPaso(iso, recurrencia) {
+export function sumarPaso(iso, recurrencia) {
   const d = aFecha(iso)
   if (recurrencia === 'semanal') d.setUTCDate(d.getUTCDate() + 7)
   else if (recurrencia === 'mensual') d.setUTCMonth(d.getUTCMonth() + 1)
@@ -250,6 +250,28 @@ export function emparejarInternos(movimientos, cuentas) {
 }
 
 /* ── clasificar (LOGICA §17.5) ──────────────────────────────────────────── */
+
+const unir = (...listas) => [...new Set(listas.flat().map(x => String(x ?? '').trim()).filter(Boolean))]
+/**
+ * Las opciones de los selectores (§17.6): las de serie, las que Alex ha creado (`ajustes.listas`)
+ * y las que ya aparecen en los datos. Así nada de lo usado desaparece de la lista.
+ */
+export function opcionesDe({ ajustes = {}, movimientos = [], previstos = [] }) {
+  const l = ajustes.listas || {}
+  const reales = movimientos.filter(m => m.clase !== 'interno')
+  return {
+    gasto: unir(CATEGORIAS_GASTO, l.gasto || [], reales.filter(m => m.importe < 0).map(m => m.categoria), previstos.filter(p => p.tipo === 'gasto').map(p => p.categoria)),
+    ingreso: unir(CATEGORIAS_INGRESO, l.ingreso || [], reales.filter(m => m.importe > 0).map(m => m.categoria), previstos.filter(p => p.tipo === 'ingreso').map(p => p.categoria)),
+    negocios: unir(NEGOCIOS, l.negocios || [], movimientos.map(m => m.negocio), previstos.map(p => p.negocio)),
+  }
+}
+
+/** El importe en la moneda del cargo («Card transaction of 52.74 USD…»): una suscripción en dólares se prevé en dólares. */
+export function importeOriginal(m) {
+  const t = /of ([\d.,]+) ([A-Z]{3})\b/.exec(m.descripcion || '')
+  const n = t ? Number(t[1].replace(/,/g, '')) : NaN
+  return Number.isFinite(n) && n > 0 ? { importe: n, moneda: t[2] } : { importe: Math.abs(Number(m.importe) || 0), moneda: m.moneda }
+}
 
 /** Le falta clase o categoría y no está cancelado: va a la cola de «Por clasificar». */
 export const porClasificar = (m) => m.estado !== 'cancelado' && (!m.clase || !m.categoria)

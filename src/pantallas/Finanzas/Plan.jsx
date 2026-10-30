@@ -1,7 +1,7 @@
-import { Plus, Target, Repeat } from 'lucide-react'
+import { Plus, Target } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Boton from '../../componentes/Boton.jsx'
-import { aBase, formatear, suscripciones, diasEntre, RECURRENCIAS } from '../../datos/finanzasCalculos.js'
+import { aBase, formatear, diasEntre, RECURRENCIAS } from '../../datos/finanzasCalculos.js'
 
 const fecha = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : 'sin fecha')
 const nombreRec = (r) => RECURRENCIAS.find(x => x.valor === (r || ''))?.etiqueta.toLowerCase()
@@ -41,7 +41,7 @@ function FilaPrevisto({ x, d, editar }) {
 
 export default function Plan({ d, calc, editar }) {
   const tasas = d.ajustes.tasas?.valores
-  const subs = suscripciones(d.previstos, tasas)
+  // las suscripciones viven en Resumen → Próximos pagos (§17.6)
   const vivos = d.previstos.filter(p => p.estado === 'previsto' && !p.suscripcion)
   const gastos = vivos.filter(p => p.tipo === 'gasto')
   const ingresos = vivos.filter(p => p.tipo === 'ingreso')
@@ -88,17 +88,6 @@ export default function Plan({ d, calc, editar }) {
         </Tarjeta>
       </section>
 
-      <section className="seccion">
-        <Cabeza titulo="Suscripciones" etiqueta="Añadir suscripción" alAnadir={() => editar('previsto', { tipo: 'gasto', clase: 'recortable', suscripcion: true, recurrencia: 'mensual' })} />
-        <Tarjeta compacta>
-          <div className="fz-subs-total">
-            <Repeat size={16} strokeWidth={1.6} className="fz-oro" />
-            <span>{formatear(subs.mensual)}<span className="t-terciario"> /mes</span></span>
-            <span className="t-terciario">{formatear(subs.anual)} al año · {subs.lista.length === 1 ? '1 activa' : `${subs.lista.length} activas`}</span>
-          </div>
-          {subs.lista.map(x => <FilaPrevisto key={x.id} x={x} d={d} editar={editar} />)}
-        </Tarjeta>
-      </section>
 
       <section className="seccion">
         <Cabeza titulo="Reglas del dinero" />

@@ -954,6 +954,13 @@ token → dice qué falta) · `subir {nombre, tipo, base64, movimientoId|previst
 - **Aprender:** al clasificar, la casilla «Siempre igual para «patrón»» viene marcada; crea o actualiza la regla y la aplica a todo lo parecido que Alex no haya tocado. Lo que clasifica Alex (`clasificado_por = 'alex'`, también desde la hoja de edición) no lo vuelve a tocar nadie. Las reglas aprendidas se ven y se borran al final del Libro. El filtro «Por la IA» del Libro sirve para revisar lo que hizo sola.
 - SQL: `sql/2026-10-30-finanzas-clasificar.sql`.
 
+### 17.6 · Listas propias y suscripciones (Alex, 30-10-2026)
+
+- **Categoría y negocio** se eligen entre chips que juntan las de serie, las creadas (`fin_ajustes.listas` = {gasto, ingreso, negocios}) y las que ya se usan en los datos (`opcionesDe`). «+ Nueva» crea una en línea y la deja elegida. La IA clasifica con esas mismas listas. **La clase no admite nuevas**, porque de ella sale el «hoy puedes gastar».
+- **Suscripción** = previsto recurrente con `suscripcion = true` y `patron` (el texto que reconoce sus cargos). La marca la IA (`suscripcion` y `recurrencia` en su propuesta), una regla con `suscripcion`, Alex al clasificar o el botón «Es una suscripción» de la ficha. `suscribir()` busca una que ya exista (por patrón, título o importe ±2 %) y le engancha el cargo (`previsto_id`), o crea una con el importe en la moneda original del cargo y el próximo cobro a un periodo de él.
+- **En Resumen**: «Próximos pagos · 30 días» incluye las suscripciones, y la sección «Suscripciones» las gestiona: total al mes y al año, próximo cobro, nº de cargos y el último. Se dan de baja marcándolas como canceladas. Ya no salen en Plan. Como son gasto fijo, entran en el colchón.
+- SQL: `sql/2026-10-30-finanzas-suscripciones.sql`.
+
 ## 18 · Estilo vidrio negro y oro + menú radial (Alex, 30-10-2026)
 
 Pedido: «cambiar el estilo de la app a algo así» (referencias: panel de vidrio sobre negro con canto de luz dorada,

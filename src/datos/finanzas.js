@@ -46,4 +46,5 @@ export async function subirDocumento(fichero, { movimientoId, previstoId }) {
 }
 
 export const clasificar = () => llamar('clasificar')
-export const clasificarUno = ({ id, clase, categoria, negocio, siempre }) => llamar('clasificarUno', { id, clase, categoria, negocio, siempre })
+export const clasificarUno = (datos) => llamar('clasificarUno', datos)
+export const marcarSuscripcion = (id, recurrencia) => llamar('suscripcion', { id, recurrencia }).then(r => r.suscripcion)

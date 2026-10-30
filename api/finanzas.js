@@ -10,7 +10,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
-import { resumen, suscripciones, emparejarInternos, aBase, CLASES, CATEGORIAS_GASTO, CATEGORIAS_INGRESO, NEGOCIOS, porClasificar, casaRegla, patronDe, sentidoDe } from '../src/datos/finanzasCalculos.js'
+import { resumen, suscripciones, emparejarInternos, aBase, CLASES, porClasificar, casaRegla, patronDe, sentidoDe, opcionesDe, importeOriginal, sumarPaso, RECURRENCIAS } from '../src/datos/finanzasCalculos.js'
 
 export const config = { maxDuration: 300 }
 
@@ -25,10 +25,10 @@ const BUCKET = 'finanzas'
 // Lo que el navegador puede escribir, tabla por tabla. Lo demás (externo_id, origen de banco,
 // saldos de Mercury/Wise, partes, chat) sólo lo escribe este servidor.
 const ESCRIBIBLE = {
-  fin_ajustes: ['sueldo_dueno', 'colchon_meses', 'impuestos_pct', 'moneda_base'],
+  fin_ajustes: ['sueldo_dueno', 'colchon_meses', 'impuestos_pct', 'moneda_base', 'listas'],
   fin_cuentas: ['nombre', 'moneda', 'tipo', 'saldo', 'pct_reparto', 'activa', 'orden', 'banco'],
   fin_movimientos: ['cuenta_id', 'fecha', 'importe', 'moneda', 'descripcion', 'contraparte', 'clase', 'categoria', 'negocio', 'estado', 'previsto_id', 'nota'],
-  fin_previstos: ['tipo', 'titulo', 'importe', 'moneda', 'fecha', 'recurrencia', 'clase', 'categoria', 'negocio', 'suscripcion', 'provisionado', 'estado', 'nota'],
+  fin_previstos: ['patron', 'tipo', 'titulo', 'importe', 'moneda', 'fecha', 'recurrencia', 'clase', 'categoria', 'negocio', 'suscripcion', 'provisionado', 'estado', 'nota'],
   fin_objetivos: ['titulo', 'importe', 'moneda', 'fecha', 'tipo', 'principal', 'nota'],
   fin_acciones: ['area', 'titulo', 'detalle', 'prioridad', 'fecha', 'importe_estimado', 'estado', 'origen', 'orden'],
 }
@@ -233,37 +233,77 @@ const Clasificacion = z.object({
     negocio: z.string().nullable().describe('Uno de los negocios de la lista, o null si no se sabe.'),
     confianza: z.number().describe('0 a 1: lo seguro que estás.'),
     motivo: z.string().describe('Máx. 12 palabras: por qué.'),
+    suscripcion: z.boolean().describe('true si es el cobro periódico de un servicio (SaaS, plan, alquiler de máquina…).'),
+    recurrencia: z.enum(['mensual', 'anual']).nullable().describe('Cada cuánto se cobra, si es suscripción.'),
   })),
 })
 
-const SISTEMA_CLASIFICAR = `Clasificas los movimientos bancarios de Alex para su app de finanzas.
+const sistemaClasificar = (op) => `Clasificas los movimientos bancarios de Alex para su app de finanzas.
 ${PERFIL}
 
 Clases (para gastos): obligatorio = hay que pagarlo sí o sí (impuestos, herramientas de las que vive el negocio, vivienda, comisiones); recortable = útil pero se puede quitar o bajar (suscripciones prescindibles); libre = gasto personal discrecional (ocio, comida fuera, caprichos, efectivo sin destino conocido); inversion = compra de activos o formación que rinde. Para entradas: ingreso = cobro real (clientes, afiliados, intereses); interno = no es ni ingreso ni gasto (reembolsos que anulan un cargo, verificaciones de tarjeta de ida y vuelta, recargas entre cuentas propias).
-Categorías de gasto: ${CATEGORIAS_GASTO.join(', ')}.
-Categorías de entrada: ${CATEGORIAS_INGRESO.join(', ')}. Usa «Reembolsos» con clase interno para devoluciones y verificaciones.
-Negocios: ${NEGOCIOS.join(', ')}. Herramientas de IA, vídeo y software (Anthropic, HeyGen, ElevenLabs, Higgsfield, Vercel, Cloudflare, Rentamac…) son del negocio: CORE salvo que el texto diga otra cosa. Si no se sabe, null.
+Categorías de gasto: ${op.gasto.join(', ')}.
+Categorías de entrada: ${op.ingreso.join(', ')}. Usa «Reembolsos» con clase interno para devoluciones y verificaciones.
+Negocios: ${op.negocios.join(', ')}. Herramientas de IA, vídeo y software (Anthropic, HeyGen, ElevenLabs, Higgsfield, Vercel, Cloudflare, Rentamac…) son del negocio: CORE salvo que el texto diga otra cosa. Si no se sabe, null.
 Los retiros en cajero (ATM) son «Efectivo», clase libre, confianza ≤ 0,7: Alex debe decir para qué fue.
-Sé honesto con la confianza: si dudas entre dos categorías, baja de ${UMBRAL}. Usa las clasificaciones previas de Alex como ley.`
+Sé honesto con la confianza: si dudas entre dos categorías, baja de ${UMBRAL}. Usa las clasificaciones previas de Alex como ley.
+Suscripción = cargo periódico de un servicio (herramientas de IA y software, hosting, planes de cuenta, alquiler de una máquina): marca suscripcion true y su recurrencia. Una compra suelta, un vuelo o un cajero no lo son.`
+
+// Una suscripción es un previsto recurrente (§17.6). Al ver uno de sus cargos: se busca la que
+// ya existe (por patrón, por título o por importe) y se le engancha el cargo; si no hay, se crea
+// con el próximo cobro a un periodo del cargo. La fecha del previsto es siempre «la próxima».
+async function suscribir(db, m, { recurrencia = 'mensual', clase, categoria, negocio }) {
+  const patron = patronDe(m)
+  if (!patron) return null
+  const { importe, moneda } = importeOriginal(m)
+  const siguiente = sumarPaso(m.fecha, recurrencia)
+  const subs = datos(await db.from('fin_previstos').select('*').eq('suscripcion', true).neq('estado', 'cancelado'), 'suscripciones')
+  const primera = patron.split(/[\s*._-]+/).find(w => w.length >= 4) || patron
+  const s = subs.find(x => x.patron && (patron.includes(x.patron) || x.patron.includes(patron)))
+    || subs.find(x => `${x.titulo} ${x.nota || ''}`.toLowerCase().includes(primera))
+    || subs.find(x => x.moneda === moneda && Math.abs(Number(x.importe) - importe) <= importe * 0.02 && (x.categoria || '') === (categoria || ''))
+  let previsto
+  if (s) {
+    const cambio = { patron: s.patron || patron }
+    if (!s.fecha || s.fecha <= m.fecha) cambio.fecha = sumarPaso(m.fecha, s.recurrencia || recurrencia)
+    if (s.importe == null) Object.assign(cambio, { importe, moneda })
+    previsto = datos(await db.from('fin_previstos').update(cambio).eq('id', s.id).select().single(), 'suscripción')
+  } else {
+    const titulo = (m.contraparte || m.descripcion || 'Suscripción').replace(/\*.*$/, '').replace(/\b(inc|llc|ltd|technology)\.?$/i, '').replace(/[\s,.]+$/, '').trim()
+    previsto = datos(await db.from('fin_previstos').insert({
+      tipo: 'gasto', titulo, importe, moneda, fecha: siguiente, recurrencia, suscripcion: true, patron,
+      clase: clase || 'recortable', categoria, negocio, estado: 'previsto', provisionado: 0,
+    }).select().single(), 'nueva suscripción')
+  }
+  await db.from('fin_movimientos').update({ previsto_id: previsto.id }).eq('id', m.id)
+  return previsto
+}
 
 async function clasificar(db) {
-  const reglas = datos(await db.from('fin_reglas').select('*'), 'reglas')
-  const pend = datos(await db.from('fin_movimientos').select('*').is('clasificado_por', null).neq('estado', 'cancelado').order('fecha', { ascending: false }).limit(1000), 'pendientes')
-    .filter(porClasificar)
+  const [reglas, ajustes, todos, previstos] = await Promise.all([
+    db.from('fin_reglas').select('*').then(r => datos(r, 'reglas')),
+    db.from('fin_ajustes').select('listas').eq('id', 1).maybeSingle().then(r => datos(r, 'ajustes') || {}),
+    db.from('fin_movimientos').select('*').order('fecha', { ascending: false }).limit(2000).then(r => datos(r, 'movimientos')),
+    db.from('fin_previstos').select('tipo, categoria, negocio').then(r => datos(r, 'previstos')),
+  ])
+  const op = opcionesDe({ ajustes, movimientos: todos, previstos })
+  const pend = todos.filter(m => !m.clasificado_por && porClasificar(m)).sort((a, b) => a.fecha.localeCompare(b.fecha))
   let porRegla = 0
+  let subs = 0
   const resto = []
   const usadas = new Map()
   for (const m of pend) {
     const r = reglas.find(x => casaRegla(m, x))
     if (!r) { resto.push(m); continue }
     await db.from('fin_movimientos').update({ clase: r.clase, categoria: r.categoria, negocio: r.negocio || m.negocio, clasificado_por: 'regla', sugerencia: null }).eq('id', m.id)
+    if (r.suscripcion && m.importe < 0 && !m.previsto_id) { await suscribir(db, m, { ...r, recurrencia: r.recurrencia || 'mensual' }); subs++ }
     usadas.set(r.id, (usadas.get(r.id) || 0) + 1)
     porRegla++
   }
   for (const [id, n] of usadas) await db.from('fin_reglas').update({ aplicada: (reglas.find(r => r.id === id).aplicada || 0) + n }).eq('id', id)
-  if (!resto.length || !process.env.ANTHROPIC_API_KEY) return { reglas: porRegla, ia: 0, dudas: resto.length }
+  if (!resto.length || !process.env.ANTHROPIC_API_KEY) return { reglas: porRegla, ia: 0, dudas: resto.length, suscripciones: subs }
 
-  const ejemplos = datos(await db.from('fin_movimientos').select('importe, moneda, contraparte, descripcion, clase, categoria, negocio').eq('clasificado_por', 'alex').order('created_at', { ascending: false }).limit(40), 'ejemplos')
+  const ejemplos = todos.filter(m => m.clasificado_por === 'alex').slice(0, 40)
   const linea = (m) => `${m.importe} ${m.moneda} | ${m.contraparte || '-'} | ${(m.descripcion || '').slice(0, 90)}`
   const client = new Anthropic()
   let ia = 0
@@ -274,43 +314,68 @@ async function clasificar(db) {
       model: MODELO,
       max_tokens: 16000,
       output_config: { effort: 'low', format: zodOutputFormat(Clasificacion) },
-      system: SISTEMA_CLASIFICAR,
+      system: sistemaClasificar(op),
       messages: [{
         role: 'user',
-        content: `${ejemplos.length ? `ASÍ CLASIFICA ALEX (importe | contraparte | concepto → clase, categoría, negocio):\n${ejemplos.map(e => `${linea(e)} → ${e.clase}, ${e.categoria}, ${e.negocio || '-'}`).join('\n')}\n\n` : ''}CLASIFICA ESTOS (n | importe | contraparte | concepto):\n${lote.map((m, n) => `${n} | ${linea(m)}`).join('\n')}`,
+        content: `${ejemplos.length ? `ASÍ CLASIFICA ALEX (importe | contraparte | concepto → clase, categoría, negocio):\n${ejemplos.map(e => `${linea(e)} → ${e.clase}, ${e.categoria}, ${e.negocio || '-'}${e.previsto_id ? ', suscripción' : ''}`).join('\n')}\n\n` : ''}CLASIFICA ESTOS (n | importe | contraparte | concepto), del más antiguo al más reciente:\n${lote.map((m, n) => `${n} | ${linea(m)}`).join('\n')}`,
       }],
     })
     for (const c of r.parsed_output?.movimientos || []) {
       const m = lote[c.n]
       if (!m) continue
-      const negocio = NEGOCIOS.includes(c.negocio) ? c.negocio : null
-      const sugerencia = { clase: c.clase, categoria: c.categoria, negocio, confianza: c.confianza, motivo: c.motivo }
+      const negocio = op.negocios.includes(c.negocio) ? c.negocio : null
+      const suscripcion = c.suscripcion && m.importe < 0
+      const sugerencia = { clase: c.clase, categoria: c.categoria, negocio, confianza: c.confianza, motivo: c.motivo, suscripcion, recurrencia: suscripcion ? c.recurrencia || 'mensual' : null }
       const seguro = c.confianza >= UMBRAL
       await db.from('fin_movimientos').update(seguro
         ? { clase: c.clase, categoria: c.categoria, negocio: negocio || m.negocio, clasificado_por: 'ia', sugerencia }
         : { sugerencia }).eq('id', m.id)
+      if (seguro && suscripcion && !m.previsto_id) { await suscribir(db, m, { ...sugerencia, negocio: negocio || m.negocio }); subs++ }
       if (seguro) ia++
       else dudas++
     }
   }
-  return { reglas: porRegla, ia, dudas }
+  return { reglas: porRegla, ia, dudas, suscripciones: subs }
 }
 
-/** Alex clasifica uno. Con `siempre`, 2day aprende la regla y la aplica a todo lo parecido que no tocó él. */
-async function clasificarUno(db, { id, clase, categoria, negocio, siempre }) {
+/**
+ * Alex clasifica uno. Con `siempre`, 2day aprende la regla y la aplica a todo lo parecido que no
+ * tocó él. Con `suscripcion`, el cargo (y sus parecidos) se enganchan a su suscripción.
+ */
+async function clasificarUno(db, { id, clase, categoria, negocio, siempre, suscripcion, recurrencia }) {
   const m = datos(await db.from('fin_movimientos').select('*').eq('id', id).maybeSingle(), 'movimiento')
   if (!m) throw new Error('No existe ese movimiento')
+  const rec = RECURRENCIAS.some(r => r.valor && r.valor === recurrencia) ? recurrencia : 'mensual'
   const cambio = { clase: clase || null, categoria: categoria || null, negocio: negocio || null, clasificado_por: 'alex', sugerencia: null }
   datos(await db.from('fin_movimientos').update(cambio).eq('id', id), 'clasificar')
-  if (!siempre) return { iguales: 0 }
+  const sub = suscripcion && m.importe < 0 ? await suscribir(db, m, { ...cambio, recurrencia: rec }) : null
+  if (!siempre) return { iguales: 0, suscripcion: sub?.titulo || null }
   const patron = patronDe(m)
-  if (!patron) return { iguales: 0 }
-  const regla = datos(await db.from('fin_reglas').upsert({ patron, sentido: sentidoDe(m), clase: cambio.clase, categoria: cambio.categoria, negocio: cambio.negocio }, { onConflict: 'patron,sentido' }).select().single(), 'regla')
+  if (!patron) return { iguales: 0, suscripcion: sub?.titulo || null }
+  const regla = datos(await db.from('fin_reglas').upsert({
+    patron, sentido: sentidoDe(m), clase: cambio.clase, categoria: cambio.categoria, negocio: cambio.negocio,
+    suscripcion: !!sub, recurrencia: sub ? rec : null,
+  }, { onConflict: 'patron,sentido' }).select().single(), 'regla')
   const otros = datos(await db.from('fin_movimientos').select('id, contraparte, descripcion, importe, clasificado_por').neq('id', id), 'parecidos')
     .filter(x => x.clasificado_por !== 'alex' && casaRegla(x, regla))
-  for (const x of otros) await db.from('fin_movimientos').update({ clase: cambio.clase, categoria: cambio.categoria, negocio: cambio.negocio, clasificado_por: 'regla', sugerencia: null }).eq('id', x.id)
+  const cambioOtros = { clase: cambio.clase, categoria: cambio.categoria, negocio: cambio.negocio, clasificado_por: 'regla', sugerencia: null }
+  for (const x of otros) await db.from('fin_movimientos').update(sub ? { ...cambioOtros, previsto_id: sub.id } : cambioOtros).eq('id', x.id)
   await db.from('fin_reglas').update({ aplicada: (regla.aplicada || 0) + otros.length }).eq('id', regla.id)
-  return { iguales: otros.length, patron }
+  return { iguales: otros.length, patron, suscripcion: sub?.titulo || null }
+}
+
+/** Desde la ficha de un movimiento ya clasificado: «esto es una suscripción». */
+async function marcarSuscripcion(db, { id, recurrencia }) {
+  const m = datos(await db.from('fin_movimientos').select('*').eq('id', id).maybeSingle(), 'movimiento')
+  if (!m) throw new Error('No existe ese movimiento')
+  if (m.importe >= 0) throw new Error('Sólo un cargo puede ser una suscripción')
+  const sub = await suscribir(db, m, { recurrencia: recurrencia || 'mensual', clase: m.clase, categoria: m.categoria, negocio: m.negocio })
+  // los demás cargos del mismo servicio cuelgan de ella
+  const patron = patronDe(m)
+  const otros = datos(await db.from('fin_movimientos').select('id, contraparte, descripcion, importe').is('previsto_id', null).lt('importe', 0), 'parecidos')
+    .filter(x => casaRegla(x, { patron, sentido: 'gasto' }))
+  for (const x of otros) await db.from('fin_movimientos').update({ previsto_id: sub.id }).eq('id', x.id)
+  return { suscripcion: sub }
 }
 
 /* ── el asesor ───────────────────────────────────────────────────────────── */
@@ -467,6 +532,9 @@ export default async function handler(req, res) {
 
       case 'clasificarUno':
         return res.status(200).json(await clasificarUno(db, req.body))
+
+      case 'suscripcion':
+        return res.status(200).json(await marcarSuscripcion(db, req.body))
 
       case 'subir': {
         const { nombre, tipo, base64, movimientoId, previstoId } = req.body

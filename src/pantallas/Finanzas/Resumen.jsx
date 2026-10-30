@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { RefreshCw, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Sparkles } from 'lucide-react'
+import { RefreshCw, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Sparkles, Repeat } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Boton from '../../componentes/Boton.jsx'
-import { aBase, formatear, diasEntre, porClasificar, CLASES } from '../../datos/finanzasCalculos.js'
+import { aBase, formatear, diasEntre, porClasificar, CLASES, suscripciones, ocurrencias, sumarDias } from '../../datos/finanzasCalculos.js'
 import { sincronizar, clasificar as pedirClasificacion } from '../../datos/finanzas.js'
 import Proyeccion from './Proyeccion.jsx'
 
@@ -17,6 +17,12 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
   const pendientes = d.movimientos.filter(porClasificar)
   const sinPropuesta = pendientes.filter(m => !m.sugerencia).length
   const porIa = d.movimientos.filter(m => m.clasificado_por === 'ia').length
+  // suscripciones (§17.6): cada una con su próximo cobro, sus cargos ya vistos y el último
+  const subs = suscripciones(d.previstos, tasas)
+  const listaSubs = subs.lista.map(p => {
+    const cargos = d.movimientos.filter(m => m.previsto_id === p.id && m.estado !== 'cancelado')
+    return { ...p, proximo: ocurrencias(p, d.hoy, sumarDias(d.hoy, 400))[0] || p.fecha, cargos: cargos.length, ultimo: cargos[0]?.fecha }
+  }).sort((a, b) => (a.proximo || '9').localeCompare(b.proximo || '9'))
 
   const alPedirIa = async () => {
     setPensando(true)
@@ -178,7 +184,7 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
       </section>
 
       <section className="seccion">
-        <h2 className="seccion-titulo">Próximos 30 días</h2>
+        <h2 className="seccion-titulo">Próximos pagos · 30 días</h2>
         <Tarjeta compacta>
           {r.proximos.length === 0 && <div className="t-terciario fz-vacio-linea">Nada previsto en 30 días.</div>}
           {r.proximos.map((x, i) => (
@@ -191,6 +197,38 @@ export default function Resumen({ d, calc, editar, recargar, avisar, clasificar,
               <span className={`fz-fila-importe ${x.tipo === 'ingreso' ? 'fz-mas' : ''}`}>{formatear(x.tipo === 'ingreso' ? x.base : -x.base)}</span>
             </button>
           ))}
+        </Tarjeta>
+      </section>
+
+      <section className="seccion">
+        <div className="fz-seccion-cabeza">
+          <h2 className="seccion-titulo">Suscripciones</h2>
+          <Boton variante="secundario" pequeno icono={<Plus size={15} />} onClick={() => editar('previsto', { tipo: 'gasto', clase: 'recortable', suscripcion: true, recurrencia: 'mensual' })}>Añadir</Boton>
+        </div>
+        <Tarjeta compacta>
+          <div className="fz-subs-total">
+            <Repeat size={16} strokeWidth={1.6} className="fz-oro" />
+            <span>{formatear(subs.mensual)}<span className="t-terciario"> /mes</span></span>
+            <span className="t-terciario">{formatear(subs.anual)} al año · {listaSubs.length === 1 ? '1 activa' : `${listaSubs.length} activas`}</span>
+          </div>
+          {listaSubs.length === 0 && <div className="t-terciario fz-vacio-linea">Cuando un cargo sea una suscripción, márcalo al clasificarlo y aparecerá aquí.</div>}
+          {listaSubs.map(x => (
+            <button key={x.id} type="button" className="fz-fila" onClick={() => editar('previsto', x)}>
+              <span className="fz-fila-texto">
+                <span>{x.titulo}</span>
+                <span className="t-terciario">
+                  {x.proximo ? `Próximo cobro ${fechaCorta(x.proximo)} · en ${diasEntre(d.hoy, x.proximo)} días` : 'Sin fecha'}
+                  {x.recurrencia === 'anual' ? ' · anual' : ''}
+                  {x.cargos ? ` · ${x.cargos} ${x.cargos === 1 ? 'cargo' : 'cargos'}, el último ${fechaCorta(x.ultimo)}` : ''}
+                </span>
+              </span>
+              <span className="fz-fila-importe">
+                {x.importe == null ? <span className="fz-falta">sin importe</span> : formatear(x.importe, { moneda: x.moneda, decimales: x.importe % 1 ? 2 : 0 })}
+                {x.importe != null && x.moneda !== 'EUR' && <span className="t-terciario">{formatear(aBase(x.importe, x.moneda, tasas))}</span>}
+              </span>
+            </button>
+          ))}
+          {listaSubs.length > 0 && <div className="fz-sync"><span>Toca una para cambiar importe o fecha, o márcala como cancelada cuando la des de baja.</span></div>}
         </Tarjeta>
       </section>
     </div>

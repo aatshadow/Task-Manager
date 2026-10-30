@@ -5,7 +5,7 @@ import Vacio from '../../componentes/Vacio.jsx'
 import { Landmark } from 'lucide-react'
 import { useDatos } from '../../estado/useDatos.jsx'
 import * as fin from '../../datos/finanzas.js'
-import { resumen, proyeccion, porClasificar } from '../../datos/finanzasCalculos.js'
+import { resumen, proyeccion, porClasificar, opcionesDe } from '../../datos/finanzasCalculos.js'
 import Resumen from './Resumen.jsx'
 import Panel from './Panel.jsx'
 import Plan from './Plan.jsx'
@@ -44,6 +44,7 @@ export default function Finanzas() {
   useEffect(() => { try { localStorage.setItem('fin-vista', vista) } catch { /* sin almacenamiento */ } }, [vista])
 
   const calc = useMemo(() => (d ? { r: resumen(d), p: proyeccion(d) } : null), [d])
+  const op = useMemo(() => (d ? opcionesDe(d) : null), [d])
 
   // una sola puerta de escritura: guarda, avisa y recarga
   const guardar = useCallback(async (tabla, fila, texto = 'Guardado') => {
@@ -60,6 +61,12 @@ export default function Finanzas() {
     if (primero) setClasificando({ id: primero, cola: !id })
   }
   const irALibro = (filtro) => { setFiltroLibro(filtro); setVista('libro') }
+  // una categoría (de gasto o de ingreso) o un negocio nuevo: se guarda en ajustes.listas (§17.6)
+  const crearOpcion = useCallback(async (lista, nombre) => {
+    const listas = { ...(d?.ajustes.listas || {}) }
+    listas[lista] = [...new Set([...(listas[lista] || []), nombre])]
+    await guardar('fin_ajustes', { listas }, `«${nombre}» creada`)
+  }, [d, guardar])
 
   if (error && !d) {
     return (
@@ -70,7 +77,7 @@ export default function Finanzas() {
   }
   if (!d) return <div className="pantalla"><div className="fz-cargando">Leyendo tus cuentas…</div></div>
 
-  const comun = { d, calc, guardar, borrar, editar, recargar, avisar, clasificar, irALibro }
+  const comun = { d, calc, op, crearOpcion, guardar, borrar, editar, recargar, avisar, clasificar, irALibro }
   return (
     <div className="pantalla fz">
       <Segmentos opciones={VISTAS} valor={vista} alCambiar={setVista} className="fz-vistas" />
@@ -79,8 +86,8 @@ export default function Finanzas() {
       {vista === 'plan' && <Plan {...comun} />}
       {vista === 'libro' && <Libro {...comun} filtro={filtroLibro} setFiltro={setFiltroLibro} />}
       {vista === 'asesor' && <Asesor {...comun} />}
-      <HojaClasificar clasificando={clasificando} d={d} alCerrar={() => setClasificando(null)} recargar={recargar} avisar={avisar} alSiguiente={(id) => setClasificando(c => ({ ...c, id }))} />
-      <HojaEditar editando={editando} d={d} alCerrar={() => setEditando(null)} guardar={guardar} borrar={borrar} avisar={avisar} recargar={recargar} />
+      <HojaClasificar clasificando={clasificando} d={d} op={op} crearOpcion={crearOpcion} alCerrar={() => setClasificando(null)} recargar={recargar} avisar={avisar} alSiguiente={(id) => setClasificando(c => ({ ...c, id }))} />
+      <HojaEditar editando={editando} d={d} op={op} crearOpcion={crearOpcion} alCerrar={() => setEditando(null)} guardar={guardar} borrar={borrar} avisar={avisar} recargar={recargar} />
     </div>
   )
 }

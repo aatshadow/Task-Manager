@@ -4,8 +4,8 @@ import Hoja from '../../componentes/Hoja.jsx'
 import Campo from '../../componentes/Campo.jsx'
 import Selector from '../../componentes/Selector.jsx'
 import Boton from '../../componentes/Boton.jsx'
-import { CLASES, RECURRENCIAS, AREAS, CATEGORIAS, NEGOCIOS as LISTA_NEGOCIOS } from '../../datos/finanzasCalculos.js'
-import { subirDocumento, enlaceDocumento } from '../../datos/finanzas.js'
+import { CLASES, RECURRENCIAS, AREAS } from '../../datos/finanzasCalculos.js'
+import { subirDocumento, enlaceDocumento, marcarSuscripcion } from '../../datos/finanzas.js'
 
 /**
  * Una hoja para editar cualquier fila de Finanzas. Cada tipo declara sus campos; la hoja los
@@ -13,7 +13,6 @@ import { subirDocumento, enlaceDocumento } from '../../datos/finanzas.js'
  * vienen del banco sólo dejan tocar la capa de Alex (clase, categoría, negocio, nota…).
  */
 const MONEDAS = ['EUR', 'USD', 'GBP', 'BGN'].map(m => ({ valor: m, etiqueta: m }))
-const NEGOCIOS = LISTA_NEGOCIOS.map(n => ({ valor: n, etiqueta: n }))
 
 const SENTIDO = [{ valor: 'gasto', etiqueta: 'Gasto' }, { valor: 'ingreso', etiqueta: 'Ingreso' }]
 const opciones = (lista) => lista.filter(x => x.valor !== '').map(x => ({ valor: x.valor, etiqueta: x.etiqueta }))
@@ -31,8 +30,8 @@ const TIPOS = {
         { clave: 'contraparte', etiqueta: 'A quién / de quién', tipo: 'texto' },
         { clave: 'descripcion', etiqueta: 'Concepto', tipo: 'texto' },
         { clave: 'clase', etiqueta: 'Clase', tipo: 'chips', opciones: CLASES },
-        { clave: 'categoria', etiqueta: 'Categoría', tipo: 'texto', lista: 'fz-categorias' },
-        { clave: 'negocio', etiqueta: 'Negocio', tipo: 'chips', opciones: NEGOCIOS, vacio: true },
+        { clave: 'categoria', etiqueta: 'Categoría', tipo: 'lista', lista: (Number(f.importe) > 0 || f._sentido === 'ingreso') ? 'ingreso' : 'gasto' },
+        { clave: 'negocio', etiqueta: 'Negocio', tipo: 'lista', lista: 'negocios', vacio: true },
         !banco && { clave: 'cuenta_id', etiqueta: 'Cuenta', tipo: 'desplegable', opciones: d.cuentas.map(c => ({ valor: c.id, etiqueta: c.nombre })), vacio: true },
         { clave: 'previsto_id', etiqueta: 'Cierra el previsto', tipo: 'desplegable', opciones: d.previstos.filter(p => p.estado === 'previsto' || p.id === f.previsto_id).map(p => ({ valor: p.id, etiqueta: p.titulo })), vacio: true },
         { clave: 'nota', etiqueta: 'Nota', tipo: 'area' },
@@ -41,7 +40,7 @@ const TIPOS = {
   },
   previsto: {
     tabla: 'fin_previstos', titulo: (f) => (f.id ? f.titulo : f.suscripcion ? 'Nueva suscripción' : f.tipo === 'ingreso' ? 'Ingreso previsto' : 'Gasto previsto'), documentos: 'previstoId',
-    campos: () => [
+    campos: (f) => [
       { clave: 'tipo', etiqueta: 'Tipo', tipo: 'chips', opciones: SENTIDO },
       { clave: 'titulo', etiqueta: 'Qué', tipo: 'texto' },
       { clave: 'importe', etiqueta: 'Importe (vacío si aún no lo sabes)', tipo: 'numero' },
@@ -51,8 +50,8 @@ const TIPOS = {
       { clave: 'clase', etiqueta: 'Clase', tipo: 'chips', opciones: CLASES },
       { clave: 'suscripcion', etiqueta: 'Es una suscripción', tipo: 'si' },
       { clave: 'provisionado', etiqueta: 'Ya apartado', tipo: 'numero' },
-      { clave: 'categoria', etiqueta: 'Categoría', tipo: 'texto', lista: 'fz-categorias' },
-      { clave: 'negocio', etiqueta: 'Negocio', tipo: 'chips', opciones: NEGOCIOS, vacio: true },
+      { clave: 'categoria', etiqueta: 'Categoría', tipo: 'lista', lista: f.tipo === 'ingreso' ? 'ingreso' : 'gasto' },
+      { clave: 'negocio', etiqueta: 'Negocio', tipo: 'lista', lista: 'negocios', vacio: true },
       { clave: 'estado', etiqueta: 'Estado', tipo: 'chips', opciones: [{ valor: 'previsto', etiqueta: 'Previsto' }, { valor: 'pagado', etiqueta: 'Pagado' }, { valor: 'cancelado', etiqueta: 'Cancelado' }] },
       { clave: 'nota', etiqueta: 'Nota', tipo: 'area' },
     ],
@@ -137,7 +136,7 @@ function aFila(tipo, f) {
   return fila
 }
 
-export default function HojaEditar({ editando, d, alCerrar, guardar, borrar, avisar, recargar }) {
+export default function HojaEditar({ editando, d, op, crearOpcion, alCerrar, guardar, borrar, avisar, recargar }) {
   const [f, setF] = useState({})
   const [guardando, setGuardando] = useState(false)
   const [subiendo, setSubiendo] = useState(false)
@@ -169,6 +168,15 @@ export default function HojaEditar({ editando, d, alCerrar, guardar, borrar, avi
     setSubiendo(true)
     try { await subirDocumento(archivo, { [def.documentos]: f.id }); avisar('Factura archivada'); await recargar() } catch (err) { avisar(err.message, 'error') } finally { setSubiendo(false) }
   }
+  const alSuscripcion = async () => {
+    setGuardando(true)
+    try {
+      const sub = await marcarSuscripcion(f.id, 'mensual')
+      avisar(`Suscripción «${sub.titulo}»: próximo cobro el ${new Date(`${sub.fecha}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`)
+      await recargar()
+      alCerrar()
+    } catch (err) { avisar(err.message, 'error') } finally { setGuardando(false) }
+  }
   const abrirDoc = async (doc) => {
     try { window.open(await enlaceDocumento(doc.id), '_blank', 'noopener') } catch (err) { avisar(err.message, 'error') }
   }
@@ -183,12 +191,18 @@ export default function HojaEditar({ editando, d, alCerrar, guardar, borrar, avi
 
   return (
     <Hoja abierta={!!editando} alCerrar={alCerrar} titulo={def.titulo(f)} pie={pie}>
-      <datalist id="fz-categorias">{CATEGORIAS.map(c => <option key={c} value={c} />)}</datalist>
       <div className="columna fz-formulario">
         {banco && <div className="t-terciario">Viene de {d.cuentas.find(c => c.id === f.cuenta_id)?.nombre || 'el banco'}: el importe y la fecha los manda el banco.</div>}
         {campos.map(c => {
           if (c.tipo === 'chips') {
             return <Selector key={c.clave} etiqueta={c.etiqueta} opciones={opciones(c.opciones)} valor={f[c.clave] ?? ''} permitirVacio={c.vacio} alCambiar={poner(c.clave)} />
+          }
+          if (c.tipo === 'lista') {
+            const nombres = c.lista === 'negocios' ? { texto: 'Nuevo negocio' } : { texto: 'Nueva categoría' }
+            return (
+              <Selector key={c.clave} etiqueta={c.etiqueta} opciones={(op?.[c.lista] || []).map(v => ({ valor: v, etiqueta: v }))} valor={f[c.clave] ?? ''}
+                permitirVacio alCambiar={poner(c.clave)} alCrear={(n) => crearOpcion(c.lista, n)} textoNueva={nombres.texto} />
+            )
           }
           if (c.tipo === 'desplegable') {
             return <Selector key={c.clave} modo="desplegable" etiqueta={c.etiqueta} opciones={c.opciones} valor={f[c.clave] ?? ''} permitirVacio placeholder="Ninguno" alCambiar={poner(c.clave)} />
@@ -215,6 +229,13 @@ export default function HojaEditar({ editando, d, alCerrar, guardar, borrar, avi
             />
           )
         })}
+
+        {tipo === 'movimiento' && f.id && Number(f.importe) < 0 && (() => {
+          const sub = d.previstos.find(p => p.id === f.previsto_id && p.suscripcion)
+          if (sub) return <div className="t-terciario">Cargo de la suscripción «{sub.titulo}». Se gestiona en Resumen → Próximos pagos.</div>
+          if (f.previsto_id) return null
+          return <Boton variante="secundario" pequeno cargando={guardando} onClick={alSuscripcion}>Es una suscripción</Boton>
+        })()}
 
         {def.documentos && f.id && (
           <div className="fz-docs">
