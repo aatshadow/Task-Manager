@@ -44,3 +44,6 @@ export async function subirDocumento(fichero, { movimientoId, previstoId }) {
   })
   return llamar('subir', { nombre: fichero.name, tipo: fichero.type, base64, movimientoId, previstoId }).then(r => r.documento)
 }
+
+export const clasificar = () => llamar('clasificar')
+export const clasificarUno = ({ id, clase, categoria, negocio, siempre }) => llamar('clasificarUno', { id, clase, categoria, negocio, siempre })

@@ -934,7 +934,7 @@ token → dice qué falta) · `subir {nombre, tipo, base64, movimientoId|previst
 10 min) · `parte` (la IA) · `preguntar {pregunta}` (chat). Entorno: `FIN_SUPABASE_URL`,
 `FIN_SUPABASE_SERVICE_KEY`, `FIN_EMAILS`, `MERCURY_API_TOKEN`, `WISE_API_TOKEN`, `ANTHROPIC_API_KEY`.
 
-### 17.4 · Pantalla (`src/pantallas/Finanzas/`) — cuatro vistas en segmentos
+### 17.4 · Pantalla (`src/pantallas/Finanzas/`) — cinco vistas en segmentos (Panel en §17.5)
 - **Resumen:** HOY PUEDES GASTAR con semáforo y la cascada que lo explica · la Misión (caja, falta, € al día que
   pide, ritmo real) · proyección en tres escenarios · cuentas y pockets con «Sincronizar» · próximos 30 días.
 - **Plan:** objetivos · gastos e ingresos previstos (con lo provisionado) · suscripciones (total al mes y al año,
@@ -945,6 +945,14 @@ token → dice qué falta) · `subir {nombre, tipo, base64, movimientoId|previst
   lo que le falta saber) · **el plan de acción** por áreas (regularización, residencia, bancos y crédito,
   finanzas, inversión), marcable, con lo que la IA proponga añadible de un toque · el chat («¿me lo puedo
   permitir?»: impacto en días de Misión y de qué partida sale; > 2.000 €, con una noche de margen).
+
+### 17.5 · Panel y clasificación automática (Alex, 30-10-2026: «visibilidad absoluta de a dónde ha ido el dinero»)
+
+- **Panel** (quinta vista, entre Resumen y Plan; `Panel.jsx` + `Graficos.jsx`): periodo 30 días · este mes · 3 meses · año · todo. Cuatro cifras (entró, salió, neto, % de ahorro y gasto al día); entra y sale por semana (periodos de hasta 3 meses) o por mes; a dónde ha ido (por categoría); obligatorio, recortable o libre; saldo de todas las cuentas en escalones, reconstruido hacia atrás desde la liquidez de hoy; de dónde entra; dónde más gastas; gasto por negocio. Cada ranking se despliega en sus movimientos. Los internos y lo cancelado no cuentan. Todo sale de `panel()` en finanzasCalculos.js. Monocromo: lo que entra en blanco, lo que sale en gris, y lo «Sin clasificar» con rayado ámbar.
+- **Por clasificar** = un movimiento sin clase o sin categoría (`porClasificar`). La cola sale en Resumen y se recorre uno a uno con `HojaClasificar` (Aceptar la propuesta de un toque, Saltar o Guardar).
+- **El orden al sincronizar** (`clasificar()` en la API): 1) las **reglas** de `fin_reglas` (`patron` contenido en contraparte + concepto, en minúsculas y sin cifras; `sentido` gasto o ingreso); 2) la **IA**, con lo que Alex ya clasificó como ejemplos: aplica sólo lo que tiene claro (confianza ≥ 0,8, `clasificado_por = 'ia'`) y en lo demás deja `sugerencia`. Al sincronizar, los positivos ya no se dan por ingreso.
+- **Aprender:** al clasificar, la casilla «Siempre igual para «patrón»» viene marcada; crea o actualiza la regla y la aplica a todo lo parecido que Alex no haya tocado. Lo que clasifica Alex (`clasificado_por = 'alex'`, también desde la hoja de edición) no lo vuelve a tocar nadie. Las reglas aprendidas se ven y se borran al final del Libro. El filtro «Por la IA» del Libro sirve para revisar lo que hizo sola.
+- SQL: `sql/2026-10-30-finanzas-clasificar.sql`.
 
 ## 18 · Estilo vidrio negro y oro + menú radial (Alex, 30-10-2026)
 

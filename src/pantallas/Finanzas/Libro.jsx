@@ -1,30 +1,30 @@
-import { useMemo, useState } from 'react'
-import { Plus, Paperclip, Link2 } from 'lucide-react'
+import { useMemo } from 'react'
+import { Plus, Paperclip, Link2, Sparkles, Trash2 } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Boton from '../../componentes/Boton.jsx'
 import Chip from '../../componentes/Chip.jsx'
 import Vacio from '../../componentes/Vacio.jsx'
-import { aBase, formatear, CLASES } from '../../datos/finanzasCalculos.js'
+import { aBase, formatear, CLASES, porClasificar } from '../../datos/finanzasCalculos.js'
 import { BookOpen } from 'lucide-react'
 
 const FILTROS = [
   { valor: 'todo', etiqueta: 'Todo', vale: () => true },
   { valor: 'ingresos', etiqueta: 'Ingresos', vale: m => m.importe > 0 && m.clase !== 'interno' },
   { valor: 'gastos', etiqueta: 'Gastos', vale: m => m.importe < 0 && m.clase !== 'interno' },
-  { valor: 'sin', etiqueta: 'Sin clasificar', vale: m => !m.clase },
+  { valor: 'sin', etiqueta: 'Sin clasificar', vale: porClasificar },
+  { valor: 'ia', etiqueta: 'Por la IA', vale: m => m.clasificado_por === 'ia' },
   { valor: 'internos', etiqueta: 'Internos', vale: m => m.clase === 'interno' },
 ]
 const dia = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 const etiquetaClase = (c) => CLASES.find(x => x.valor === c)?.etiqueta
 
-export default function Libro({ d, editar }) {
-  const [filtro, setFiltro] = useState('todo')
+export default function Libro({ d, editar, clasificar, borrar, filtro, setFiltro }) {
   const tasas = d.ajustes.tasas?.valores
   const cuentas = useMemo(() => Object.fromEntries(d.cuentas.map(c => [c.id, c])), [d.cuentas])
   const conDocs = useMemo(() => new Set(d.documentos.map(x => x.movimiento_id).filter(Boolean)), [d.documentos])
   const vale = FILTROS.find(f => f.valor === filtro).vale
   const lista = d.movimientos.filter(vale)
-  const sinClase = d.movimientos.filter(m => !m.clase).length
+  const sinClase = d.movimientos.filter(porClasificar).length
 
   const mes = d.hoy.slice(0, 7)
   const delMes = d.movimientos.filter(m => m.fecha.startsWith(mes) && m.clase !== 'interno' && m.estado !== 'cancelado')
@@ -67,11 +67,12 @@ export default function Libro({ d, editar }) {
           <h3 className="fz-dia-titulo">{dia(g.fecha)}</h3>
           <Tarjeta compacta>
             {g.items.map(m => (
-              <button key={m.id} type="button" className="fz-fila" onClick={() => editar('movimiento', m)}>
+              <button key={m.id} type="button" className="fz-fila" onClick={() => (porClasificar(m) ? clasificar(m.id) : editar('movimiento', m))}>
                 <span className={`fz-banco fz-banco--${cuentas[m.cuenta_id]?.banco || 'manual'}`}>{(cuentas[m.cuenta_id]?.banco || 'manual')[0].toUpperCase()}</span>
                 <span className="fz-fila-texto">
                   <span>{m.contraparte || m.descripcion || 'Sin descripción'}</span>
                   <span className="t-terciario">
+                    {m.clasificado_por === 'ia' && <Sparkles size={11} className="fz-por-ia" aria-label="Clasificado por la IA" />}
                     {m.clase ? etiquetaClase(m.clase) : <span className="fz-falta">sin clasificar</span>}
                     {m.categoria ? ` · ${m.categoria}` : ''}{m.negocio ? ` · ${m.negocio}` : ''}{m.estado === 'pendiente' ? ' · pendiente' : ''}
                   </span>
@@ -89,6 +90,23 @@ export default function Libro({ d, editar }) {
           </Tarjeta>
         </section>
       ))}
+
+      {d.reglas?.length > 0 && filtro === 'todo' && (
+        <section className="seccion">
+          <h2 className="seccion-titulo">Lo que 2day ha aprendido</h2>
+          <Tarjeta compacta>
+            {d.reglas.map(r => (
+              <div key={r.id} className="fz-fila">
+                <span className="fz-fila-texto">
+                  <span>«{r.patron}»{r.sentido === 'ingreso' ? ' (entradas)' : ''}</span>
+                  <span className="t-terciario">{r.categoria} · {etiquetaClase(r.clase)}{r.negocio ? ` · ${r.negocio}` : ''}{r.aplicada ? ` · usada ${r.aplicada} veces` : ''}</span>
+                </span>
+                <Boton variante="fantasma" pequeno icono={<Trash2 size={14} />} aria-label="Olvidar la regla" onClick={() => borrar('fin_reglas', r.id)} />
+              </div>
+            ))}
+          </Tarjeta>
+        </section>
+      )}
     </div>
   )
 }

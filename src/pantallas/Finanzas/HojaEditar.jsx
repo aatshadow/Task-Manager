@@ -4,7 +4,7 @@ import Hoja from '../../componentes/Hoja.jsx'
 import Campo from '../../componentes/Campo.jsx'
 import Selector from '../../componentes/Selector.jsx'
 import Boton from '../../componentes/Boton.jsx'
-import { CLASES, RECURRENCIAS, AREAS } from '../../datos/finanzasCalculos.js'
+import { CLASES, RECURRENCIAS, AREAS, CATEGORIAS, NEGOCIOS as LISTA_NEGOCIOS } from '../../datos/finanzasCalculos.js'
 import { subirDocumento, enlaceDocumento } from '../../datos/finanzas.js'
 
 /**
@@ -13,8 +13,7 @@ import { subirDocumento, enlaceDocumento } from '../../datos/finanzas.js'
  * vienen del banco sólo dejan tocar la capa de Alex (clase, categoría, negocio, nota…).
  */
 const MONEDAS = ['EUR', 'USD', 'GBP', 'BGN'].map(m => ({ valor: m, etiqueta: m }))
-const NEGOCIOS = ['CORE', 'EasyBiz', 'Izibizz', 'ScaleInfo', 'GrowthInfo', 'Black Phoenix', 'Personal'].map(n => ({ valor: n, etiqueta: n }))
-const CATEGORIAS = ['Software', 'IA', 'Infraestructura', 'Publicidad', 'Equipo', 'Comisiones', 'Impuestos', 'Asesoría', 'Residencia', 'Viajes', 'Vivienda', 'Comida', 'Salud', 'Formación', 'Clientes', 'Sueldo', 'Inversión']
+const NEGOCIOS = LISTA_NEGOCIOS.map(n => ({ valor: n, etiqueta: n }))
 
 const SENTIDO = [{ valor: 'gasto', etiqueta: 'Gasto' }, { valor: 'ingreso', etiqueta: 'Ingreso' }]
 const opciones = (lista) => lista.filter(x => x.valor !== '').map(x => ({ valor: x.valor, etiqueta: x.etiqueta }))

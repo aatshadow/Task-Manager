@@ -1,18 +1,31 @@
 import { useState } from 'react'
-import { RefreshCw, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { RefreshCw, Plus, AlertTriangle, ArrowDownRight, ArrowUpRight, Sparkles } from 'lucide-react'
 import Tarjeta from '../../componentes/Tarjeta.jsx'
 import Boton from '../../componentes/Boton.jsx'
-import { aBase, formatear, diasEntre } from '../../datos/finanzasCalculos.js'
-import { sincronizar } from '../../datos/finanzas.js'
+import { aBase, formatear, diasEntre, porClasificar, CLASES } from '../../datos/finanzasCalculos.js'
+import { sincronizar, clasificar as pedirClasificacion } from '../../datos/finanzas.js'
 import Proyeccion from './Proyeccion.jsx'
 
 const SEMAFORO = { verde: 'En verde', ambar: 'Vas por detrás de la Misión', rojo: 'En rojo: hoy no hay margen' }
 const fechaCorta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 
-export default function Resumen({ d, calc, editar, recargar, avisar }) {
+export default function Resumen({ d, calc, editar, recargar, avisar, clasificar, irALibro }) {
   const { r, p } = calc
   const tasas = d.ajustes.tasas?.valores
   const [sincronizando, setSincronizando] = useState(false)
+  const [pensando, setPensando] = useState(false)
+  const pendientes = d.movimientos.filter(porClasificar)
+  const sinPropuesta = pendientes.filter(m => !m.sugerencia).length
+  const porIa = d.movimientos.filter(m => m.clasificado_por === 'ia').length
+
+  const alPedirIa = async () => {
+    setPensando(true)
+    try {
+      const c = await pedirClasificacion()
+      avisar(`${c.reglas + c.ia} clasificados solos${c.dudas ? ` · ${c.dudas} con propuesta para que decidas` : ''}`)
+      await recargar()
+    } catch (e) { avisar(e.message, 'error') } finally { setPensando(false) }
+  }
 
   const alSincronizar = async () => {
     setSincronizando(true)
@@ -21,7 +34,7 @@ export default function Resumen({ d, calc, editar, recargar, avisar }) {
       const malos = s.resultados.filter(x => !x.ok)
       const nuevos = s.resultados.reduce((n, x) => n + (x.nuevos || 0), 0)
       if (malos.length === s.resultados.length) avisar(malos.map(m => m.error).join(' · '), 'error')
-      else avisar(`${nuevos} movimientos nuevos${s.internos ? ` · ${s.internos} transferencias internas` : ''}`)
+      else avisar(`${nuevos} movimientos nuevos${s.internos ? ` · ${s.internos} transferencias internas` : ''}${s.clasificacion?.ia || s.clasificacion?.reglas ? ` · ${s.clasificacion.ia + s.clasificacion.reglas} clasificados solos` : ''}`)
       await recargar()
     } catch (e) { avisar(e.message, 'error') } finally { setSincronizando(false) }
   }
@@ -74,6 +87,35 @@ export default function Resumen({ d, calc, editar, recargar, avisar }) {
           <AlertTriangle size={18} strokeWidth={1.7} />
           <div><strong>Previstos sin importe:</strong> {r.sinImporte.map(x => x.titulo).join(' · ')}. Ponles cifra para que cuenten.</div>
         </Tarjeta>
+      )}
+
+      {pendientes.length > 0 && (
+        <section className="seccion">
+          <div className="fz-seccion-cabeza">
+            <h2 className="seccion-titulo">Por clasificar · {pendientes.length}</h2>
+            {sinPropuesta > 0 && d.bancos.ia && <Boton variante="secundario" pequeno cargando={pensando} icono={<Sparkles size={15} />} onClick={alPedirIa}>Que lo haga la IA</Boton>}
+          </div>
+          <Tarjeta compacta>
+            {pendientes.slice(0, 5).map(m => (
+              <button key={m.id} type="button" className="fz-fila" onClick={() => clasificar(m.id)}>
+                <span className="fz-fila-texto">
+                  <span>{m.contraparte || m.descripcion || 'Sin descripción'}</span>
+                  <span className="t-terciario">
+                    {m.sugerencia ? <>¿{m.sugerencia.categoria} · {CLASES.find(c => c.valor === m.sugerencia.clase)?.etiqueta}?</> : fechaCorta(m.fecha)}
+                  </span>
+                </span>
+                <span className={`fz-fila-importe ${m.importe > 0 ? 'fz-mas' : ''}`}>{formatear(m.importe, { moneda: m.moneda, decimales: 2, signo: true })}</span>
+              </button>
+            ))}
+            <div className="fz-cola-pie">
+              <Boton variante="primario" pequeno onClick={() => clasificar()}>Clasificar {pendientes.length > 1 ? `los ${pendientes.length}` : 'ahora'}</Boton>
+              {porIa > 0 && <button type="button" className="fz-enlace" onClick={() => irALibro('ia')}>La IA clasificó {porIa} sola: revisar</button>}
+            </div>
+          </Tarjeta>
+        </section>
+      )}
+      {pendientes.length === 0 && porIa > 0 && (
+        <button type="button" className="fz-enlace fz-enlace--suelto" onClick={() => irALibro('ia')}>Todo clasificado. La IA hizo {porIa} sola: revisar</button>
       )}
 
       {r.mision && (

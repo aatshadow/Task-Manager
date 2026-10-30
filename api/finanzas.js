@@ -10,7 +10,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
-import { resumen, suscripciones, emparejarInternos, aBase } from '../src/datos/finanzasCalculos.js'
+import { resumen, suscripciones, emparejarInternos, aBase, CLASES, CATEGORIAS_GASTO, CATEGORIAS_INGRESO, NEGOCIOS, porClasificar, casaRegla, patronDe, sentidoDe } from '../src/datos/finanzasCalculos.js'
 
 export const config = { maxDuration: 300 }
 
@@ -32,7 +32,7 @@ const ESCRIBIBLE = {
   fin_objetivos: ['titulo', 'importe', 'moneda', 'fecha', 'tipo', 'principal', 'nota'],
   fin_acciones: ['area', 'titulo', 'detalle', 'prioridad', 'fecha', 'importe_estimado', 'estado', 'origen', 'orden'],
 }
-const BORRABLE = ['fin_cuentas', 'fin_movimientos', 'fin_previstos', 'fin_objetivos', 'fin_acciones', 'fin_documentos']
+const BORRABLE = ['fin_reglas', 'fin_cuentas', 'fin_movimientos', 'fin_previstos', 'fin_objetivos', 'fin_acciones', 'fin_documentos']
 
 async function usuarioDe(token) {
   if (!SUPABASE_URL || !SUPABASE_ANON || !token) return null
@@ -61,7 +61,7 @@ async function tasas(db, ajustes) {
 }
 
 async function cargarTodo(db) {
-  const [aj, cuentas, movimientos, previstos, objetivos, acciones, documentos, partes, chat] = await Promise.all([
+  const [aj, cuentas, movimientos, previstos, objetivos, acciones, documentos, partes, chat, reglas] = await Promise.all([
     db.from('fin_ajustes').select('*').eq('id', 1).maybeSingle(),
     db.from('fin_cuentas').select('*').order('orden').order('created_at'),
     db.from('fin_movimientos').select('*').order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(2000),
@@ -71,6 +71,7 @@ async function cargarTodo(db) {
     db.from('fin_documentos').select('*').order('created_at', { ascending: false }),
     db.from('fin_partes').select('*').order('created_at', { ascending: false }).limit(10),
     db.from('fin_chat').select('*').order('created_at', { ascending: false }).limit(60),
+    db.from('fin_reglas').select('*').order('created_at', { ascending: false }),
   ])
   const ajustes = datos(aj, 'ajustes') || { id: 1 }
   ajustes.tasas = await tasas(db, ajustes)
@@ -84,6 +85,7 @@ async function cargarTodo(db) {
     documentos: datos(documentos, 'documentos'),
     partes: datos(partes, 'partes'),
     chat: datos(chat, 'chat').reverse(),
+    reglas: datos(reglas, 'reglas'),
     bancos: { mercury: !!process.env.MERCURY_API_TOKEN, wise: !!process.env.WISE_API_TOKEN, ia: !!process.env.ANTHROPIC_API_KEY },
     hoy: hoyEn(),
   }
@@ -135,7 +137,6 @@ async function sincronizarMercury(db, desde) {
       cuenta_id: cuenta.id, externo_id: `mercury:${t.id}`, origen: 'banco',
       fecha: (t.postedAt || t.createdAt || '').slice(0, 10), importe: t.amount, moneda: 'USD',
       descripcion: t.bankDescription || t.note || t.kind || null, contraparte: t.counterpartyName || null,
-      clase: t.amount > 0 ? 'ingreso' : null,
       estado: t.status === 'cancelled' ? 'cancelado' : t.status === 'pending' ? 'pendiente' : 'hecho',
     })))
   }
@@ -175,7 +176,7 @@ async function sincronizarWise(db, desde) {
             fecha: (t.date || '').slice(0, 10), importe, moneda,
             descripcion: t.details?.description || t.details?.type || null,
             contraparte: t.details?.senderName || t.details?.recipient?.name || t.details?.merchant?.name || null,
-            clase: importe > 0 ? 'ingreso' : null, estado: 'hecho',
+            estado: 'hecho',
           }
         }))
       } catch (e) {
@@ -198,20 +199,121 @@ async function sincronizar(db) {
   const movs = datos(await db.from('fin_movimientos').select('id, cuenta_id, importe, moneda, fecha, origen, emparejado_id').eq('origen', 'banco').is('emparejado_id', null), 'movimientos')
   const pares = emparejarInternos(movs, cuentas)
   for (const [s, e] of pares) {
-    await db.from('fin_movimientos').update({ clase: 'interno', emparejado_id: e.id }).eq('id', s.id)
-    await db.from('fin_movimientos').update({ clase: 'interno', emparejado_id: s.id }).eq('id', e.id)
+    const interno = { clase: 'interno', categoria: 'Transferencia interna', clasificado_por: 'regla', sugerencia: null }
+    await db.from('fin_movimientos').update({ ...interno, emparejado_id: e.id }).eq('id', s.id)
+    await db.from('fin_movimientos').update({ ...interno, emparejado_id: s.id }).eq('id', e.id)
   }
-  const sync = { en: new Date().toISOString(), resultados, internos: pares.length }
+  // lo nuevo se clasifica solo: primero las reglas de Alex, luego la IA
+  let clasificacion = null
+  try { clasificacion = await clasificar(db) } catch (e) { clasificacion = { error: e.message } }
+  const sync = { en: new Date().toISOString(), resultados, internos: pares.length, clasificacion }
   await db.from('fin_ajustes').update({ sync }).eq('id', 1)
   return sync
 }
 
-/* ── el asesor ───────────────────────────────────────────────────────────── */
+// quién es Alex: lo comparten el clasificador y el asesor
 const PERFIL = `Alex: fundador de CORE (consultoría de sistemas para negocios online: EasyBiz, Izibizz, ScaleInfo, clientes como SociosEcom o Gemelos), trader sistemático, 25 años.
 Empresa: LLC de EE. UU. (Black Phoenix Group LLC, disregarded entity). Cobra por Wise, pasa a Mercury y reparte por pockets.
 Residencia fiscal: Bulgaria en 2026 (10 %), Paraguay desde 2027 (no pasará >183 días en ningún país). PENDIENTE Y PRIORITARIO: regularizar España (2025 y anteriores sin declarar): ir por delante cuesta recargos ≤15 %; si lo detecta Hacienda, sanciones del 50–150 %.
 La Misión: 520.424,26 € en la caja de la empresa el 16-09-2027.
 Diseño humano: Proyector, autoridad emocional: las decisiones grandes (> 2.000 €) con al menos una noche de margen; lo pequeño, rápido.`
+
+/* ── clasificar solo (LOGICA §17.5) ──────────────────────────────────────── */
+// Orden: 1) las reglas que Alex ha enseñado («siempre igual») 2) la IA, con lo que Alex ya
+// clasificó como ejemplos. La IA sólo aplica lo que tiene claro (confianza ≥ UMBRAL); lo
+// dudoso se queda en «Por clasificar» con su propuesta para que Alex lo acepte de un toque.
+const UMBRAL = 0.8
+const LOTE = 120
+
+const Clasificacion = z.object({
+  movimientos: z.array(z.object({
+    n: z.number().int().describe('El número del movimiento en la lista.'),
+    clase: z.enum(CLASES.map(c => c.valor)),
+    categoria: z.string().describe('Una de las categorías de la lista, tal cual.'),
+    negocio: z.string().nullable().describe('Uno de los negocios de la lista, o null si no se sabe.'),
+    confianza: z.number().describe('0 a 1: lo seguro que estás.'),
+    motivo: z.string().describe('Máx. 12 palabras: por qué.'),
+  })),
+})
+
+const SISTEMA_CLASIFICAR = `Clasificas los movimientos bancarios de Alex para su app de finanzas.
+${PERFIL}
+
+Clases (para gastos): obligatorio = hay que pagarlo sí o sí (impuestos, herramientas de las que vive el negocio, vivienda, comisiones); recortable = útil pero se puede quitar o bajar (suscripciones prescindibles); libre = gasto personal discrecional (ocio, comida fuera, caprichos, efectivo sin destino conocido); inversion = compra de activos o formación que rinde. Para entradas: ingreso = cobro real (clientes, afiliados, intereses); interno = no es ni ingreso ni gasto (reembolsos que anulan un cargo, verificaciones de tarjeta de ida y vuelta, recargas entre cuentas propias).
+Categorías de gasto: ${CATEGORIAS_GASTO.join(', ')}.
+Categorías de entrada: ${CATEGORIAS_INGRESO.join(', ')}. Usa «Reembolsos» con clase interno para devoluciones y verificaciones.
+Negocios: ${NEGOCIOS.join(', ')}. Herramientas de IA, vídeo y software (Anthropic, HeyGen, ElevenLabs, Higgsfield, Vercel, Cloudflare, Rentamac…) son del negocio: CORE salvo que el texto diga otra cosa. Si no se sabe, null.
+Los retiros en cajero (ATM) son «Efectivo», clase libre, confianza ≤ 0,7: Alex debe decir para qué fue.
+Sé honesto con la confianza: si dudas entre dos categorías, baja de ${UMBRAL}. Usa las clasificaciones previas de Alex como ley.`
+
+async function clasificar(db) {
+  const reglas = datos(await db.from('fin_reglas').select('*'), 'reglas')
+  const pend = datos(await db.from('fin_movimientos').select('*').is('clasificado_por', null).neq('estado', 'cancelado').order('fecha', { ascending: false }).limit(1000), 'pendientes')
+    .filter(porClasificar)
+  let porRegla = 0
+  const resto = []
+  const usadas = new Map()
+  for (const m of pend) {
+    const r = reglas.find(x => casaRegla(m, x))
+    if (!r) { resto.push(m); continue }
+    await db.from('fin_movimientos').update({ clase: r.clase, categoria: r.categoria, negocio: r.negocio || m.negocio, clasificado_por: 'regla', sugerencia: null }).eq('id', m.id)
+    usadas.set(r.id, (usadas.get(r.id) || 0) + 1)
+    porRegla++
+  }
+  for (const [id, n] of usadas) await db.from('fin_reglas').update({ aplicada: (reglas.find(r => r.id === id).aplicada || 0) + n }).eq('id', id)
+  if (!resto.length || !process.env.ANTHROPIC_API_KEY) return { reglas: porRegla, ia: 0, dudas: resto.length }
+
+  const ejemplos = datos(await db.from('fin_movimientos').select('importe, moneda, contraparte, descripcion, clase, categoria, negocio').eq('clasificado_por', 'alex').order('created_at', { ascending: false }).limit(40), 'ejemplos')
+  const linea = (m) => `${m.importe} ${m.moneda} | ${m.contraparte || '-'} | ${(m.descripcion || '').slice(0, 90)}`
+  const client = new Anthropic()
+  let ia = 0
+  let dudas = 0
+  for (let i = 0; i < resto.length; i += LOTE) {
+    const lote = resto.slice(i, i + LOTE)
+    const r = await client.messages.parse({
+      model: MODELO,
+      max_tokens: 16000,
+      output_config: { effort: 'low', format: zodOutputFormat(Clasificacion) },
+      system: SISTEMA_CLASIFICAR,
+      messages: [{
+        role: 'user',
+        content: `${ejemplos.length ? `ASÍ CLASIFICA ALEX (importe | contraparte | concepto → clase, categoría, negocio):\n${ejemplos.map(e => `${linea(e)} → ${e.clase}, ${e.categoria}, ${e.negocio || '-'}`).join('\n')}\n\n` : ''}CLASIFICA ESTOS (n | importe | contraparte | concepto):\n${lote.map((m, n) => `${n} | ${linea(m)}`).join('\n')}`,
+      }],
+    })
+    for (const c of r.parsed_output?.movimientos || []) {
+      const m = lote[c.n]
+      if (!m) continue
+      const negocio = NEGOCIOS.includes(c.negocio) ? c.negocio : null
+      const sugerencia = { clase: c.clase, categoria: c.categoria, negocio, confianza: c.confianza, motivo: c.motivo }
+      const seguro = c.confianza >= UMBRAL
+      await db.from('fin_movimientos').update(seguro
+        ? { clase: c.clase, categoria: c.categoria, negocio: negocio || m.negocio, clasificado_por: 'ia', sugerencia }
+        : { sugerencia }).eq('id', m.id)
+      if (seguro) ia++
+      else dudas++
+    }
+  }
+  return { reglas: porRegla, ia, dudas }
+}
+
+/** Alex clasifica uno. Con `siempre`, 2day aprende la regla y la aplica a todo lo parecido que no tocó él. */
+async function clasificarUno(db, { id, clase, categoria, negocio, siempre }) {
+  const m = datos(await db.from('fin_movimientos').select('*').eq('id', id).maybeSingle(), 'movimiento')
+  if (!m) throw new Error('No existe ese movimiento')
+  const cambio = { clase: clase || null, categoria: categoria || null, negocio: negocio || null, clasificado_por: 'alex', sugerencia: null }
+  datos(await db.from('fin_movimientos').update(cambio).eq('id', id), 'clasificar')
+  if (!siempre) return { iguales: 0 }
+  const patron = patronDe(m)
+  if (!patron) return { iguales: 0 }
+  const regla = datos(await db.from('fin_reglas').upsert({ patron, sentido: sentidoDe(m), clase: cambio.clase, categoria: cambio.categoria, negocio: cambio.negocio }, { onConflict: 'patron,sentido' }).select().single(), 'regla')
+  const otros = datos(await db.from('fin_movimientos').select('id, contraparte, descripcion, importe, clasificado_por').neq('id', id), 'parecidos')
+    .filter(x => x.clasificado_por !== 'alex' && casaRegla(x, regla))
+  for (const x of otros) await db.from('fin_movimientos').update({ clase: cambio.clase, categoria: cambio.categoria, negocio: cambio.negocio, clasificado_por: 'regla', sugerencia: null }).eq('id', x.id)
+  await db.from('fin_reglas').update({ aplicada: (regla.aplicada || 0) + otros.length }).eq('id', regla.id)
+  return { iguales: otros.length, patron }
+}
+
+/* ── el asesor ───────────────────────────────────────────────────────────── */
 
 const SISTEMA_PARTE = `Eres el asesor financiero personal de Alex dentro de 2day: un gestor de patrimonio de primer nivel cuyo trabajo es que, si Alex te hace caso al 100 %, su patrimonio crezca y llegue a la Misión.
 ${PERFIL}
@@ -338,6 +440,8 @@ export default async function handler(req, res) {
         }
         if (tabla === 'fin_cuentas' && !fila?.id) limpia.banco = 'manual'
         if (tabla === 'fin_cuentas' && 'saldo' in limpia) limpia.saldo_en = new Date().toISOString()
+        // lo que Alex clasifica a mano es ley: ni las reglas ni la IA lo vuelven a tocar
+        if (tabla === 'fin_movimientos' && ('clase' in limpia || 'categoria' in limpia)) Object.assign(limpia, { clasificado_por: 'alex', sugerencia: null })
         if (tabla === 'fin_objetivos' && limpia.principal) await db.from('fin_objetivos').update({ principal: false }).neq('id', fila?.id || '00000000-0000-0000-0000-000000000000')
         const q = fila?.id
           ? db.from(tabla).update(limpia).eq('id', fila.id)
@@ -357,6 +461,12 @@ export default async function handler(req, res) {
 
       case 'sincronizar':
         return res.status(200).json(await sincronizar(db))
+
+      case 'clasificar':
+        return res.status(200).json(await clasificar(db))
+
+      case 'clasificarUno':
+        return res.status(200).json(await clasificarUno(db, req.body))
 
       case 'subir': {
         const { nombre, tipo, base64, movimientoId, previstoId } = req.body

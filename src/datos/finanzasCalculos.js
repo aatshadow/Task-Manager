@@ -28,6 +28,12 @@ export const AREAS = [
   { valor: 'finanzas', etiqueta: 'Finanzas' },
   { valor: 'inversion', etiqueta: 'Inversión' },
 ]
+// Las categorías con las que se clasifica (a mano, por regla o por la IA) y se dibuja el panel.
+export const CATEGORIAS_GASTO = ['Software', 'IA', 'Infraestructura', 'Publicidad', 'Equipo', 'Comisiones', 'Impuestos', 'Asesoría', 'Residencia', 'Viajes', 'Vivienda', 'Comida', 'Transporte', 'Salud', 'Ocio', 'Formación', 'Efectivo', 'Sueldo', 'Inversión', 'Otros']
+export const CATEGORIAS_INGRESO = ['Clientes', 'Afiliados', 'Reembolsos', 'Intereses', 'Aportación', 'Otros']
+export const CATEGORIAS = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO, 'Transferencia interna'])]
+export const NEGOCIOS = ['CORE', 'EasyBiz', 'Izibizz', 'ScaleInfo', 'GrowthInfo', 'Black Phoenix', 'Personal']
+
 const MES_EN_DIAS = 30.44
 const POR_MES = { semanal: 52 / 12, mensual: 1, trimestral: 1 / 3, anual: 1 / 12 }
 const VENTANA = 30
@@ -241,4 +247,100 @@ export function emparejarInternos(movimientos, cuentas) {
     if (e) { usadas.add(e.id); pares.push([s, e]) }
   }
   return pares
+}
+
+/* ── clasificar (LOGICA §17.5) ──────────────────────────────────────────── */
+
+/** Le falta clase o categoría y no está cancelado: va a la cola de «Por clasificar». */
+export const porClasificar = (m) => m.estado !== 'cancelado' && (!m.clase || !m.categoria)
+
+// el texto con el que casan las reglas: contraparte + concepto, en minúsculas y sin cifras
+// (así «Fib_atm_afib0401» y «Fib_atm_afib0402» son el mismo cajero)
+const normal = (t) => String(t || '').toLowerCase().replace(/[0-9]+/g, '').replace(/\s+/g, ' ').trim()
+export const textoDe = (m) => normal(`${m.contraparte || ''} ${m.descripcion || ''}`)
+/** El patrón que aprende una regla a partir de un movimiento: su contraparte (o su concepto). */
+export const patronDe = (m) => normal(m.contraparte || m.descripcion).slice(0, 60)
+export const sentidoDe = (m) => (Number(m.importe) > 0 ? 'ingreso' : 'gasto')
+export const casaRegla = (m, r) => !!r.patron && textoDe(m).includes(r.patron) && (!r.sentido || r.sentido === sentidoDe(m))
+
+/* ── el panel ───────────────────────────────────────────────────────────── */
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+function agrupar(lista, clave, vacio = 'Sin clasificar') {
+  const mapa = new Map()
+  for (const m of lista) {
+    const k = clave(m) || vacio
+    const g = mapa.get(k) || { clave: k, total: 0, n: 0, movimientos: [] }
+    g.total += m.eur
+    g.n += 1
+    g.movimientos.push(m)
+    mapa.set(k, g)
+  }
+  return [...mapa.values()].sort((a, b) => b.total - a.total)
+}
+
+/**
+ * Todo lo que dibuja el panel, para el periodo [desde, hoy]. Los internos (Wise → Mercury) y lo
+ * cancelado no cuentan: ni entra ni sale dinero. Cada movimiento lleva `eur` (en positivo).
+ */
+export function panel({ cuentas = [], movimientos = [], ajustes = {}, hoy }, desde) {
+  const tasas = ajustes.tasas?.valores || {}
+  const vivos = movimientos.filter(m => m.estado !== 'cancelado')
+  const reales = vivos.filter(m => m.clase !== 'interno')
+  const conEur = (m) => ({ ...m, eur: Math.abs(aBase(m.importe, m.moneda, tasas)) })
+  const enPeriodo = reales.filter(m => (!desde || m.fecha >= desde) && m.fecha <= hoy).map(conEur)
+  const entradas = enPeriodo.filter(m => m.importe > 0)
+  const salidas = enPeriodo.filter(m => m.importe < 0)
+  const entra = entradas.reduce((s, m) => s + m.eur, 0)
+  const sale = salidas.reduce((s, m) => s + m.eur, 0)
+
+  // flujo: por semanas (lunes a domingo) si el periodo cabe en 3 meses; si no, por meses (máx. 12)
+  const primero = enPeriodo.reduce((min, m) => (m.fecha < min ? m.fecha : min), hoy)
+  const arranque = desde && desde > primero ? desde : primero
+  const porSemana = diasEntre(arranque, hoy) <= 92
+  const tramos = []
+  if (porSemana) {
+    let f = sumarDias(arranque, -((aFecha(arranque).getUTCDay() + 6) % 7)) // el lunes de esa semana
+    for (; f <= hoy; f = sumarDias(f, 7)) {
+      const [, mm, dd] = f.split('-').map(Number)
+      tramos.push({ clave: f, hasta: sumarDias(f, 6), etiqueta: `${dd} ${MESES[mm - 1]}`, titulo: `Semana del ${dd} ${MESES[mm - 1]}` })
+    }
+  } else {
+    for (let [a, mm] = arranque.slice(0, 7).split('-').map(Number); `${a}-${String(mm).padStart(2, '0')}` <= hoy.slice(0, 7); mm === 12 ? (a++, mm = 1) : mm++) {
+      const clave = `${a}-${String(mm).padStart(2, '0')}`
+      tramos.push({ clave: `${clave}-01`, hasta: `${clave}-31`, etiqueta: `${MESES[mm - 1]}${mm === 1 || tramos.length === 0 ? ` ${String(a).slice(2)}` : ''}`, titulo: `${MESES[mm - 1]} ${a}` })
+    }
+  }
+  const flujo = tramos.slice(-12).map(t => {
+    const del = enPeriodo.filter(m => m.fecha >= t.clave && m.fecha <= t.hasta)
+    return { ...t, entra: del.filter(m => m.importe > 0).reduce((s, m) => s + m.eur, 0), sale: del.filter(m => m.importe < 0).reduce((s, m) => s + m.eur, 0) }
+  })
+
+  // saldo día a día hacia atrás desde la liquidez de hoy (las cuentas activas mandan)
+  const activas = new Set(cuentas.filter(c => c.activa !== false).map(c => c.id))
+  let saldo = cuentas.filter(c => c.activa !== false).reduce((s, c) => s + aBase(c.saldo, c.moneda, tasas), 0)
+  const porDia = new Map()
+  for (const m of vivos) if (activas.has(m.cuenta_id)) porDia.set(m.fecha, (porDia.get(m.fecha) || 0) + aBase(m.importe, m.moneda, tasas))
+  const inicioSaldo = [...porDia.keys()].reduce((min, f) => (f < min ? f : min), hoy)
+  const desdeSaldo = desde && desde > inicioSaldo ? desde : sumarDias(inicioSaldo, -1)
+  const serie = []
+  for (let f = hoy; f >= desdeSaldo; f = sumarDias(f, -1)) {
+    serie.push({ fecha: f, saldo })
+    saldo -= porDia.get(f) || 0 // el saldo al cierre del día anterior
+  }
+  serie.reverse()
+
+  const dias = Math.max(1, diasEntre(arranque, hoy) + 1)
+  return {
+    entra, sale, neto: entra - sale, ahorro: entra > 0 ? (entra - sale) / entra : null, gastoDia: sale / dias,
+    n: enPeriodo.length, sinClasificar: enPeriodo.filter(porClasificar).length,
+    flujo, porSemana, serie,
+    categorias: agrupar(salidas, m => m.categoria),
+    clases: agrupar(salidas, m => CLASES.find(c => c.valor === m.clase)?.etiqueta),
+    clientes: agrupar(entradas, m => m.contraparte || m.descripcion).slice(0, 8),
+    // «Fib_atm_afib0401» y «…0402» son el mismo cajero: fuera el número del final
+    comercios: agrupar(salidas, m => (m.contraparte || m.descripcion || '').replace(/[\s_-]*\d+$/, '')).slice(0, 10),
+    negocios: agrupar(salidas, m => m.negocio, 'Sin negocio'),
+  }
 }

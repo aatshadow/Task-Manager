@@ -5,16 +5,19 @@ import Vacio from '../../componentes/Vacio.jsx'
 import { Landmark } from 'lucide-react'
 import { useDatos } from '../../estado/useDatos.jsx'
 import * as fin from '../../datos/finanzas.js'
-import { resumen, proyeccion } from '../../datos/finanzasCalculos.js'
+import { resumen, proyeccion, porClasificar } from '../../datos/finanzasCalculos.js'
 import Resumen from './Resumen.jsx'
+import Panel from './Panel.jsx'
 import Plan from './Plan.jsx'
 import Libro from './Libro.jsx'
 import Asesor from './Asesor.jsx'
 import HojaEditar from './HojaEditar.jsx'
+import HojaClasificar from './HojaClasificar.jsx'
 import './finanzas.css'
 
 const VISTAS = [
   { valor: 'resumen', etiqueta: 'Resumen' },
+  { valor: 'panel', etiqueta: 'Panel' },
   { valor: 'plan', etiqueta: 'Plan' },
   { valor: 'libro', etiqueta: 'Libro' },
   { valor: 'asesor', etiqueta: 'Asesor' },
@@ -31,9 +34,11 @@ export default function Finanzas() {
   const [d, setD] = useState(null)
   const [error, setError] = useState(null)
   const [editando, setEditando] = useState(null) // { tipo, fila }
+  const [clasificando, setClasificando] = useState(null) // { id, cola }
+  const [filtroLibro, setFiltroLibro] = useState('todo')
 
   const recargar = useCallback(async () => {
-    try { setD(await fin.cargar()); setError(null) } catch (e) { setError(e.message) }
+    try { const nuevo = await fin.cargar(); setD(nuevo); setError(null); return nuevo } catch (e) { setError(e.message); return null }
   }, [])
   useEffect(() => { recargar() }, [recargar])
   useEffect(() => { try { localStorage.setItem('fin-vista', vista) } catch { /* sin almacenamiento */ } }, [vista])
@@ -49,6 +54,12 @@ export default function Finanzas() {
   }, [avisar, recargar])
 
   const editar = (tipo, fila = {}) => setEditando({ tipo, fila })
+  // sin id: la cola entera, del más reciente al más viejo; con id: sólo ese
+  const clasificar = (id) => {
+    const primero = id || d?.movimientos.find(porClasificar)?.id
+    if (primero) setClasificando({ id: primero, cola: !id })
+  }
+  const irALibro = (filtro) => { setFiltroLibro(filtro); setVista('libro') }
 
   if (error && !d) {
     return (
@@ -59,14 +70,16 @@ export default function Finanzas() {
   }
   if (!d) return <div className="pantalla"><div className="fz-cargando">Leyendo tus cuentas…</div></div>
 
-  const comun = { d, calc, guardar, borrar, editar, recargar, avisar }
+  const comun = { d, calc, guardar, borrar, editar, recargar, avisar, clasificar, irALibro }
   return (
     <div className="pantalla fz">
       <Segmentos opciones={VISTAS} valor={vista} alCambiar={setVista} className="fz-vistas" />
       {vista === 'resumen' && <Resumen {...comun} />}
+      {vista === 'panel' && <Panel {...comun} />}
       {vista === 'plan' && <Plan {...comun} />}
-      {vista === 'libro' && <Libro {...comun} />}
+      {vista === 'libro' && <Libro {...comun} filtro={filtroLibro} setFiltro={setFiltroLibro} />}
       {vista === 'asesor' && <Asesor {...comun} />}
+      <HojaClasificar clasificando={clasificando} d={d} alCerrar={() => setClasificando(null)} recargar={recargar} avisar={avisar} alSiguiente={(id) => setClasificando(c => ({ ...c, id }))} />
       <HojaEditar editando={editando} d={d} alCerrar={() => setEditando(null)} guardar={guardar} borrar={borrar} avisar={avisar} recargar={recargar} />
     </div>
   )
